@@ -1,0 +1,75 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Local runtime data and databases
+data/
+backend/data/
+frontend/data/
+*.db
+*.sqlite
+*.sqlite3
+auth_tracker_backup.json
+*.backup.json
+*.bak
+
+# Python virtual environments
+.venv/
+venv/
+env/
+backend/.venv/
+backend/venv/
+backend/env/
+
+# Python cache/build/test output
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyre/
+.coverage
+htmlcov/
+build/
+*.egg-info/
+.eggs/
+
+# Node dependencies and frontend build output
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+.vite/
+frontend/.vite/
+.cache/
+frontend/.cache/
+coverage/
+*.tsbuildinfo
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Streamlit secrets
+.streamlit/secrets.toml
+backend/.streamlit/secrets.toml
+
+# Editor / IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
