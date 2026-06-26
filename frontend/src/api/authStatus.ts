@@ -184,6 +184,8 @@ export interface CreateAuthRequestPayload {
   care_manager_details?: string;
 }
 
+export type UpdateAuthRequestPayload = Partial<CreateAuthRequestPayload>;
+
 export async function createAuthRequest(payload: CreateAuthRequestPayload): Promise<AuthRequest> {
   const response = await fetch(`${API_BASE_URL}/api/auths`, {
     method: 'POST',
@@ -195,6 +197,26 @@ export async function createAuthRequest(payload: CreateAuthRequestPayload): Prom
 
   if (!response.ok) {
     throw new Error(`Failed to create authorization record: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return mapApiAuthToAuthRequest(data);
+}
+
+export async function updateAuthRequest(
+  id: string,
+  payload: UpdateAuthRequestPayload,
+): Promise<AuthRequest> {
+  const response = await fetch(`${API_BASE_URL}/api/auths/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to update authorization record: ${response.status}`);
   }
 
   const data = await response.json();

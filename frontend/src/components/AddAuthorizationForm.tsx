@@ -42,6 +42,7 @@ interface AddAuthorizationFormProps {
   form: NewAuthFormState;
   darkMode: boolean;
   isCreatingAuth: boolean;
+  submitLabel: string;
   registeredFacilities: string[];
   registeredInsurances: string[];
   registeredWebPortals: string[];
@@ -54,6 +55,7 @@ export function AddAuthorizationForm({
   form,
   darkMode,
   isCreatingAuth,
+  submitLabel,
   registeredFacilities,
   registeredInsurances,
   registeredWebPortals,
@@ -421,7 +423,7 @@ export function AddAuthorizationForm({
               : 'bg-blue-600 text-white hover:bg-blue-700',
           )}
         >
-          {isCreatingAuth ? 'Adding...' : 'Add Authorization'}
+          {isCreatingAuth ? 'Saving...' : submitLabel}
         </button>
       </div>
     </form>

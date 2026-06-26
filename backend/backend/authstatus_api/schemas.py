@@ -65,6 +65,9 @@ class AuthUpdate(BaseModel):
     days_approved: str | None = None
     auth_start_date: str | None = None
     auth_end_date: str | None = None
+    requested_days: int | None = Field(default=None, ge=0)
+    approved_days: int | None = Field(default=None, ge=0)
+    care_manager_details: str | None = None
 
     model_config = ConfigDict(extra="forbid")
 

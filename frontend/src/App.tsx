@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Dispatch, FormEvent, SetStateAction } from 'react';
 import { subDays } from 'date-fns';
 import { AuthRequest } from './data/mockData';
-import { createAuthRequest, deleteAuthRequest, fetchAuthRequests } from './api/authStatus';
+import {
+  createAuthRequest,
+  deleteAuthRequest,
+  fetchAuthRequests,
+  updateAuthRequest,
+} from './api/authStatus';
 import { AddAuthorizationForm } from './components/AddAuthorizationForm';
 import {
   DEFAULT_FACILITIES,
@@ -90,6 +95,7 @@ function App() {
   const [newFacilityName, setNewFacilityName] = useState('');
   const [newInsuranceName, setNewInsuranceName] = useState('');
   const [newWebPortalName, setNewWebPortalName] = useState('');
+  const [editingAuthId, setEditingAuthId] = useState<string | null>(null);
   const [newAuthForm, setNewAuthForm] = useState({
     clientName: '',
     facility: registeredFacilities[0] ?? '',
@@ -218,6 +224,44 @@ function App() {
     });
   };
 
+  const loadAuthIntoForm = (auth: AuthRequest) => {
+    setNewAuthForm({
+      clientName: auth.patientId,
+      facility: auth.facility,
+      loc: auth.loc || 'RTC',
+      status: auth.status || 'Pending',
+      requestedDays: String(auth.requestedDays ?? ''),
+      approvedDays: String(auth.approvedDays ?? ''),
+      insurance: auth.payer,
+      authType: auth.authType || 'Initial',
+      submissionMethod: 'Web Portal',
+      phoneNumber: '',
+      phoneExtension: '',
+      faxNumber: '',
+      webPortal: registeredWebPortals[0] ?? '',
+      webPortalUrl: '',
+      hasCareManager: false,
+      careManagerName: '',
+      careManagerContactType: 'Phone',
+      careManagerPhone: '',
+      careManagerFax: '',
+      careManagerNotes: '',
+    });
+  };
+
+  const handleStartEditAuth = (auth: AuthRequest) => {
+    loadAuthIntoForm(auth);
+    setEditingAuthId(auth.id);
+    setShowAddAuthForm(true);
+    setAuthsError(null);
+  };
+  
+  const handleCancelAuthForm = () => {
+    resetNewAuthForm();
+    setEditingAuthId(null);
+    setShowAddAuthForm(false);
+  };
+
   useEffect(() => {
     if (!registeredFacilities.includes(newAuthForm.facility)) {
       handleNewAuthFieldChange('facility', registeredFacilities[0] ?? '');
@@ -251,7 +295,7 @@ function App() {
     setAuthsError(null);
   
     try {
-      const createdAuth = await createAuthRequest({
+      const payload = {
         client_name: newAuthForm.clientName.trim(),
         facility: newAuthForm.facility.trim(),
         loc: newAuthForm.loc,
@@ -266,22 +310,33 @@ function App() {
             : newAuthForm.submissionMethod === 'Fax'
               ? `Fax: ${newAuthForm.faxNumber}`
               : `Web Portal: ${newAuthForm.webPortal}${newAuthForm.webPortalUrl ? ` (${newAuthForm.webPortalUrl})` : ''}`,
-              care_manager_details: newAuthForm.hasCareManager
-                ? [
-                    `Name: ${newAuthForm.careManagerName.trim() || 'Not provided'}`,
-                    `Contact Type: ${newAuthForm.careManagerContactType}`,
-                    newAuthForm.careManagerContactType === 'Phone'
-                      ? `Phone: ${newAuthForm.careManagerPhone || 'Not provided'}`
-                      : `Fax: ${newAuthForm.careManagerFax || 'Not provided'}`,
-                    newAuthForm.careManagerNotes.trim() ? `Notes: ${newAuthForm.careManagerNotes.trim()}` : '',
-                  ]
-                    .filter(Boolean)
-                    .join('\n')
-                : '',
-      });
-  
-      setAuthRequests((currentAuths) => [createdAuth, ...currentAuths]);
+        care_manager_details: newAuthForm.hasCareManager
+          ? [
+              `Name: ${newAuthForm.careManagerName.trim() || 'Not provided'}`,
+              `Contact Type: ${newAuthForm.careManagerContactType}`,
+              newAuthForm.careManagerContactType === 'Phone'
+                ? `Phone: ${newAuthForm.careManagerPhone || 'Not provided'}`
+                : `Fax: ${newAuthForm.careManagerFax || 'Not provided'}`,
+              newAuthForm.careManagerNotes.trim() ? `Notes: ${newAuthForm.careManagerNotes.trim()}` : '',
+            ]
+              .filter(Boolean)
+              .join('\n')
+          : '',
+      };
+    
+      if (editingAuthId) {
+        const updatedAuth = await updateAuthRequest(editingAuthId, payload);
+    
+        setAuthRequests((currentAuths) =>
+          currentAuths.map((auth) => (auth.id === editingAuthId ? updatedAuth : auth)),
+        );
+      } else {
+        const createdAuth = await createAuthRequest(payload);
+        setAuthRequests((currentAuths) => [createdAuth, ...currentAuths]);
+      }
+    
       resetNewAuthForm();
+      setEditingAuthId(null);
       setShowAddAuthForm(false);
     } catch (error) {
       setAuthsError(error instanceof Error ? error.message : 'Failed to create authorization record.');
@@ -537,7 +592,7 @@ function App() {
                           : 'bg-blue-600 text-white hover:bg-blue-700',
                       )}
                     >
-                      {showAddAuthForm ? 'Close Form' : 'Add Authorization'}
+                      {showAddAuthForm ? (editingAuthId ? 'Close Edit' : 'Close Form') : 'Add Authorization'}
                     </button>
                   </div>
 
@@ -546,21 +601,20 @@ function App() {
                       form={newAuthForm}
                       darkMode={darkMode}
                       isCreatingAuth={isCreatingAuth}
+                      submitLabel={editingAuthId ? 'Save Changes' : 'Add Authorization'}
                       registeredFacilities={registeredFacilities}
                       registeredInsurances={registeredInsurances}
                       registeredWebPortals={registeredWebPortals}
                       onFieldChange={handleNewAuthFieldChange}
                       onSubmit={handleCreateAuth}
-                      onCancel={() => {
-                        resetNewAuthForm();
-                        setShowAddAuthForm(false);
-                      }}
+                      onCancel={handleCancelAuthForm}
                     />
                   )}
 
                   <DataTable
                     data={filteredData}
                     darkMode={darkMode}
+                    onEdit={handleStartEditAuth}
                     onDelete={handleDeleteAuth}
                     deletingId={deletingAuthId}
                   />

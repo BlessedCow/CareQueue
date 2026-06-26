@@ -7,6 +7,7 @@ import { ArrowUpDown, Search, Trash2 } from 'lucide-react';
 interface DataTableProps {
   data: AuthRequest[];
   darkMode: boolean;
+  onEdit?: (auth: AuthRequest) => void;
   onDelete?: (auth: AuthRequest) => void;
   deletingId?: string | null;
 }
@@ -14,7 +15,7 @@ interface DataTableProps {
 type SortField = 'date' | 'patientId' | 'facility' | 'status';
 type SortOrder = 'asc' | 'desc';
 
-export function DataTable({ data, darkMode, onDelete, deletingId }: DataTableProps) {
+export function DataTable({ data, darkMode, onEdit, onDelete, deletingId }: DataTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -138,24 +139,39 @@ export function DataTable({ data, darkMode, onDelete, deletingId }: DataTablePro
                   </span>
                 </td>
                 <td className={cn(tdClass, 'text-right')}>
-                {onDelete && (
-                  <button
-                    type="button"
-                    onClick={() => onDelete(row)}
-                    disabled={deletingId === row.id}
-                    className={cn(
-                      'inline-flex items-center justify-end gap-1 font-medium transition-colors disabled:cursor-not-allowed',
-                      darkMode
-                        ? 'text-red-400 hover:text-red-300 disabled:text-gray-600'
-                        : 'text-red-600 hover:text-red-700 disabled:text-gray-400',
+                  <div className="flex items-center justify-end gap-3">
+                    {onEdit && (
+                      <button
+                        type="button"
+                        onClick={() => onEdit(row)}
+                        className={cn(
+                          'font-medium transition-colors',
+                          darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700',
+                        )}
+                      >
+                        Edit
+                      </button>
                     )}
-                    aria-label={`Delete authorization record for ${row.patientId}`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    <span>{deletingId === row.id ? 'Deleting...' : 'Delete'}</span>
-                  </button>
-                )}
-              </td>
+
+                    {onDelete && (
+                      <button
+                        type="button"
+                        onClick={() => onDelete(row)}
+                        disabled={deletingId === row.id}
+                        className={cn(
+                          'inline-flex items-center justify-end gap-1 font-medium transition-colors disabled:cursor-not-allowed',
+                          darkMode
+                            ? 'text-red-400 hover:text-red-300 disabled:text-gray-600'
+                            : 'text-red-600 hover:text-red-700 disabled:text-gray-400',
+                        )}
+                        aria-label={`Delete authorization record for ${row.patientId}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span>{deletingId === row.id ? 'Deleting...' : 'Delete'}</span>
+                      </button>
+                    )}
+                  </div>
+                </td>
                 </tr>
             ))}
             {filteredAndSortedData.length === 0 && (
