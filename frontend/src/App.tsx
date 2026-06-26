@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AuthRequest, Facility } from './data/mockData';
-import { deleteAuthRequest, fetchAuthRequests } from './api/authStatus';
+import type { Dispatch, FormEvent, SetStateAction } from 'react';
 import { subDays } from 'date-fns';
+import { AuthRequest } from './data/mockData';
+import { createAuthRequest, deleteAuthRequest, fetchAuthRequests } from './api/authStatus';
+import {
+  DEFAULT_FACILITIES,
+  DEFAULT_INSURANCES,
+  DEFAULT_WEB_PORTALS,
+} from './data/defaultSettings';
 import {
   Activity,
   Bell,
@@ -21,6 +27,32 @@ import Filters from './components/Filters';
 
 type AppPage = 'dashboard' | 'authorizations' | 'settings';
 
+const SETTINGS_STORAGE_KEYS = {
+  facilities: 'carequeue.registeredFacilities',
+  insurances: 'carequeue.registeredInsurances',
+  webPortals: 'carequeue.registeredWebPortals',
+};
+
+const loadStoredList = (key: string, fallback: string[]) => {
+  try {
+    const storedValue = window.localStorage.getItem(key);
+
+    if (!storedValue) {
+      return fallback;
+    }
+
+    const parsedValue = JSON.parse(storedValue);
+
+    if (!Array.isArray(parsedValue)) {
+      return fallback;
+    }
+
+    return parsedValue.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+  } catch {
+    return fallback;
+  }
+};
+
 function App() {
   const [darkMode, setDarkMode] = useState(true);
   const [activePage, setActivePage] = useState<AppPage>('dashboard');
@@ -30,6 +62,47 @@ function App() {
   const [isLoadingAuths, setIsLoadingAuths] = useState(true);
   const [authsError, setAuthsError] = useState<string | null>(null);
   const [deletingAuthId, setDeletingAuthId] = useState<string | null>(null);
+  const [showAddAuthForm, setShowAddAuthForm] = useState(false);
+  const [isCreatingAuth, setIsCreatingAuth] = useState(false);
+  const [registeredFacilities, setRegisteredFacilities] = useState(() =>
+    loadStoredList(SETTINGS_STORAGE_KEYS.facilities, DEFAULT_FACILITIES),
+  );
+  const [registeredInsurances, setRegisteredInsurances] = useState(() =>
+    loadStoredList(SETTINGS_STORAGE_KEYS.insurances, DEFAULT_INSURANCES),
+  );
+  const [registeredWebPortals, setRegisteredWebPortals] = useState(() =>
+    loadStoredList(SETTINGS_STORAGE_KEYS.webPortals, DEFAULT_WEB_PORTALS),
+  );
+  
+  useEffect(() => {
+    window.localStorage.setItem(SETTINGS_STORAGE_KEYS.facilities, JSON.stringify(registeredFacilities));
+  }, [registeredFacilities]);
+  
+  useEffect(() => {
+    window.localStorage.setItem(SETTINGS_STORAGE_KEYS.insurances, JSON.stringify(registeredInsurances));
+  }, [registeredInsurances]);
+  
+  useEffect(() => {
+    window.localStorage.setItem(SETTINGS_STORAGE_KEYS.webPortals, JSON.stringify(registeredWebPortals));
+  }, [registeredWebPortals]);
+  
+  const [newFacilityName, setNewFacilityName] = useState('');
+  const [newInsuranceName, setNewInsuranceName] = useState('');
+  const [newWebPortalName, setNewWebPortalName] = useState('');
+  const [newAuthForm, setNewAuthForm] = useState({
+    clientName: '',
+    facility: registeredFacilities[0] ?? '',
+    loc: 'RTC',
+    status: 'Pending',
+    insurance: registeredInsurances[0] ?? '',
+    authType: 'Initial',
+    submissionMethod: 'Web Portal',
+    phoneNumber: '',
+    phoneExtension: '',
+    faxNumber: '',
+    webPortal: registeredWebPortals[0] ?? '',
+    webPortalUrl: '',
+  });
   const navigationItems: {
     page: AppPage;
     label: string;
@@ -84,7 +157,7 @@ function App() {
 
   const handleDeleteAuth = async (auth: AuthRequest) => {
     const confirmed = window.confirm(
-      `Delete authorization record for ${auth.clientName}? This cannot be undone.`,
+      `Delete authorization record for ${auth.patientId}? This cannot be undone.`,
     );
   
     if (!confirmed) {
@@ -102,6 +175,116 @@ function App() {
     } finally {
       setDeletingAuthId(null);
     }
+  };
+
+  const handleNewAuthFieldChange = (field: keyof typeof newAuthForm, value: string) => {
+    setNewAuthForm((currentForm) => ({
+      ...currentForm,
+      [field]: value,
+    }));
+  };
+  
+  const resetNewAuthForm = () => {
+    setNewAuthForm({
+      clientName: '',
+      facility: registeredFacilities[0] ?? '',
+      loc: 'RTC',
+      status: 'Pending',
+      insurance: registeredInsurances[0] ?? '',
+      authType: 'Initial',
+      submissionMethod: 'Web Portal',
+      phoneNumber: '',
+      phoneExtension: '',
+      faxNumber: '',
+      webPortal: registeredWebPortals[0] ?? '',
+      webPortalUrl: '',
+    });
+  };
+
+  useEffect(() => {
+    if (!registeredFacilities.includes(newAuthForm.facility)) {
+      handleNewAuthFieldChange('facility', registeredFacilities[0] ?? '');
+    }
+  
+    if (!registeredInsurances.includes(newAuthForm.insurance)) {
+      handleNewAuthFieldChange('insurance', registeredInsurances[0] ?? '');
+    }
+  
+    if (!registeredWebPortals.includes(newAuthForm.webPortal)) {
+      handleNewAuthFieldChange('webPortal', registeredWebPortals[0] ?? '');
+    }
+  }, [
+    registeredFacilities,
+    registeredInsurances,
+    registeredWebPortals,
+    newAuthForm.facility,
+    newAuthForm.insurance,
+    newAuthForm.webPortal,
+  ]);
+  
+  const handleCreateAuth = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+  
+    if (!newAuthForm.clientName.trim() || !newAuthForm.facility.trim() || !newAuthForm.insurance.trim()) {
+      setAuthsError('Client name, facility, and insurance are required.');
+      return;
+    }
+  
+    setIsCreatingAuth(true);
+    setAuthsError(null);
+  
+    try {
+      const createdAuth = await createAuthRequest({
+        client_name: newAuthForm.clientName.trim(),
+        facility: newAuthForm.facility.trim(),
+        loc: newAuthForm.loc,
+        status: newAuthForm.status,
+        insurance: newAuthForm.insurance.trim(),
+        auth_type: newAuthForm.authType,
+        submission_methods:
+          newAuthForm.submissionMethod === 'Live Call' || newAuthForm.submissionMethod === 'Voicemail'
+            ? `${newAuthForm.submissionMethod}: ${newAuthForm.phoneNumber}${newAuthForm.phoneExtension ? ` ext. ${newAuthForm.phoneExtension}` : ''}`
+            : newAuthForm.submissionMethod === 'Fax'
+              ? `Fax: ${newAuthForm.faxNumber}`
+              : `Web Portal: ${newAuthForm.webPortal}${newAuthForm.webPortalUrl ? ` (${newAuthForm.webPortalUrl})` : ''}`,
+      });
+  
+      setAuthRequests((currentAuths) => [createdAuth, ...currentAuths]);
+      resetNewAuthForm();
+      setShowAddAuthForm(false);
+    } catch (error) {
+      setAuthsError(error instanceof Error ? error.message : 'Failed to create authorization record.');
+    } finally {
+      setIsCreatingAuth(false);
+    }
+  };
+
+  const addRegisteredItem = (
+    value: string,
+    currentItems: string[],
+    setItems: Dispatch<SetStateAction<string[]>>,
+    clearValue: () => void,
+  ) => {
+    const trimmedValue = value.trim();
+  
+    if (!trimmedValue) {
+      return;
+    }
+  
+    if (currentItems.some((item) => item.toLowerCase() === trimmedValue.toLowerCase())) {
+      clearValue();
+      return;
+    }
+  
+    setItems((items) => [...items, trimmedValue].sort());
+    clearValue();
+  };
+  
+  const removeRegisteredItem = (
+    value: string,
+    setItems: Dispatch<SetStateAction<string[]>>,
+  ) => {
+    setItems((items) => items.filter((item) => item !== value));
   };
 
   const filteredData = useMemo(() => {
@@ -305,14 +488,266 @@ function App() {
                 />
 
                 <div className={`rounded-xl border p-5 shadow-sm overflow-hidden flex flex-col ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-                  <div className="flex items-center justify-between mb-4 shrink-0">
+                  <div className="flex items-center justify-between gap-4 mb-4 shrink-0">
                     <div>
                       <h3 className="text-lg font-semibold">Authorization Work Queue</h3>
                       <p className={cn('text-sm mt-1', darkMode ? 'text-gray-400' : 'text-gray-600')}>
                         View authorization records by facility and date range.
                       </p>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowAddAuthForm((currentValue) => !currentValue)}
+                      className={cn(
+                        'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
+                        darkMode
+                          ? 'bg-blue-600 text-white hover:bg-blue-500'
+                          : 'bg-blue-600 text-white hover:bg-blue-700',
+                      )}
+                    >
+                      {showAddAuthForm ? 'Close Form' : 'Add Authorization'}
+                    </button>
                   </div>
+
+                  {showAddAuthForm && (
+                    <form
+                      onSubmit={handleCreateAuth}
+                      className={cn(
+                        'mb-5 grid gap-4 rounded-lg border p-4 md:grid-cols-2',
+                        darkMode ? 'border-gray-800 bg-gray-950/60' : 'border-gray-200 bg-gray-50',
+                      )}
+                    >
+                      <label className="space-y-1 text-sm">
+                        <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Client Name</span>
+                        <input
+                          type="text"
+                          value={newAuthForm.clientName}
+                          onChange={(event) => handleNewAuthFieldChange('clientName', event.target.value)}
+                          className={cn(
+                            'w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
+                            darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900',
+                          )}
+                        />
+                      </label>
+
+                      <label className="space-y-1 text-sm">
+                      <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Facility</span>
+                      <select
+                        value={newAuthForm.facility}
+                        onChange={(event) => handleNewAuthFieldChange('facility', event.target.value)}
+                        className={cn(
+                          'w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
+                          darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900',
+                        )}
+                      >
+                        {registeredFacilities.map((facility) => (
+                          <option key={facility} value={facility}>
+                            {facility}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                      <label className="space-y-1 text-sm">
+                        <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>LOC</span>
+                        <select
+                          value={newAuthForm.loc}
+                          onChange={(event) => handleNewAuthFieldChange('loc', event.target.value)}
+                          className={cn(
+                            'w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
+                            darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900',
+                          )}
+                        >
+                          <option value="DTX">DTX</option>
+                          <option value="RTC">RTC</option>
+                          <option value="PHP">PHP</option>
+                          <option value="IOP">IOP</option>
+                        </select>
+                      </label>
+
+                      <label className="space-y-1 text-sm">
+                        <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Status</span>
+                        <select
+                          value={newAuthForm.status}
+                          onChange={(event) => handleNewAuthFieldChange('status', event.target.value)}
+                          className={cn(
+                            'w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
+                            darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900',
+                          )}
+                        >
+                          <option value="Pending">Pending</option>
+                          <option value="Approved">Approved</option>
+                          <option value="Denied">Denied</option>
+                          <option value="Needs Review">Needs Review</option>
+                        </select>
+                      </label>
+
+                      <label className="space-y-1 text-sm">
+                        <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Insurance</span>
+                        <select
+                          value={newAuthForm.insurance}
+                          onChange={(event) => handleNewAuthFieldChange('insurance', event.target.value)}
+                          className={cn(
+                            'w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
+                            darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900',
+                          )}
+                        >
+                          {registeredInsurances.map((insurance) => (
+                            <option key={insurance} value={insurance}>
+                              {insurance}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="space-y-1 text-sm">
+                        <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Auth Type</span>
+                        <select
+                          value={newAuthForm.authType}
+                          onChange={(event) => handleNewAuthFieldChange('authType', event.target.value)}
+                          className={cn(
+                            'w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
+                            darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900',
+                          )}
+                        >
+                          <option value="Initial">Initial</option>
+                          <option value="Concurrent">Concurrent</option>
+                          <option value="Retro">Retro</option>
+                        </select>
+                      </label>
+
+                      <label className="space-y-1 text-sm">
+                        <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Submission Method</span>
+                        <select
+                          value={newAuthForm.submissionMethod}
+                          onChange={(event) => handleNewAuthFieldChange('submissionMethod', event.target.value)}
+                          className={cn(
+                            'w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
+                            darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900',
+                          )}
+                        >
+                          <option value="Web Portal">Web Portal</option>
+                          <option value="Live Call">Live Call</option>
+                          <option value="Voicemail">Voicemail</option>
+                          <option value="Fax">Fax</option>
+                        </select>
+                      </label>
+
+                      {(newAuthForm.submissionMethod === 'Live Call' || newAuthForm.submissionMethod === 'Voicemail') && (
+                        <>
+                          <label className="space-y-1 text-sm">
+                            <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Phone Number</span>
+                            <input
+                              type="tel"
+                              value={newAuthForm.phoneNumber}
+                              onChange={(event) => handleNewAuthFieldChange('phoneNumber', event.target.value)}
+                              className={cn(
+                                'w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
+                                darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900',
+                              )}
+                            />
+                          </label>
+
+                          <label className="space-y-1 text-sm">
+                            <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Extension</span>
+                            <input
+                              type="text"
+                              value={newAuthForm.phoneExtension}
+                              onChange={(event) => handleNewAuthFieldChange('phoneExtension', event.target.value)}
+                              className={cn(
+                                'w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
+                                darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900',
+                              )}
+                            />
+                          </label>
+                        </>
+                      )}
+
+                      {newAuthForm.submissionMethod === 'Fax' && (
+                        <label className="space-y-1 text-sm md:col-span-2">
+                          <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Fax Number</span>
+                          <input
+                            type="tel"
+                            value={newAuthForm.faxNumber}
+                            onChange={(event) => handleNewAuthFieldChange('faxNumber', event.target.value)}
+                            className={cn(
+                              'w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
+                              darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900',
+                            )}
+                          />
+                        </label>
+                      )}
+
+                      {newAuthForm.submissionMethod === 'Web Portal' && (
+                        <>
+                          <label className="space-y-1 text-sm">
+                            <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Portal</span>
+                            <select
+                              value={newAuthForm.webPortal}
+                              onChange={(event) => handleNewAuthFieldChange('webPortal', event.target.value)}
+                              className={cn(
+                                'w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
+                                darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900',
+                              )}
+                            >
+                              {registeredWebPortals.map((portal) => (
+                                <option key={portal} value={portal}>
+                                  {portal}
+                                </option>
+                              ))}
+                              <option value="Other">Other</option>
+                            </select>
+                          </label>
+
+                          <label className="space-y-1 text-sm">
+                            <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Portal Link</span>
+                            <input
+                              type="url"
+                              value={newAuthForm.webPortalUrl}
+                              onChange={(event) => handleNewAuthFieldChange('webPortalUrl', event.target.value)}
+                              placeholder={newAuthForm.webPortal === 'Other' ? 'Enter new portal link' : 'Optional portal link'}
+                              className={cn(
+                                'w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
+                                darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900',
+                              )}
+                            />
+                          </label>
+                        </>
+                      )}
+
+                      <div className="flex items-end justify-end gap-2 md:col-span-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            resetNewAuthForm();
+                            setShowAddAuthForm(false);
+                          }}
+                          className={cn(
+                            'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
+                            darkMode
+                              ? 'bg-gray-800 text-gray-200 hover:bg-gray-700'
+                              : 'bg-gray-200 text-gray-800 hover:bg-gray-300',
+                          )}
+                        >
+                          Cancel
+                        </button>
+
+                        <button
+                          type="submit"
+                          disabled={isCreatingAuth}
+                          className={cn(
+                            'rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-70',
+                            darkMode
+                              ? 'bg-blue-600 text-white hover:bg-blue-500'
+                              : 'bg-blue-600 text-white hover:bg-blue-700',
+                          )}
+                        >
+                          {isCreatingAuth ? 'Adding...' : 'Add Authorization'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
 
                   <DataTable
                     data={filteredData}
@@ -325,13 +760,168 @@ function App() {
             )}
 
             {activePage === 'settings' && (
-              <div className={cn('rounded-xl border p-6', darkMode ? 'bg-gray-900/50 border-gray-800' : 'bg-white border-gray-200')}>
-                <h3 className={cn('text-lg font-semibold mb-2', darkMode ? 'text-white' : 'text-gray-900')}>
-                  Settings
-                </h3>
-                <p className={cn('text-sm', darkMode ? 'text-gray-400' : 'text-gray-600')}>
-                  Settings for API connection, display preferences, and local workflow options will live here.
-                </p>
+              <div className="grid gap-6 lg:grid-cols-3">
+                <div className={cn('rounded-xl border p-6', darkMode ? 'bg-gray-900/50 border-gray-800' : 'bg-white border-gray-200')}>
+                  <h3 className={cn('text-lg font-semibold mb-2', darkMode ? 'text-white' : 'text-gray-900')}>
+                    Registered Facilities
+                  </h3>
+                  <p className={cn('mb-4 text-sm', darkMode ? 'text-gray-400' : 'text-gray-600')}>
+                    Facilities available when creating authorization records.
+                  </p>
+
+                  <div className="mb-4 flex gap-2">
+                    <input
+                      type="text"
+                      value={newFacilityName}
+                      onChange={(event) => setNewFacilityName(event.target.value)}
+                      placeholder="Add facility"
+                      className={cn(
+                        'min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
+                        darkMode
+                          ? 'border-gray-700 bg-gray-900 text-gray-100 placeholder-gray-500'
+                          : 'border-gray-300 bg-white text-gray-900 placeholder-gray-400',
+                      )}
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        addRegisteredItem(newFacilityName, registeredFacilities, setRegisteredFacilities, () => setNewFacilityName(''))
+                      }
+                      className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                    >
+                      Add
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {registeredFacilities.map((facility) => (
+                      <div
+                        key={facility}
+                        className={cn(
+                          'flex items-center justify-between rounded-lg border px-3 py-2 text-sm',
+                          darkMode ? 'border-gray-800 bg-gray-950/60' : 'border-gray-200 bg-gray-50',
+                        )}
+                      >
+                        <span>{facility}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeRegisteredItem(facility, setRegisteredFacilities)}
+                          className={darkMode ? 'text-red-400 hover:text-red-300' : 'text-red-600 hover:text-red-700'}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className={cn('rounded-xl border p-6', darkMode ? 'bg-gray-900/50 border-gray-800' : 'bg-white border-gray-200')}>
+                  <h3 className={cn('text-lg font-semibold mb-2', darkMode ? 'text-white' : 'text-gray-900')}>
+                    Registered Insurances
+                  </h3>
+                  <p className={cn('mb-4 text-sm', darkMode ? 'text-gray-400' : 'text-gray-600')}>
+                    Insurance options available when creating authorization records.
+                  </p>
+
+                  <div className="mb-4 flex gap-2">
+                    <input
+                      type="text"
+                      value={newInsuranceName}
+                      onChange={(event) => setNewInsuranceName(event.target.value)}
+                      placeholder="Add insurance"
+                      className={cn(
+                        'min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
+                        darkMode
+                          ? 'border-gray-700 bg-gray-900 text-gray-100 placeholder-gray-500'
+                          : 'border-gray-300 bg-white text-gray-900 placeholder-gray-400',
+                      )}
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        addRegisteredItem(newInsuranceName, registeredInsurances, setRegisteredInsurances, () => setNewInsuranceName(''))
+                      }
+                      className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                    >
+                      Add
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {registeredInsurances.map((insurance) => (
+                      <div
+                        key={insurance}
+                        className={cn(
+                          'flex items-center justify-between rounded-lg border px-3 py-2 text-sm',
+                          darkMode ? 'border-gray-800 bg-gray-950/60' : 'border-gray-200 bg-gray-50',
+                        )}
+                      >
+                        <span>{insurance}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeRegisteredItem(insurance, setRegisteredInsurances)}
+                          className={darkMode ? 'text-red-400 hover:text-red-300' : 'text-red-600 hover:text-red-700'}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className={cn('rounded-xl border p-6', darkMode ? 'bg-gray-900/50 border-gray-800' : 'bg-white border-gray-200')}>
+                  <h3 className={cn('text-lg font-semibold mb-2', darkMode ? 'text-white' : 'text-gray-900')}>
+                    Web Portals
+                  </h3>
+                  <p className={cn('mb-4 text-sm', darkMode ? 'text-gray-400' : 'text-gray-600')}>
+                    Portal options available for web portal submissions.
+                  </p>
+
+                  <div className="mb-4 flex gap-2">
+                    <input
+                      type="text"
+                      value={newWebPortalName}
+                      onChange={(event) => setNewWebPortalName(event.target.value)}
+                      placeholder="Add portal"
+                      className={cn(
+                        'min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
+                        darkMode
+                          ? 'border-gray-700 bg-gray-900 text-gray-100 placeholder-gray-500'
+                          : 'border-gray-300 bg-white text-gray-900 placeholder-gray-400',
+                      )}
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        addRegisteredItem(newWebPortalName, registeredWebPortals, setRegisteredWebPortals, () => setNewWebPortalName(''))
+                      }
+                      className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                    >
+                      Add
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {registeredWebPortals.map((portal) => (
+                      <div
+                        key={portal}
+                        className={cn(
+                          'flex items-center justify-between rounded-lg border px-3 py-2 text-sm',
+                          darkMode ? 'border-gray-800 bg-gray-950/60' : 'border-gray-200 bg-gray-50',
+                        )}
+                      >
+                        <span>{portal}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeRegisteredItem(portal, setRegisteredWebPortals)}
+                          className={darkMode ? 'text-red-400 hover:text-red-300' : 'text-red-600 hover:text-red-700'}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
           </div>

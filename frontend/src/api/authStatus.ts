@@ -133,16 +133,32 @@ function toAuthRequest(record: BackendAuthRecord): AuthRequest {
   };
 }
 
+function mapApiAuthToAuthRequest(item: any): AuthRequest {
+  return {
+    id: String(item.id),
+    patientId: item.client_name ?? 'Unknown Client',
+    facility: item.facility ?? 'Unknown Facility',
+    status: item.status ?? 'Pending',
+    payer: item.insurance ?? 'Unknown Insurance',
+    date: item.created_at ? new Date(item.created_at) : new Date(),
+    requestedDays: item.requested_days ?? 0,
+    approvedDays: item.approved_days ?? 0,
+    urSpecialist: item.ur_specialist ?? 'Unassigned',
+    loc: item.loc ?? '',
+    authType: item.auth_type ?? '',
+    submissionMethods: item.submission_methods ?? '',
+  };
+}
+
 export async function fetchAuthRequests(): Promise<AuthRequest[]> {
   const response = await fetch(`${API_BASE_URL}/api/auths`);
 
   if (!response.ok) {
-    throw new Error(`AuthStatus API returned ${response.status}`);
+    throw new Error(`Failed to fetch authorization records: ${response.status}`);
   }
 
-  const data = (await response.json()) as BackendAuthListResponse;
-
-  return data.auths.map(toAuthRequest);
+  const data = await response.json();
+  return data.auths.map(mapApiAuthToAuthRequest);
 }
 
 export async function deleteAuthRequest(id: string): Promise<void> {
@@ -153,4 +169,31 @@ export async function deleteAuthRequest(id: string): Promise<void> {
   if (!response.ok) {
     throw new Error(`Failed to delete authorization record: ${response.status}`);
   }
+}
+
+export interface CreateAuthRequestPayload {
+  client_name: string;
+  facility: string;
+  loc: string;
+  status: string;
+  insurance: string;
+  auth_type: string;
+  submission_methods: string;
+}
+
+export async function createAuthRequest(payload: CreateAuthRequestPayload): Promise<AuthRequest> {
+  const response = await fetch(`${API_BASE_URL}/api/auths`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to create authorization record: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return mapApiAuthToAuthRequest(data);
 }
