@@ -96,6 +96,10 @@ function App() {
     });
   }, [authRequests, dateRange, selectedFacility]);
 
+  const recentAuthorizations = useMemo(() => {
+    return filteredData.slice(0, 5);
+  }, [filteredData]);
+
   const facilityOptions = useMemo(() => {
     const uniqueFacilities = Array.from(
       new Set(authRequests.map((item) => item.facility).filter(Boolean)),
@@ -243,7 +247,7 @@ function App() {
               </div>
               <div className={`rounded-xl border p-5 shadow-sm overflow-hidden flex flex-col ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
                 <h3 className="text-lg font-semibold mb-4 shrink-0">Recent Authorizations</h3>
-                <DataTable data={filteredData} darkMode={darkMode} />
+                <DataTable data={recentAuthorizations} darkMode={darkMode} />
               </div>
             </div>
               </>
