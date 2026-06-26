@@ -12,7 +12,7 @@ import Filters from './components/Filters';
 function App() {
   const [darkMode, setDarkMode] = useState(true);
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d'>('30d');
-  const [selectedFacility, setSelectedFacility] = useState<Facility | 'All'>('All');
+  const [selectedFacility, setSelectedFacility] = useState<string>('All');
   const [authRequests, setAuthRequests] = useState<AuthRequest[]>([]);
   const [isLoadingAuths, setIsLoadingAuths] = useState(true);
   const [authsError, setAuthsError] = useState<string | null>(null);
@@ -61,6 +61,20 @@ function App() {
       return inDateRange && matchFacility;
     });
   }, [authRequests, dateRange, selectedFacility]);
+
+  const facilityOptions = useMemo(() => {
+    const uniqueFacilities = Array.from(
+      new Set(authRequests.map((item) => item.facility).filter(Boolean)),
+    ).sort();
+
+    return ['All', ...uniqueFacilities];
+  }, [authRequests]);
+
+  useEffect(() => {
+    if (!facilityOptions.includes(selectedFacility)) {
+      setSelectedFacility('All');
+    }
+  }, [facilityOptions, selectedFacility]);
 
   const toggleDarkMode = () => setDarkMode(!darkMode);
 
@@ -141,6 +155,7 @@ function App() {
               setDateRange={setDateRange}
               selectedFacility={selectedFacility}
               setSelectedFacility={setSelectedFacility}
+              facilities={facilityOptions}
               darkMode={darkMode}
             />
             

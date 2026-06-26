@@ -189,7 +189,7 @@ See `DISCLAIMER.md` and `SECURITY.md` before using this project with real inform
 
 ## Repository Status
 
-CareQueue is an early stage local-first prototype. It is currently intended for private development and workflow experimentation.
+CareQueue is an early stage local first prototype. It is currently intended for private development and workflow experimentation.
 
 ## License
 
