@@ -141,8 +141,8 @@ function mapApiAuthToAuthRequest(item: any): AuthRequest {
     status: item.status ?? 'Pending',
     payer: item.insurance ?? 'Unknown Insurance',
     date: item.created_at ? new Date(item.created_at) : new Date(),
-    requestedDays: item.requested_days ?? 0,
-    approvedDays: item.approved_days ?? 0,
+    requestedDays: Number(item.requested_days ?? item.requestedDays ?? 0),
+    approvedDays: Number(item.approved_days ?? item.approvedDays ?? 0),
     urSpecialist: item.ur_specialist ?? 'Unassigned',
     loc: item.loc ?? '',
     authType: item.auth_type ?? '',
@@ -179,6 +179,9 @@ export interface CreateAuthRequestPayload {
   insurance: string;
   auth_type: string;
   submission_methods: string;
+  requested_days?: number;
+  approved_days?: number;
+  care_manager_details?: string;
 }
 
 export async function createAuthRequest(payload: CreateAuthRequestPayload): Promise<AuthRequest> {

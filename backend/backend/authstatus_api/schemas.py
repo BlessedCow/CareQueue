@@ -18,6 +18,8 @@ class AuthBase(BaseModel):
     scheduled_call_at: str = ""
     care_manager_enabled: bool = False
     care_manager_details: str = ""
+    requested_days: int = Field(default=0, ge=0)
+    approved_days: int = Field(default=0, ge=0)
     notes_links: str = ""
     auth_type: str
     status: str

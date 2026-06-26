@@ -95,6 +95,8 @@ function App() {
     facility: registeredFacilities[0] ?? '',
     loc: 'RTC',
     status: 'Pending',
+    requestedDays: '',
+    approvedDays: '',
     insurance: registeredInsurances[0] ?? '',
     authType: 'Initial',
     submissionMethod: 'Web Portal',
@@ -103,6 +105,12 @@ function App() {
     faxNumber: '',
     webPortal: registeredWebPortals[0] ?? '',
     webPortalUrl: '',
+    hasCareManager: false,
+    careManagerName: '',
+    careManagerContactType: 'Phone',
+    careManagerPhone: '',
+    careManagerFax: '',
+    careManagerNotes: '',
   });
   const navigationItems: {
     page: AppPage;
@@ -178,7 +186,7 @@ function App() {
     }
   };
 
-  const handleNewAuthFieldChange = (field: keyof typeof newAuthForm, value: string) => {
+  const handleNewAuthFieldChange = (field: keyof typeof newAuthForm, value: string | boolean) => {
     setNewAuthForm((currentForm) => ({
       ...currentForm,
       [field]: value,
@@ -191,6 +199,8 @@ function App() {
       facility: registeredFacilities[0] ?? '',
       loc: 'RTC',
       status: 'Pending',
+      requestedDays: '',
+      approvedDays: '',
       insurance: registeredInsurances[0] ?? '',
       authType: 'Initial',
       submissionMethod: 'Web Portal',
@@ -199,6 +209,12 @@ function App() {
       faxNumber: '',
       webPortal: registeredWebPortals[0] ?? '',
       webPortalUrl: '',
+      hasCareManager: false,
+      careManagerName: '',
+      careManagerContactType: 'Phone',
+      careManagerPhone: '',
+      careManagerFax: '',
+      careManagerNotes: '',
     });
   };
 
@@ -240,6 +256,8 @@ function App() {
         facility: newAuthForm.facility.trim(),
         loc: newAuthForm.loc,
         status: newAuthForm.status,
+        requested_days: newAuthForm.requestedDays ? Number(newAuthForm.requestedDays) : 0,
+        approved_days: newAuthForm.approvedDays ? Number(newAuthForm.approvedDays) : 0,
         insurance: newAuthForm.insurance.trim(),
         auth_type: newAuthForm.authType,
         submission_methods:
@@ -248,6 +266,18 @@ function App() {
             : newAuthForm.submissionMethod === 'Fax'
               ? `Fax: ${newAuthForm.faxNumber}`
               : `Web Portal: ${newAuthForm.webPortal}${newAuthForm.webPortalUrl ? ` (${newAuthForm.webPortalUrl})` : ''}`,
+              care_manager_details: newAuthForm.hasCareManager
+                ? [
+                    `Name: ${newAuthForm.careManagerName.trim() || 'Not provided'}`,
+                    `Contact Type: ${newAuthForm.careManagerContactType}`,
+                    newAuthForm.careManagerContactType === 'Phone'
+                      ? `Phone: ${newAuthForm.careManagerPhone || 'Not provided'}`
+                      : `Fax: ${newAuthForm.careManagerFax || 'Not provided'}`,
+                    newAuthForm.careManagerNotes.trim() ? `Notes: ${newAuthForm.careManagerNotes.trim()}` : '',
+                  ]
+                    .filter(Boolean)
+                    .join('\n')
+                : '',
       });
   
       setAuthRequests((currentAuths) => [createdAuth, ...currentAuths]);

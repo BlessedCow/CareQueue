@@ -31,6 +31,8 @@ AUTH_TABLE_COLUMNS = {
     "waiting_on_clinicals",
     "los_requested",
     "days_approved",
+    "requested_days",
+    "approved_days",
     "auth_start_date",
     "auth_end_date",
     "created_at",
@@ -88,6 +90,8 @@ def init_db() -> None:
                 waiting_on_clinicals INTEGER NOT NULL DEFAULT 0,
                 los_requested TEXT,
                 days_approved TEXT,
+                requested_days INTEGER NOT NULL DEFAULT 0,
+                approved_days INTEGER NOT NULL DEFAULT 0,
                 auth_start_date TEXT,
                 auth_end_date TEXT,
                 created_at TEXT NOT NULL,
@@ -99,3 +103,5 @@ def init_db() -> None:
         ensure_column(conn, "auths", "member_id", "TEXT")
         ensure_column(conn, "auths", "insurance", "TEXT")
         ensure_column(conn, "auths", "insurance_fax", "TEXT")
+        ensure_column(conn, "auths", "requested_days", "INTEGER NOT NULL DEFAULT 0")
+        ensure_column(conn, "auths", "approved_days", "INTEGER NOT NULL DEFAULT 0")

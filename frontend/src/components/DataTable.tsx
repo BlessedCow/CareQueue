@@ -11,7 +11,7 @@ interface DataTableProps {
   deletingId?: string | null;
 }
 
-type SortField = 'date' | 'patientId' | 'facility' | 'status' | 'urSpecialist';
+type SortField = 'date' | 'patientId' | 'facility' | 'status';
 type SortOrder = 'asc' | 'desc';
 
 export function DataTable({ data, darkMode, onDelete, deletingId }: DataTableProps) {
@@ -113,9 +113,6 @@ export function DataTable({ data, darkMode, onDelete, deletingId }: DataTablePro
               <th className={thClass}>
                 <div className="flex items-center">Days (Req/Appr)</div>
               </th>
-              <th className={thClass} onClick={() => handleSort('urSpecialist')}>
-                <div className="flex items-center">Specialist <ArrowUpDown className="ml-1 w-3 h-3 opacity-50 group-hover:opacity-100" /></div>
-              </th>
               <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider">
                 Actions
               </th>
@@ -140,7 +137,6 @@ export function DataTable({ data, darkMode, onDelete, deletingId }: DataTablePro
                     {row.requestedDays} / {row.status === 'Pending' ? '-' : row.approvedDays}
                   </span>
                 </td>
-                <td className={tdClass}>{row.urSpecialist}</td>
                 <td className={cn(tdClass, 'text-right')}>
                 {onDelete && (
                   <button
@@ -164,7 +160,7 @@ export function DataTable({ data, darkMode, onDelete, deletingId }: DataTablePro
             ))}
             {filteredAndSortedData.length === 0 && (
               <tr>
-                <td colSpan={7} className={cn("px-4 py-8 text-center text-sm", darkMode ? "text-gray-500" : "text-gray-500")}>
+                <td colSpan={6} className={cn("px-4 py-8 text-center text-sm", darkMode ? "text-gray-500" : "text-gray-500")}>
                   No matching records found.
                 </td>
               </tr>
