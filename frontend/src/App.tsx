@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AuthRequest, Facility } from './data/mockData';
-import { fetchAuthRequests } from './api/authStatus';
+import { deleteAuthRequest, fetchAuthRequests } from './api/authStatus';
 import { subDays } from 'date-fns';
 import {
   Activity,
@@ -16,7 +16,7 @@ import { cn } from './utils/cn';
 
 import KPICards from './components/KPICards';
 import { TrendChart, DenialChart, LOCChart } from './components/Charts';
-import DataTable from './components/DataTable';
+import { DataTable } from './components/DataTable';
 import Filters from './components/Filters';
 
 type AppPage = 'dashboard' | 'authorizations' | 'settings';
@@ -29,6 +29,7 @@ function App() {
   const [authRequests, setAuthRequests] = useState<AuthRequest[]>([]);
   const [isLoadingAuths, setIsLoadingAuths] = useState(true);
   const [authsError, setAuthsError] = useState<string | null>(null);
+  const [deletingAuthId, setDeletingAuthId] = useState<string | null>(null);
   const navigationItems: {
     page: AppPage;
     label: string;
@@ -80,6 +81,28 @@ function App() {
       isMounted = false;
     };
   }, []);
+
+  const handleDeleteAuth = async (auth: AuthRequest) => {
+    const confirmed = window.confirm(
+      `Delete authorization record for ${auth.clientName}? This cannot be undone.`,
+    );
+  
+    if (!confirmed) {
+      return;
+    }
+  
+    setDeletingAuthId(auth.id);
+    setAuthsError(null);
+  
+    try {
+      await deleteAuthRequest(auth.id);
+      setAuthRequests((currentAuths) => currentAuths.filter((item) => item.id !== auth.id));
+    } catch (error) {
+      setAuthsError(error instanceof Error ? error.message : 'Failed to delete authorization record.');
+    } finally {
+      setDeletingAuthId(null);
+    }
+  };
 
   const filteredData = useMemo(() => {
     const today = new Date();
@@ -247,7 +270,12 @@ function App() {
               </div>
               <div className={`rounded-xl border p-5 shadow-sm overflow-hidden flex flex-col ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
                 <h3 className="text-lg font-semibold mb-4 shrink-0">Recent Authorizations</h3>
-                <DataTable data={recentAuthorizations} darkMode={darkMode} />
+                <DataTable
+                  data={recentAuthorizations}
+                  darkMode={darkMode}
+                  onDelete={handleDeleteAuth}
+                  deletingId={deletingAuthId}
+/>
               </div>
             </div>
               </>
@@ -286,7 +314,12 @@ function App() {
                     </div>
                   </div>
 
-                  <DataTable data={filteredData} darkMode={darkMode} />
+                  <DataTable
+                    data={filteredData}
+                    darkMode={darkMode}
+                    onDelete={handleDeleteAuth}
+                    deletingId={deletingAuthId}
+                  />
                 </div>
               </>
             )}

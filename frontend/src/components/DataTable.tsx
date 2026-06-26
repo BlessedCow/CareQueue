@@ -7,12 +7,14 @@ import { ArrowUpDown, Search } from 'lucide-react';
 interface DataTableProps {
   data: AuthRequest[];
   darkMode: boolean;
+  onDelete?: (auth: AuthRequest) => void;
+  deletingId?: string | null;
 }
 
 type SortField = 'date' | 'patientId' | 'facility' | 'status' | 'urSpecialist';
 type SortOrder = 'asc' | 'desc';
 
-export default function DataTable({ data, darkMode }: DataTableProps) {
+export function DataTable({ data, darkMode, onDelete, deletingId }: DataTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -114,6 +116,9 @@ export default function DataTable({ data, darkMode }: DataTableProps) {
               <th className={thClass} onClick={() => handleSort('urSpecialist')}>
                 <div className="flex items-center">Specialist <ArrowUpDown className="ml-1 w-3 h-3 opacity-50 group-hover:opacity-100" /></div>
               </th>
+              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -136,11 +141,28 @@ export default function DataTable({ data, darkMode }: DataTableProps) {
                   </span>
                 </td>
                 <td className={tdClass}>{row.urSpecialist}</td>
-              </tr>
+                <td className={cn(tdClass, 'text-right')}>
+                  {onDelete && (
+                    <button
+                      type="button"
+                      onClick={() => onDelete(row)}
+                      disabled={deletingId === row.id}
+                      className={cn(
+                        'font-medium transition-colors disabled:cursor-not-allowed',
+                        darkMode
+                          ? 'text-red-400 hover:text-red-300 disabled:text-gray-600'
+                          : 'text-red-600 hover:text-red-700 disabled:text-gray-400',
+                      )}
+                    >
+                      {deletingId === row.id ? 'Deleting...' : 'Delete'}
+                    </button>
+                  )}
+                </td>
+                </tr>
             ))}
             {filteredAndSortedData.length === 0 && (
               <tr>
-                <td colSpan={6} className={cn("px-4 py-8 text-center text-sm", darkMode ? "text-gray-500" : "text-gray-500")}>
+                <td colSpan={7} className={cn("px-4 py-8 text-center text-sm", darkMode ? "text-gray-500" : "text-gray-500")}>
                   No matching records found.
                 </td>
               </tr>

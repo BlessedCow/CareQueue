@@ -144,3 +144,13 @@ export async function fetchAuthRequests(): Promise<AuthRequest[]> {
 
   return data.auths.map(toAuthRequest);
 }
+
+export async function deleteAuthRequest(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/auths/${id}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to delete authorization record: ${response.status}`);
+  }
+}
