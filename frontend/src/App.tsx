@@ -250,14 +250,41 @@ function App() {
             )}
 
             {activePage === 'authorizations' && (
-              <div className={cn('rounded-xl border p-6', darkMode ? 'bg-gray-900/50 border-gray-800' : 'bg-white border-gray-200')}>
-                <h3 className={cn('text-lg font-semibold mb-2', darkMode ? 'text-white' : 'text-gray-900')}>
-                  Authorizations
-                </h3>
-                <p className={cn('text-sm', darkMode ? 'text-gray-400' : 'text-gray-600')}>
-                  This page will become the authorization work queue for viewing, editing, and updating records.
-                </p>
-              </div>
+              <>
+                {isLoadingAuths && (
+                  <div className={cn('rounded-lg border px-4 py-3 text-sm', darkMode ? 'border-blue-900/60 bg-blue-950/30 text-blue-200' : 'border-blue-200 bg-blue-50 text-blue-700')}>
+                    Loading authorization records...
+                  </div>
+                )}
+
+                {authsError && (
+                  <div className={cn('rounded-lg border px-4 py-3 text-sm', darkMode ? 'border-red-900/60 bg-red-950/30 text-red-200' : 'border-red-200 bg-red-50 text-red-700')}>
+                    {authsError}
+                  </div>
+                )}
+
+                <Filters
+                  dateRange={dateRange}
+                  setDateRange={setDateRange}
+                  selectedFacility={selectedFacility}
+                  setSelectedFacility={setSelectedFacility}
+                  facilities={facilityOptions}
+                  darkMode={darkMode}
+                />
+
+                <div className={`rounded-xl border p-5 shadow-sm overflow-hidden flex flex-col ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+                  <div className="flex items-center justify-between mb-4 shrink-0">
+                    <div>
+                      <h3 className="text-lg font-semibold">Authorization Work Queue</h3>
+                      <p className={cn('text-sm mt-1', darkMode ? 'text-gray-400' : 'text-gray-600')}>
+                        View authorization records by facility and date range.
+                      </p>
+                    </div>
+                  </div>
+
+                  <DataTable data={filteredData} darkMode={darkMode} />
+                </div>
+              </>
             )}
 
             {activePage === 'settings' && (
