@@ -3,6 +3,7 @@ import type { Dispatch, FormEvent, SetStateAction } from 'react';
 import { subDays } from 'date-fns';
 import { AuthRequest } from './data/mockData';
 import { createAuthRequest, deleteAuthRequest, fetchAuthRequests } from './api/authStatus';
+import { AddAuthorizationForm } from './components/AddAuthorizationForm';
 import {
   DEFAULT_FACILITIES,
   DEFAULT_INSURANCES,
@@ -511,242 +512,20 @@ function App() {
                   </div>
 
                   {showAddAuthForm && (
-                    <form
+                    <AddAuthorizationForm
+                      form={newAuthForm}
+                      darkMode={darkMode}
+                      isCreatingAuth={isCreatingAuth}
+                      registeredFacilities={registeredFacilities}
+                      registeredInsurances={registeredInsurances}
+                      registeredWebPortals={registeredWebPortals}
+                      onFieldChange={handleNewAuthFieldChange}
                       onSubmit={handleCreateAuth}
-                      className={cn(
-                        'mb-5 grid gap-4 rounded-lg border p-4 md:grid-cols-2',
-                        darkMode ? 'border-gray-800 bg-gray-950/60' : 'border-gray-200 bg-gray-50',
-                      )}
-                    >
-                      <label className="space-y-1 text-sm">
-                        <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Client Name</span>
-                        <input
-                          type="text"
-                          value={newAuthForm.clientName}
-                          onChange={(event) => handleNewAuthFieldChange('clientName', event.target.value)}
-                          className={cn(
-                            'w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
-                            darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900',
-                          )}
-                        />
-                      </label>
-
-                      <label className="space-y-1 text-sm">
-                      <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Facility</span>
-                      <select
-                        value={newAuthForm.facility}
-                        onChange={(event) => handleNewAuthFieldChange('facility', event.target.value)}
-                        className={cn(
-                          'w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
-                          darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900',
-                        )}
-                      >
-                        {registeredFacilities.map((facility) => (
-                          <option key={facility} value={facility}>
-                            {facility}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                      <label className="space-y-1 text-sm">
-                        <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>LOC</span>
-                        <select
-                          value={newAuthForm.loc}
-                          onChange={(event) => handleNewAuthFieldChange('loc', event.target.value)}
-                          className={cn(
-                            'w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
-                            darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900',
-                          )}
-                        >
-                          <option value="DTX">DTX</option>
-                          <option value="RTC">RTC</option>
-                          <option value="PHP">PHP</option>
-                          <option value="IOP">IOP</option>
-                        </select>
-                      </label>
-
-                      <label className="space-y-1 text-sm">
-                        <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Status</span>
-                        <select
-                          value={newAuthForm.status}
-                          onChange={(event) => handleNewAuthFieldChange('status', event.target.value)}
-                          className={cn(
-                            'w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
-                            darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900',
-                          )}
-                        >
-                          <option value="Pending">Pending</option>
-                          <option value="Approved">Approved</option>
-                          <option value="Denied">Denied</option>
-                          <option value="Needs Review">Needs Review</option>
-                        </select>
-                      </label>
-
-                      <label className="space-y-1 text-sm">
-                        <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Insurance</span>
-                        <select
-                          value={newAuthForm.insurance}
-                          onChange={(event) => handleNewAuthFieldChange('insurance', event.target.value)}
-                          className={cn(
-                            'w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
-                            darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900',
-                          )}
-                        >
-                          {registeredInsurances.map((insurance) => (
-                            <option key={insurance} value={insurance}>
-                              {insurance}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <label className="space-y-1 text-sm">
-                        <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Auth Type</span>
-                        <select
-                          value={newAuthForm.authType}
-                          onChange={(event) => handleNewAuthFieldChange('authType', event.target.value)}
-                          className={cn(
-                            'w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
-                            darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900',
-                          )}
-                        >
-                          <option value="Initial">Initial</option>
-                          <option value="Concurrent">Concurrent</option>
-                          <option value="Retro">Retro</option>
-                        </select>
-                      </label>
-
-                      <label className="space-y-1 text-sm">
-                        <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Submission Method</span>
-                        <select
-                          value={newAuthForm.submissionMethod}
-                          onChange={(event) => handleNewAuthFieldChange('submissionMethod', event.target.value)}
-                          className={cn(
-                            'w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
-                            darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900',
-                          )}
-                        >
-                          <option value="Web Portal">Web Portal</option>
-                          <option value="Live Call">Live Call</option>
-                          <option value="Voicemail">Voicemail</option>
-                          <option value="Fax">Fax</option>
-                        </select>
-                      </label>
-
-                      {(newAuthForm.submissionMethod === 'Live Call' || newAuthForm.submissionMethod === 'Voicemail') && (
-                        <>
-                          <label className="space-y-1 text-sm">
-                            <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Phone Number</span>
-                            <input
-                              type="tel"
-                              value={newAuthForm.phoneNumber}
-                              onChange={(event) => handleNewAuthFieldChange('phoneNumber', event.target.value)}
-                              className={cn(
-                                'w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
-                                darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900',
-                              )}
-                            />
-                          </label>
-
-                          <label className="space-y-1 text-sm">
-                            <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Extension</span>
-                            <input
-                              type="text"
-                              value={newAuthForm.phoneExtension}
-                              onChange={(event) => handleNewAuthFieldChange('phoneExtension', event.target.value)}
-                              className={cn(
-                                'w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
-                                darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900',
-                              )}
-                            />
-                          </label>
-                        </>
-                      )}
-
-                      {newAuthForm.submissionMethod === 'Fax' && (
-                        <label className="space-y-1 text-sm md:col-span-2">
-                          <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Fax Number</span>
-                          <input
-                            type="tel"
-                            value={newAuthForm.faxNumber}
-                            onChange={(event) => handleNewAuthFieldChange('faxNumber', event.target.value)}
-                            className={cn(
-                              'w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
-                              darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900',
-                            )}
-                          />
-                        </label>
-                      )}
-
-                      {newAuthForm.submissionMethod === 'Web Portal' && (
-                        <>
-                          <label className="space-y-1 text-sm">
-                            <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Portal</span>
-                            <select
-                              value={newAuthForm.webPortal}
-                              onChange={(event) => handleNewAuthFieldChange('webPortal', event.target.value)}
-                              className={cn(
-                                'w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
-                                darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900',
-                              )}
-                            >
-                              {registeredWebPortals.map((portal) => (
-                                <option key={portal} value={portal}>
-                                  {portal}
-                                </option>
-                              ))}
-                              <option value="Other">Other</option>
-                            </select>
-                          </label>
-
-                          <label className="space-y-1 text-sm">
-                            <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Portal Link</span>
-                            <input
-                              type="url"
-                              value={newAuthForm.webPortalUrl}
-                              onChange={(event) => handleNewAuthFieldChange('webPortalUrl', event.target.value)}
-                              placeholder={newAuthForm.webPortal === 'Other' ? 'Enter new portal link' : 'Optional portal link'}
-                              className={cn(
-                                'w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
-                                darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900',
-                              )}
-                            />
-                          </label>
-                        </>
-                      )}
-
-                      <div className="flex items-end justify-end gap-2 md:col-span-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            resetNewAuthForm();
-                            setShowAddAuthForm(false);
-                          }}
-                          className={cn(
-                            'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
-                            darkMode
-                              ? 'bg-gray-800 text-gray-200 hover:bg-gray-700'
-                              : 'bg-gray-200 text-gray-800 hover:bg-gray-300',
-                          )}
-                        >
-                          Cancel
-                        </button>
-
-                        <button
-                          type="submit"
-                          disabled={isCreatingAuth}
-                          className={cn(
-                            'rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-70',
-                            darkMode
-                              ? 'bg-blue-600 text-white hover:bg-blue-500'
-                              : 'bg-blue-600 text-white hover:bg-blue-700',
-                          )}
-                        >
-                          {isCreatingAuth ? 'Adding...' : 'Add Authorization'}
-                        </button>
-                      </div>
-                    </form>
+                      onCancel={() => {
+                        resetNewAuthForm();
+                        setShowAddAuthForm(false);
+                      }}
+                    />
                   )}
 
                   <DataTable
