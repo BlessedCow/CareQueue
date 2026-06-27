@@ -15,6 +15,25 @@ interface DataTableProps {
 type SortField = 'date' | 'patientId' | 'facility' | 'status';
 type SortOrder = 'asc' | 'desc';
 
+function calculateTurnaroundDays(submittedAt?: string | null, decisionAt?: string | null) {
+  if (!submittedAt || !decisionAt) {
+    return 'Pending';
+  }
+
+  const submittedDate = new Date(submittedAt);
+  const decisionDate = new Date(decisionAt);
+
+  if (Number.isNaN(submittedDate.getTime()) || Number.isNaN(decisionDate.getTime())) {
+    return 'Pending';
+  }
+
+  const millisecondsPerDay = 1000 * 60 * 60 * 24;
+  const difference = decisionDate.getTime() - submittedDate.getTime();
+  const days = Math.max(0, Math.ceil(difference / millisecondsPerDay));
+
+  return `${days} day${days === 1 ? '' : 's'}`;
+}
+
 export function DataTable({ data, darkMode, onEdit, onDelete, deletingId }: DataTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('date');
@@ -114,6 +133,9 @@ export function DataTable({ data, darkMode, onEdit, onDelete, deletingId }: Data
               <th className={thClass}>
                 <div className="flex items-center">Days (Req/Appr)</div>
               </th>
+              <th className={thClass}>
+                <div className="flex items-center">Turnaround</div>
+              </th>
               <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider">
                 Actions
               </th>
@@ -137,6 +159,9 @@ export function DataTable({ data, darkMode, onEdit, onDelete, deletingId }: Data
                   <span className={cn("text-sm", row.approvedDays < row.requestedDays && row.status === 'Approved' ? "text-amber-500 font-medium" : "")}>
                     {row.requestedDays} / {row.status === 'Pending' ? '-' : row.approvedDays}
                   </span>
+                </td>
+                <td className={tdClass}>
+                  {calculateTurnaroundDays(row.submittedAt, row.decisionAt)}
                 </td>
                 <td className={cn(tdClass, 'text-right')}>
                   <div className="flex items-center justify-end gap-3">

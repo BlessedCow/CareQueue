@@ -6,11 +6,16 @@ import pytest
 from authstatus_api import crypto
 from authstatus_api.repository import (
     create_auth,
+    create_auth_event,
     delete_auth,
+    delete_auth_event,
     get_analytics_summary,
     get_auth,
+    get_auth_event,
+    list_auth_events,
     list_auths,
     update_auth,
+    update_auth_event,
 )
 from authstatus_api.settings import get_settings
 
@@ -171,6 +176,153 @@ def test_update_auth_with_empty_payload_returns_existing_record():
     assert updated["id"] == created["id"]
     assert updated["client_name"] == "John Smith"
     
+
+def test_create_auth_event_returns_decrypted_record():
+    created = create_auth(make_payload())
+
+    event = create_auth_event(
+        created["id"],
+        {
+            "event_type": "Request Submitted",
+            "event_date": "2026-06-26",
+            "event_time": "",
+            "outcome": "",
+            "notes": "Submitted concurrent review through portal.",
+        },
+    )
+
+    assert event is not None
+    assert event["auth_id"] == created["id"]
+    assert event["event_type"] == "Request Submitted"
+    assert event["event_date"] == "2026-06-26"
+    assert event["event_time"] == ""
+    assert event["outcome"] == ""
+    assert event["notes"] == "Submitted concurrent review through portal."
+
+
+def test_create_auth_event_returns_none_for_missing_auth():
+    event = create_auth_event(
+        999,
+        {
+            "event_type": "Request Submitted",
+            "event_date": "2026-06-26",
+            "event_time": "",
+            "outcome": "",
+            "notes": "",
+        },
+    )
+
+    assert event is None
+
+
+def test_list_auth_events_returns_events_for_auth_only():
+    first_auth = create_auth(make_payload())
+
+    second_payload = make_payload()
+    second_payload["client_name"] = "Jane Smith"
+    second_auth = create_auth(second_payload)
+
+    first_event = create_auth_event(
+        first_auth["id"],
+        {
+            "event_type": "Request Submitted",
+            "event_date": "2026-06-26",
+            "event_time": "",
+            "outcome": "",
+            "notes": "First auth event.",
+        },
+    )
+    create_auth_event(
+        second_auth["id"],
+        {
+            "event_type": "Approved",
+            "event_date": "2026-06-27",
+            "event_time": "",
+            "outcome": "Approved",
+            "notes": "Second auth event.",
+        },
+    )
+
+    events = list_auth_events(first_auth["id"])
+
+    assert events is not None
+    assert len(events) == 1
+    assert first_event is not None
+    assert events[0]["id"] == first_event["id"]
+    assert events[0]["notes"] == "First auth event."
+
+
+def test_update_auth_event_updates_selected_fields():
+    created = create_auth(make_payload())
+    event = create_auth_event(
+        created["id"],
+        {
+            "event_type": "Denied",
+            "event_date": "2026-06-27",
+            "event_time": "12:30",
+            "outcome": "Denied",
+            "notes": "Denied as not medically necessary.",
+        },
+    )
+
+    assert event is not None
+
+    updated = update_auth_event(
+        created["id"],
+        event["id"],
+        {
+            "event_type": "Peer Review Scheduled",
+            "event_date": "2026-06-28",
+            "notes": "Peer review scheduled with medical director.",
+        },
+    )
+
+    assert updated is not None
+    assert updated["id"] == event["id"]
+    assert updated["event_type"] == "Peer Review Scheduled"
+    assert updated["event_date"] == "2026-06-28"
+    assert updated["event_time"] == "12:30"
+    assert updated["outcome"] == "Denied"
+    assert updated["notes"] == "Peer review scheduled with medical director."
+
+
+def test_update_auth_event_returns_none_for_missing_event():
+    created = create_auth(make_payload())
+
+    updated = update_auth_event(
+        created["id"],
+        999,
+        {
+            "event_type": "Approved",
+        },
+    )
+
+    assert updated is None
+
+
+def test_delete_auth_event_removes_event():
+    created = create_auth(make_payload())
+    event = create_auth_event(
+        created["id"],
+        {
+            "event_type": "Request Submitted",
+            "event_date": "2026-06-26",
+            "event_time": "",
+            "outcome": "",
+            "notes": "",
+        },
+    )
+
+    assert event is not None
+    assert delete_auth_event(created["id"], event["id"]) is True
+    assert get_auth_event(created["id"], event["id"]) is None
+
+
+def test_delete_auth_event_returns_false_for_missing_event():
+    created = create_auth(make_payload())
+
+    assert delete_auth_event(created["id"], 999) is False
+
 
 def test_get_analytics_summary_counts_records():
     first_payload = make_payload()

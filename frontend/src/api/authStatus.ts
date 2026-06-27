@@ -147,6 +147,8 @@ function mapApiAuthToAuthRequest(item: any): AuthRequest {
     loc: item.loc ?? '',
     authType: item.auth_type ?? '',
     submissionMethods: item.submission_methods ?? '',
+    submittedAt: item.submitted_at ?? null,
+    decisionAt: item.decision_at ?? null,
   };
 }
 
@@ -182,6 +184,8 @@ export interface CreateAuthRequestPayload {
   requested_days?: number;
   approved_days?: number;
   care_manager_details?: string;
+  submittedAt?: string | null;
+  decisionAt?: string | null;
 }
 
 export type UpdateAuthRequestPayload = Partial<CreateAuthRequestPayload>;

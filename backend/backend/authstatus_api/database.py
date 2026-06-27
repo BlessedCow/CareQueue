@@ -35,6 +35,20 @@ AUTH_TABLE_COLUMNS = {
     "approved_days",
     "auth_start_date",
     "auth_end_date",
+    "submitted_at",
+    "decision_at",
+    "created_at",
+    "updated_at",
+}
+
+AUTH_EVENT_TABLE_COLUMNS = {
+    "id",
+    "auth_id",
+    "event_type",
+    "event_date",
+    "event_time",
+    "outcome",
+    "notes",
     "created_at",
     "updated_at",
 }
@@ -50,6 +64,7 @@ def get_conn() -> sqlite3.Connection:
 
     conn = sqlite3.connect(database_path)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
 
@@ -94,8 +109,27 @@ def init_db() -> None:
                 approved_days INTEGER NOT NULL DEFAULT 0,
                 auth_start_date TEXT,
                 auth_end_date TEXT,
+                submitted_at TEXT,
+                decision_at TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
+            )
+            """
+        )
+        
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS auth_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                auth_id INTEGER NOT NULL,
+                event_type TEXT NOT NULL,
+                event_date TEXT NOT NULL,
+                event_time TEXT,
+                outcome TEXT,
+                notes TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (auth_id) REFERENCES auths (id) ON DELETE CASCADE
             )
             """
         )
@@ -105,3 +139,5 @@ def init_db() -> None:
         ensure_column(conn, "auths", "insurance_fax", "TEXT")
         ensure_column(conn, "auths", "requested_days", "INTEGER NOT NULL DEFAULT 0")
         ensure_column(conn, "auths", "approved_days", "INTEGER NOT NULL DEFAULT 0")
+        ensure_column(conn, "auths", "submitted_at", "TEXT")
+        ensure_column(conn, "auths", "decision_at", "TEXT")

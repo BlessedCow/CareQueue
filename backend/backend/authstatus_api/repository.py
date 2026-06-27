@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from authstatus_api.crypto import decrypt_auth_record, encrypt_auth_payload
-from authstatus_api.database import AUTH_TABLE_COLUMNS, get_conn, init_db
+from authstatus_api.crypto import decrypt_auth_record, decrypt_text, encrypt_auth_payload, encrypt_text
+from authstatus_api.database import AUTH_EVENT_TABLE_COLUMNS, AUTH_TABLE_COLUMNS, get_conn, init_db
 
 BOOLEAN_FIELDS = {
     "care_manager_enabled",
@@ -18,6 +18,21 @@ BOOLEAN_FIELDS = {
 
 def _now() -> str:
     return datetime.now().isoformat(timespec="seconds")
+
+def _has_decision(payload: dict[str, Any]) -> bool:
+    status = str(payload.get("status") or "").strip().lower()
+    approved_days = payload.get("approved_days")
+
+    if status in {"approved", "denied", "appealed", "p2p"}:
+        return True
+
+    if approved_days is None:
+        return False
+
+    try:
+        return int(approved_days) > 0
+    except (TypeError, ValueError):
+        return False
 
 
 def _row_to_dict(row: Any) -> dict[str, Any]:
@@ -41,6 +56,24 @@ def _prepare_payload(payload: dict[str, Any]) -> dict[str, Any]:
     return encrypt_auth_payload(prepared)
 
 
+def _row_to_event_dict(row: Any) -> dict[str, Any]:
+    record = dict(row)
+
+    if "notes" in record:
+        record["notes"] = decrypt_text(record["notes"])
+
+    return record
+
+
+def _prepare_event_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    prepared = payload.copy()
+
+    if "notes" in prepared:
+        prepared["notes"] = encrypt_text(prepared["notes"])
+
+    return prepared
+
+
 def create_auth(payload: dict[str, Any]) -> dict[str, Any]:
     init_db()
 
@@ -48,6 +81,12 @@ def create_auth(payload: dict[str, Any]) -> dict[str, Any]:
     prepared = _prepare_payload(payload)
     prepared["created_at"] = now
     prepared["updated_at"] = now
+
+    if not prepared.get("submitted_at"):
+        prepared["submitted_at"] = now
+
+    if _has_decision(prepared) and not prepared.get("decision_at"):
+        prepared["decision_at"] = now
 
     allowed_payload = {
         key: value
@@ -93,11 +132,19 @@ def get_auth(auth_id: int) -> dict[str, Any] | None:
 def update_auth(auth_id: int, payload: dict[str, Any]) -> dict[str, Any] | None:
     init_db()
 
-    if get_auth(auth_id) is None:
+    existing_auth = get_auth(auth_id)
+
+    if existing_auth is None:
         return None
 
     prepared = _prepare_payload(payload)
-    prepared["updated_at"] = _now()
+    now = _now()
+    prepared["updated_at"] = now
+
+    if not existing_auth.get("decision_at") and _has_decision(prepared):
+        prepared["decision_at"] = now
+    elif not prepared.get("decision_at"):
+        prepared.pop("decision_at", None)
 
     allowed_payload = {
         key: value
@@ -118,6 +165,123 @@ def update_auth(auth_id: int, payload: dict[str, Any]) -> dict[str, Any] | None:
         )
 
     return get_auth(auth_id)
+
+
+def create_auth_event(auth_id: int, payload: dict[str, Any]) -> dict[str, Any] | None:
+    init_db()
+
+    if get_auth(auth_id) is None:
+        return None
+
+    now = _now()
+    prepared = _prepare_event_payload(payload)
+    prepared["auth_id"] = auth_id
+    prepared["created_at"] = now
+    prepared["updated_at"] = now
+
+    allowed_payload = {
+        key: value
+        for key, value in prepared.items()
+        if key in AUTH_EVENT_TABLE_COLUMNS and key != "id"
+    }
+
+    keys = list(allowed_payload)
+    columns = ", ".join(keys)
+    placeholders = ", ".join("?" for _ in keys)
+
+    with get_conn() as conn:
+        cursor = conn.execute(
+            f"INSERT INTO auth_events ({columns}) VALUES ({placeholders})",
+            [allowed_payload[key] for key in keys],
+        )
+        event_id = int(cursor.lastrowid)
+
+    return get_auth_event(auth_id, event_id)
+
+
+def list_auth_events(auth_id: int) -> list[dict[str, Any]] | None:
+    init_db()
+
+    if get_auth(auth_id) is None:
+        return None
+
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT *
+            FROM auth_events
+            WHERE auth_id = ?
+            ORDER BY event_date, event_time, id
+            """,
+            (auth_id,),
+        ).fetchall()
+
+    return [_row_to_event_dict(row) for row in rows]
+
+
+def get_auth_event(auth_id: int, event_id: int) -> dict[str, Any] | None:
+    init_db()
+
+    with get_conn() as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM auth_events
+            WHERE auth_id = ? AND id = ?
+            """,
+            (auth_id, event_id),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    return _row_to_event_dict(row)
+
+
+def update_auth_event(
+    auth_id: int,
+    event_id: int,
+    payload: dict[str, Any],
+) -> dict[str, Any] | None:
+    init_db()
+
+    if get_auth_event(auth_id, event_id) is None:
+        return None
+
+    prepared = _prepare_event_payload(payload)
+    prepared["updated_at"] = _now()
+
+    allowed_payload = {
+        key: value
+        for key, value in prepared.items()
+        if key in AUTH_EVENT_TABLE_COLUMNS and key not in {"id", "auth_id", "created_at"}
+    }
+
+    if not allowed_payload:
+        return get_auth_event(auth_id, event_id)
+
+    assignments = ", ".join(f"{key} = ?" for key in allowed_payload)
+    values = [allowed_payload[key] for key in allowed_payload]
+
+    with get_conn() as conn:
+        conn.execute(
+            f"UPDATE auth_events SET {assignments} WHERE auth_id = ? AND id = ?",
+            [*values, auth_id, event_id],
+        )
+
+    return get_auth_event(auth_id, event_id)
+
+
+def delete_auth_event(auth_id: int, event_id: int) -> bool:
+    init_db()
+
+    with get_conn() as conn:
+        cursor = conn.execute(
+            "DELETE FROM auth_events WHERE auth_id = ? AND id = ?",
+            (auth_id, event_id),
+        )
+
+    return cursor.rowcount > 0
 
 
 def delete_auth(auth_id: int) -> bool:

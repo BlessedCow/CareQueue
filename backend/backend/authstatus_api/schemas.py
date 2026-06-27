@@ -32,6 +32,8 @@ class AuthBase(BaseModel):
     days_approved: str = ""
     auth_start_date: str = ""
     auth_end_date: str = ""
+    submitted_at: str | None = None
+    decision_at: str | None = None
 
 
 class AuthCreate(AuthBase):
@@ -65,9 +67,10 @@ class AuthUpdate(BaseModel):
     days_approved: str | None = None
     auth_start_date: str | None = None
     auth_end_date: str | None = None
+    submitted_at: str | None = None
+    decision_at: str | None = None
     requested_days: int | None = Field(default=None, ge=0)
     approved_days: int | None = Field(default=None, ge=0)
-    care_manager_details: str | None = None
 
     model_config = ConfigDict(extra="forbid")
 
@@ -87,6 +90,39 @@ class AuthRecord(AuthBase):
 class AuthListResponse(BaseModel):
     auths: list[AuthRecord]
 
+
+class AuthEventBase(BaseModel):
+    event_type: str
+    event_date: str
+    event_time: str = ""
+    outcome: str = ""
+    notes: str = ""
+
+
+class AuthEventCreate(AuthEventBase):
+    model_config = ConfigDict(extra="forbid")
+
+
+class AuthEventUpdate(BaseModel):
+    event_type: str | None = None
+    event_date: str | None = None
+    event_time: str | None = None
+    outcome: str | None = None
+    notes: str | None = None
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class AuthEventRecord(AuthEventBase):
+    id: int
+    auth_id: int
+    created_at: str
+    updated_at: str
+
+
+class AuthEventListResponse(BaseModel):
+    events: list[AuthEventRecord]
+    
 
 class DeleteResponse(BaseModel):
     deleted: bool
