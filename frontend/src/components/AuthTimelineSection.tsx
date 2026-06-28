@@ -106,6 +106,23 @@ export function AuthTimelineSection({
         </div>
       </div>
 
+      <div
+        className={cn(
+          'mb-3 rounded-xl border px-4 py-3 text-sm',
+          editingEventId
+            ? darkMode
+              ? 'border-blue-900/70 bg-blue-950/40 text-blue-200'
+              : 'border-blue-200 bg-blue-50 text-blue-700'
+            : darkMode
+              ? 'border-gray-800 bg-gray-950 text-gray-400'
+              : 'border-gray-200 bg-white text-gray-600',
+        )}
+      >
+        {editingEventId
+          ? 'Editing timeline event. Save changes or cancel edit before adding another event.'
+          : 'Add a timeline event using the real request or outcome date, not necessarily today’s date.'}
+      </div>
+
       <div className="grid gap-3 md:grid-cols-4">
         <div>
           <label className={cn('mb-1 block text-xs font-medium', darkMode ? 'text-gray-300' : 'text-gray-600')}>
@@ -244,7 +261,13 @@ export function AuthTimelineSection({
               key={event.id}
               className={cn(
                 'rounded-xl border p-3',
-                darkMode ? 'border-gray-700 bg-gray-950' : 'border-gray-200 bg-white',
+                editingEventId === event.id
+                  ? darkMode
+                    ? 'border-blue-800 bg-blue-950/30'
+                    : 'border-blue-300 bg-blue-50'
+                  : darkMode
+                    ? 'border-gray-700 bg-gray-950'
+                    : 'border-gray-200 bg-white',
               )}
             >
               <div className="flex items-start justify-between gap-3">
@@ -268,7 +291,7 @@ export function AuthTimelineSection({
                     darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700',
                   )}
                 >
-                  Edit
+                  {editingEventId === event.id ? 'Editing' : 'Edit'}
                 </button>
 
                 <button
