@@ -30,6 +30,16 @@ import KPICards from './components/KPICards';
 import { TrendChart, DenialChart, LOCChart } from './components/Charts';
 import { DataTable } from './components/DataTable';
 import Filters from './components/Filters';
+import {
+  createAuthEvent,
+  deleteAuthEvent,
+  fetchAuthEvents,
+  type AuthEvent,
+} from './api/authEvents';
+import {
+  AuthTimelineSection,
+  type TimelineEventFormState,
+} from './components/AuthTimelineSection';
 
 type AppPage = 'dashboard' | 'authorizations' | 'settings';
 
@@ -79,6 +89,17 @@ function App() {
   const [registeredWebPortals, setRegisteredWebPortals] = useState(() =>
     loadStoredList(SETTINGS_STORAGE_KEYS.webPortals, DEFAULT_WEB_PORTALS),
   );
+  const [authEvents, setAuthEvents] = useState<AuthEvent[]>([]);
+  const [isLoadingAuthEvents, setIsLoadingAuthEvents] = useState(false);
+  const [isSavingAuthEvent, setIsSavingAuthEvent] = useState(false);
+  const [authEventsError, setAuthEventsError] = useState<string | null>(null);
+  const [timelineEventForm, setTimelineEventForm] = useState<TimelineEventFormState>({
+    eventDate: '',
+    eventTime: '',
+    eventType: 'Request Submitted',
+    outcome: '',
+    notes: '',
+  });
   
   useEffect(() => {
     window.localStorage.setItem(SETTINGS_STORAGE_KEYS.facilities, JSON.stringify(registeredFacilities));
@@ -249,16 +270,97 @@ function App() {
     });
   };
 
+  const resetTimelineEventForm = () => {
+    setTimelineEventForm({
+      eventDate: '',
+      eventTime: '',
+      eventType: 'Request Submitted',
+      outcome: '',
+      notes: '',
+    });
+  };
+  
+  const loadAuthEvents = async (authId: string) => {
+    setIsLoadingAuthEvents(true);
+    setAuthEventsError(null);
+  
+    try {
+      const events = await fetchAuthEvents(authId);
+      setAuthEvents(events);
+    } catch (error) {
+      setAuthEventsError(error instanceof Error ? error.message : 'Failed to load authorization timeline.');
+      setAuthEvents([]);
+    } finally {
+      setIsLoadingAuthEvents(false);
+    }
+  };
+  
+  const handleTimelineEventFieldChange = (
+    field: keyof TimelineEventFormState,
+    value: string,
+  ) => {
+    setTimelineEventForm((currentForm) => ({
+      ...currentForm,
+      [field]: value,
+    }));
+  };
+  
+  const handleAddTimelineEvent = async () => {
+    if (!editingAuthId || !timelineEventForm.eventDate.trim()) {
+      return;
+    }
+  
+    setIsSavingAuthEvent(true);
+    setAuthEventsError(null);
+  
+    try {
+      const createdEvent = await createAuthEvent(editingAuthId, {
+        event_type: timelineEventForm.eventType,
+        event_date: timelineEventForm.eventDate,
+        event_time: timelineEventForm.eventTime,
+        outcome: timelineEventForm.outcome,
+        notes: timelineEventForm.notes.trim(),
+      });
+  
+      setAuthEvents((currentEvents) => [...currentEvents, createdEvent]);
+      resetTimelineEventForm();
+    } catch (error) {
+      setAuthEventsError(error instanceof Error ? error.message : 'Failed to save authorization timeline event.');
+    } finally {
+      setIsSavingAuthEvent(false);
+    }
+  };
+  
+  const handleDeleteTimelineEvent = async (eventId: number) => {
+    if (!editingAuthId) {
+      return;
+    }
+  
+    setAuthEventsError(null);
+  
+    try {
+      await deleteAuthEvent(editingAuthId, eventId);
+      setAuthEvents((currentEvents) => currentEvents.filter((event) => event.id !== eventId));
+    } catch (error) {
+      setAuthEventsError(error instanceof Error ? error.message : 'Failed to delete authorization timeline event.');
+    }
+  };
+
   const handleStartEditAuth = (auth: AuthRequest) => {
     loadAuthIntoForm(auth);
     setEditingAuthId(auth.id);
     setShowAddAuthForm(true);
     setAuthsError(null);
+    resetTimelineEventForm();
+    void loadAuthEvents(auth.id);
   };
   
   const handleCancelAuthForm = () => {
     resetNewAuthForm();
+    resetTimelineEventForm();
     setEditingAuthId(null);
+    setAuthEvents([]);
+    setAuthEventsError(null);
     setShowAddAuthForm(false);
   };
 
@@ -597,6 +699,7 @@ function App() {
                   </div>
 
                   {showAddAuthForm && (
+                  <>
                     <AddAuthorizationForm
                       form={newAuthForm}
                       darkMode={darkMode}
@@ -609,7 +712,48 @@ function App() {
                       onSubmit={handleCreateAuth}
                       onCancel={handleCancelAuthForm}
                     />
-                  )}
+
+                    {editingAuthId && (
+                      <div className="mt-4">
+                        {authEventsError && (
+                          <div
+                            className={cn(
+                              'mb-3 rounded-xl border px-4 py-3 text-sm',
+                              darkMode
+                                ? 'border-red-900/70 bg-red-950/40 text-red-200'
+                                : 'border-red-200 bg-red-50 text-red-700',
+                            )}
+                          >
+                            {authEventsError}
+                          </div>
+                        )}
+
+                        {isLoadingAuthEvents ? (
+                          <div
+                            className={cn(
+                              'rounded-2xl border p-4 text-sm',
+                              darkMode
+                                ? 'border-gray-700 bg-gray-900 text-gray-300'
+                                : 'border-gray-200 bg-white text-gray-600',
+                            )}
+                          >
+                            Loading authorization timeline...
+                          </div>
+                        ) : (
+                          <AuthTimelineSection
+                            darkMode={darkMode}
+                            events={authEvents}
+                            eventForm={timelineEventForm}
+                            isSavingEvent={isSavingAuthEvent}
+                            onEventFieldChange={handleTimelineEventFieldChange}
+                            onAddEvent={handleAddTimelineEvent}
+                            onDeleteEvent={handleDeleteTimelineEvent}
+                          />
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
 
                   <DataTable
                     data={filteredData}

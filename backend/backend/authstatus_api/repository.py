@@ -6,6 +6,28 @@ from typing import Any
 from authstatus_api.crypto import decrypt_auth_record, decrypt_text, encrypt_auth_payload, encrypt_text
 from authstatus_api.database import AUTH_EVENT_TABLE_COLUMNS, AUTH_TABLE_COLUMNS, get_conn, init_db
 
+REQUEST_SUBMITTED_EVENT_TYPES = {
+    "request submitted",
+}
+
+TERMINAL_EVENT_TYPES = {
+    "payer response",
+    "peer review",
+    "appeal",
+}
+
+TERMINAL_OUTCOMES = {
+    "approved",
+    "denied",
+    "denied with peer review option",
+    "more information needed",
+    "no pa required",
+    "appeal approved",
+    "appeal denied",
+    "upheld",
+    "overturned",
+}
+
 BOOLEAN_FIELDS = {
     "care_manager_enabled",
     "discharge_clinical_needed",
@@ -73,6 +95,73 @@ def _prepare_event_payload(payload: dict[str, Any]) -> dict[str, Any]:
 
     return prepared
 
+
+def _normalize_event_label(value: Any) -> str:
+    return str(value or "").strip().lower()
+
+
+def _event_datetime_value(event: dict[str, Any]) -> str:
+    event_date = str(event.get("event_date") or "").strip()
+    event_time = str(event.get("event_time") or "").strip()
+
+    if not event_date:
+        return ""
+
+    if not event_time:
+        return f"{event_date}T00:00:00"
+
+    if len(event_time) == 5:
+        return f"{event_date}T{event_time}:00"
+
+    return f"{event_date}T{event_time}"
+
+
+def _is_request_submitted_event(event: dict[str, Any]) -> bool:
+    return _normalize_event_label(event.get("event_type")) in REQUEST_SUBMITTED_EVENT_TYPES
+
+
+def _is_terminal_event(event: dict[str, Any]) -> bool:
+    event_type = _normalize_event_label(event.get("event_type"))
+    outcome = _normalize_event_label(event.get("outcome"))
+
+    return event_type in TERMINAL_EVENT_TYPES or outcome in TERMINAL_OUTCOMES
+
+
+def _sync_auth_timeline_fields(auth_id: int) -> None:
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT *
+            FROM auth_events
+            WHERE auth_id = ?
+            ORDER BY event_date, event_time, id
+            """,
+            (auth_id,),
+        ).fetchall()
+
+        events = [_row_to_event_dict(row) for row in rows]
+
+        submitted_at = next(
+            (_event_datetime_value(event) for event in events if _is_request_submitted_event(event)),
+            None,
+        )
+
+        if submitted_at is None and events:
+            submitted_at = _event_datetime_value(events[0]) or None
+
+        decision_at = next(
+            (_event_datetime_value(event) for event in events if _is_terminal_event(event)),
+            None,
+        )
+
+        conn.execute(
+            """
+            UPDATE auths
+            SET submitted_at = ?, decision_at = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (submitted_at, decision_at, _now(), auth_id),
+        )
 
 def create_auth(payload: dict[str, Any]) -> dict[str, Any]:
     init_db()
@@ -196,6 +285,8 @@ def create_auth_event(auth_id: int, payload: dict[str, Any]) -> dict[str, Any] |
         )
         event_id = int(cursor.lastrowid)
 
+    _sync_auth_timeline_fields(auth_id)
+
     return get_auth_event(auth_id, event_id)
 
 
@@ -258,6 +349,7 @@ def update_auth_event(
     }
 
     if not allowed_payload:
+        _sync_auth_timeline_fields(auth_id)
         return get_auth_event(auth_id, event_id)
 
     assignments = ", ".join(f"{key} = ?" for key in allowed_payload)
@@ -268,6 +360,8 @@ def update_auth_event(
             f"UPDATE auth_events SET {assignments} WHERE auth_id = ? AND id = ?",
             [*values, auth_id, event_id],
         )
+
+    _sync_auth_timeline_fields(auth_id)
 
     return get_auth_event(auth_id, event_id)
 
@@ -280,8 +374,12 @@ def delete_auth_event(auth_id: int, event_id: int) -> bool:
             "DELETE FROM auth_events WHERE auth_id = ? AND id = ?",
             (auth_id, event_id),
         )
+        deleted = cursor.rowcount > 0
 
-    return cursor.rowcount > 0
+    if deleted:
+        _sync_auth_timeline_fields(auth_id)
+
+    return deleted
 
 
 def delete_auth(auth_id: int) -> bool:
