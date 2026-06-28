@@ -1,4 +1,4 @@
-import type { AuthEvent } from '../api/authEvents';
+import type { AuthEvent, UpdateAuthEventPayload } from '../api/authEvents';
 import { cn } from '../utils/cn';
 
 export interface TimelineEventFormState {
@@ -14,10 +14,14 @@ interface AuthTimelineSectionProps {
   events: AuthEvent[];
   eventForm: TimelineEventFormState;
   isSavingEvent: boolean;
+  editingEventId: number | null;
   onEventFieldChange: (field: keyof TimelineEventFormState, value: string) => void;
   onAddEvent: () => void;
+  onStartEditEvent: (event: AuthEvent) => void;
+  onCancelEditEvent: () => void;
+  onUpdateEvent: (eventId: number, payload: UpdateAuthEventPayload) => void;
   onDeleteEvent: (eventId: number) => void;
-  }
+}
   
 const EVENT_TYPES = [
   'Request Submitted',
@@ -55,10 +59,35 @@ export function AuthTimelineSection({
   events,
   eventForm,
   isSavingEvent,
+  editingEventId,
   onEventFieldChange,
   onAddEvent,
+  onStartEditEvent,
+  onCancelEditEvent,
+  onUpdateEvent,
   onDeleteEvent,
 }: AuthTimelineSectionProps) {
+  const handleSubmitEvent = () => {
+    if (!eventForm.eventDate.trim()) {
+      return;
+    }
+
+    const payload = {
+      event_type: eventForm.eventType,
+      event_date: eventForm.eventDate,
+      event_time: eventForm.eventTime,
+      outcome: eventForm.outcome,
+      notes: eventForm.notes.trim(),
+    };
+
+    if (editingEventId) {
+      onUpdateEvent(editingEventId, payload);
+      return;
+    }
+
+    onAddEvent();
+  };
+
   return (
     <div
       className={cn(
@@ -178,7 +207,7 @@ export function AuthTimelineSection({
       <div className="mt-3 flex justify-end">
         <button
           type="button"
-          onClick={onAddEvent}
+          onClick={handleSubmitEvent}
           disabled={isSavingEvent || !eventForm.eventDate.trim()}
           className={cn(
             'inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed',
@@ -187,8 +216,21 @@ export function AuthTimelineSection({
               : 'bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500',
           )}
         >
-          {isSavingEvent ? 'Saving Event...' : '+ Add Timeline Event'}
+          {isSavingEvent ? 'Saving Event...' : editingEventId ? 'Save Timeline Event' : '+ Add Timeline Event'}
         </button>
+
+        {editingEventId && (
+          <button
+            type="button"
+            onClick={onCancelEditEvent}
+            className={cn(
+              'ml-3 inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium transition-colors',
+              darkMode ? 'text-gray-300 hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100',
+            )}
+          >
+            Cancel Edit
+          </button>
+        )}
       </div>
 
       <div className="mt-5 space-y-3">
@@ -217,6 +259,18 @@ export function AuthTimelineSection({
                   </div>
                 </div>
 
+                <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => onStartEditEvent(event)}
+                  className={cn(
+                    'text-xs font-medium transition-colors',
+                    darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700',
+                  )}
+                >
+                  Edit
+                </button>
+
                 <button
                   type="button"
                   onClick={() => onDeleteEvent(event.id)}
@@ -227,6 +281,7 @@ export function AuthTimelineSection({
                 >
                   Delete
                 </button>
+              </div>
               </div>
 
               {event.notes ? (

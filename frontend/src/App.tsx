@@ -34,7 +34,9 @@ import {
   createAuthEvent,
   deleteAuthEvent,
   fetchAuthEvents,
+  updateAuthEvent,
   type AuthEvent,
+  type UpdateAuthEventPayload,
 } from './api/authEvents';
 import {
   AuthTimelineSection,
@@ -93,6 +95,7 @@ function App() {
   const [isLoadingAuthEvents, setIsLoadingAuthEvents] = useState(false);
   const [isSavingAuthEvent, setIsSavingAuthEvent] = useState(false);
   const [authEventsError, setAuthEventsError] = useState<string | null>(null);
+  const [editingAuthEventId, setEditingAuthEventId] = useState<number | null>(null);
   const [timelineEventForm, setTimelineEventForm] = useState<TimelineEventFormState>({
     eventDate: '',
     eventTime: '',
@@ -278,6 +281,7 @@ function App() {
       outcome: '',
       notes: '',
     });
+    setEditingAuthEventId(null);
   };
   
   const loadAuthEvents = async (authId: string) => {
@@ -324,6 +328,9 @@ function App() {
   
       setAuthEvents((currentEvents) => [...currentEvents, createdEvent]);
       resetTimelineEventForm();
+
+      const refreshedAuths = await fetchAuthRequests();
+      setAuthRequests(refreshedAuths);
     } catch (error) {
       setAuthEventsError(error instanceof Error ? error.message : 'Failed to save authorization timeline event.');
     } finally {
@@ -331,6 +338,51 @@ function App() {
     }
   };
   
+  const handleStartEditTimelineEvent = (event: AuthEvent) => {
+    setEditingAuthEventId(event.id);
+    setTimelineEventForm({
+      eventDate: event.eventDate,
+      eventTime: event.eventTime,
+      eventType: event.eventType,
+      outcome: event.outcome,
+      notes: event.notes,
+    });
+    setAuthEventsError(null);
+  };
+  
+  const handleCancelEditTimelineEvent = () => {
+    resetTimelineEventForm();
+  };
+  
+  const handleUpdateTimelineEvent = async (
+    eventId: number,
+    payload: UpdateAuthEventPayload,
+  ) => {
+    if (!editingAuthId) {
+      return;
+    }
+  
+    setIsSavingAuthEvent(true);
+    setAuthEventsError(null);
+  
+    try {
+      const updatedEvent = await updateAuthEvent(editingAuthId, eventId, payload);
+  
+      setAuthEvents((currentEvents) =>
+        currentEvents.map((event) => (event.id === eventId ? updatedEvent : event)),
+      );
+      resetTimelineEventForm();
+  
+      const refreshedAuths = await fetchAuthRequests();
+      setAuthRequests(refreshedAuths);
+      
+    } catch (error) {
+      setAuthEventsError(error instanceof Error ? error.message : 'Failed to update authorization timeline event.');
+    } finally {
+      setIsSavingAuthEvent(false);
+    }
+  };
+
   const handleDeleteTimelineEvent = async (eventId: number) => {
     if (!editingAuthId) {
       return;
@@ -341,6 +393,10 @@ function App() {
     try {
       await deleteAuthEvent(editingAuthId, eventId);
       setAuthEvents((currentEvents) => currentEvents.filter((event) => event.id !== eventId));
+
+      const refreshedAuths = await fetchAuthRequests();
+      setAuthRequests(refreshedAuths);
+
     } catch (error) {
       setAuthEventsError(error instanceof Error ? error.message : 'Failed to delete authorization timeline event.');
     }
@@ -745,8 +801,12 @@ function App() {
                             events={authEvents}
                             eventForm={timelineEventForm}
                             isSavingEvent={isSavingAuthEvent}
+                            editingEventId={editingAuthEventId}
                             onEventFieldChange={handleTimelineEventFieldChange}
                             onAddEvent={handleAddTimelineEvent}
+                            onStartEditEvent={handleStartEditTimelineEvent}
+                            onCancelEditEvent={handleCancelEditTimelineEvent}
+                            onUpdateEvent={handleUpdateTimelineEvent}
                             onDeleteEvent={handleDeleteTimelineEvent}
                           />
                         )}
