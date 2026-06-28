@@ -77,6 +77,7 @@ function App() {
   const [activePage, setActivePage] = useState<AppPage>('dashboard');
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d'>('30d');
   const [selectedFacility, setSelectedFacility] = useState<string>('All');
+  const [selectedInsurance, setSelectedInsurance] = useState<string>('All');
   const [authRequests, setAuthRequests] = useState<AuthRequest[]>([]);
   const [isLoadingAuths, setIsLoadingAuths] = useState(true);
   const [authsError, setAuthsError] = useState<string | null>(null);
@@ -97,6 +98,7 @@ function App() {
   const [isSavingAuthEvent, setIsSavingAuthEvent] = useState(false);
   const [authEventsError, setAuthEventsError] = useState<string | null>(null);
   const [editingAuthEventId, setEditingAuthEventId] = useState<number | null>(null);
+  const [confirmingDeleteAuthEventId, setConfirmingDeleteAuthEventId] = useState<number | null>(null);
   const [timelineEventForm, setTimelineEventForm] = useState<TimelineEventFormState>({
     eventDate: '',
     eventTime: '',
@@ -259,7 +261,7 @@ function App() {
       requestedDays: String(auth.requestedDays ?? ''),
       approvedDays: String(auth.approvedDays ?? ''),
       insurance: auth.payer,
-      authType: auth.authType || 'Initial',
+      authType: 'Initial',
       submissionMethod: 'Web Portal',
       phoneNumber: '',
       phoneExtension: '',
@@ -284,6 +286,7 @@ function App() {
       notes: '',
     });
     setEditingAuthEventId(null);
+    setConfirmingDeleteAuthEventId(null);
   };
   
   const loadAuthEvents = async (authId: string) => {
@@ -385,7 +388,15 @@ function App() {
     }
   };
 
-  const handleDeleteTimelineEvent = async (eventId: number) => {
+  const handleStartDeleteTimelineEvent = (eventId: number) => {
+    setConfirmingDeleteAuthEventId(eventId);
+  };
+  
+  const handleCancelDeleteTimelineEvent = () => {
+    setConfirmingDeleteAuthEventId(null);
+  };
+
+  const handleConfirmDeleteTimelineEvent = async (eventId: number) => {
     if (!editingAuthId) {
       return;
     }
@@ -398,6 +409,7 @@ function App() {
 
       const refreshedAuths = await fetchAuthRequests();
       setAuthRequests(refreshedAuths);
+      setConfirmingDeleteAuthEventId(null);
 
     } catch (error) {
       setAuthEventsError(error instanceof Error ? error.message : 'Failed to delete authorization timeline event.');
@@ -555,15 +567,17 @@ function App() {
     let daysToSubtract = 30;
     if (dateRange === '7d') daysToSubtract = 7;
     if (dateRange === '90d') daysToSubtract = 90;
-
+  
     const startDate = subDays(today, daysToSubtract);
-
+  
     return authRequests.filter((item) => {
       const inDateRange = item.date >= startDate && item.date <= today;
       const matchFacility = selectedFacility === 'All' || item.facility === selectedFacility;
-      return inDateRange && matchFacility;
+      const matchInsurance = selectedInsurance === 'All' || item.payer === selectedInsurance;
+  
+      return inDateRange && matchFacility && matchInsurance;
     });
-  }, [authRequests, dateRange, selectedFacility]);
+  }, [authRequests, dateRange, selectedFacility, selectedInsurance]);
 
   const recentAuthorizations = useMemo(() => {
     return filteredData.slice(0, 5);
@@ -571,17 +585,37 @@ function App() {
 
   const facilityOptions = useMemo(() => {
     const uniqueFacilities = Array.from(
-      new Set(authRequests.map((item) => item.facility).filter(Boolean)),
+      new Set([
+        ...registeredFacilities,
+        ...authRequests.map((item) => item.facility),
+      ].filter(Boolean)),
     ).sort();
-
+  
     return ['All', ...uniqueFacilities];
-  }, [authRequests]);
+  }, [authRequests, registeredFacilities]);
+
+  const insuranceOptions = useMemo(() => {
+    const uniqueInsurances = Array.from(
+      new Set([
+        ...registeredInsurances,
+        ...authRequests.map((item) => item.payer),
+      ].filter(Boolean)),
+    ).sort();
+  
+    return ['All', ...uniqueInsurances];
+  }, [authRequests, registeredInsurances]);
 
   useEffect(() => {
     if (!facilityOptions.includes(selectedFacility)) {
       setSelectedFacility('All');
     }
   }, [facilityOptions, selectedFacility]);
+
+  useEffect(() => {
+    if (!insuranceOptions.includes(selectedInsurance)) {
+      setSelectedInsurance('All');
+    }
+  }, [insuranceOptions, selectedInsurance]);
 
   const toggleDarkMode = () => setDarkMode(!darkMode);
 
@@ -693,6 +727,9 @@ function App() {
               selectedFacility={selectedFacility}
               setSelectedFacility={setSelectedFacility}
               facilities={facilityOptions}
+              selectedInsurance={selectedInsurance}
+              setSelectedInsurance={setSelectedInsurance}
+              insurances={insuranceOptions}
               darkMode={darkMode}
             />
             
@@ -729,138 +766,172 @@ function App() {
               </>
             )}
 
-            {activePage === 'authorizations' && (
-              <>
-                {isLoadingAuths && (
-                  <div className={cn('rounded-lg border px-4 py-3 text-sm', darkMode ? 'border-blue-900/60 bg-blue-950/30 text-blue-200' : 'border-blue-200 bg-blue-50 text-blue-700')}>
-                    Loading authorization records...
-                  </div>
-                )}
+{activePage === 'authorizations' && (
+  <>
+    {isLoadingAuths && (
+      <div className={cn('rounded-lg border px-4 py-3 text-sm', darkMode ? 'border-blue-900/60 bg-blue-950/30 text-blue-200' : 'border-blue-200 bg-blue-50 text-blue-700')}>
+        Loading authorization records...
+      </div>
+    )}
 
-                {authsError && (
-                  <div className={cn('rounded-lg border px-4 py-3 text-sm', darkMode ? 'border-red-900/60 bg-red-950/30 text-red-200' : 'border-red-200 bg-red-50 text-red-700')}>
-                    {authsError}
-                  </div>
-                )}
+    {authsError && (
+      <div className={cn('rounded-lg border px-4 py-3 text-sm', darkMode ? 'border-red-900/60 bg-red-950/30 text-red-200' : 'border-red-200 bg-red-50 text-red-700')}>
+        {authsError}
+      </div>
+    )}
 
-                <Filters
-                  dateRange={dateRange}
-                  setDateRange={setDateRange}
-                  selectedFacility={selectedFacility}
-                  setSelectedFacility={setSelectedFacility}
-                  facilities={facilityOptions}
-                  darkMode={darkMode}
-                />
+    {!showAddAuthForm && !viewingAuth && (
+      <Filters
+      dateRange={dateRange}
+      setDateRange={setDateRange}
+      selectedFacility={selectedFacility}
+      setSelectedFacility={setSelectedFacility}
+      facilities={facilityOptions}
+      selectedInsurance={selectedInsurance}
+      setSelectedInsurance={setSelectedInsurance}
+      insurances={insuranceOptions}
+      darkMode={darkMode}
+    />
+    )}
 
-                <div className={`rounded-xl border p-5 shadow-sm overflow-hidden flex flex-col ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-                  <div className="flex items-center justify-between gap-4 mb-4 shrink-0">
-                    <div>
-                      <h3 className="text-lg font-semibold">Authorization Work Queue</h3>
-                      <p className={cn('text-sm mt-1', darkMode ? 'text-gray-400' : 'text-gray-600')}>
-                        View authorization records by facility and date range.
-                      </p>
-                    </div>
+    <div className={`rounded-xl border p-5 shadow-sm overflow-hidden flex flex-col ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+      <div className="flex items-center justify-between gap-4 mb-4 shrink-0">
+        <div>
+          <h3 className="text-lg font-semibold">
+            {showAddAuthForm
+              ? editingAuthId
+                ? 'Edit Authorization'
+                : 'Add Authorization'
+              : viewingAuth
+                ? 'Authorization Details'
+                : 'Authorization Work Queue'}
+          </h3>
+          <p className={cn('text-sm mt-1', darkMode ? 'text-gray-400' : 'text-gray-600')}>
+            {showAddAuthForm
+              ? 'Update authorization details and timeline events.'
+              : viewingAuth
+                ? 'Review authorization details and timeline history.'
+                : 'View authorization records by facility and date range.'}
+          </p>
+        </div>
 
-                    <button
-                      type="button"
-                      onClick={() => setShowAddAuthForm((currentValue) => !currentValue)}
-                      className={cn(
-                        'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
-                        darkMode
-                          ? 'bg-blue-600 text-white hover:bg-blue-500'
-                          : 'bg-blue-600 text-white hover:bg-blue-700',
-                      )}
-                    >
-                      {showAddAuthForm ? (editingAuthId ? 'Close Edit' : 'Close Form') : 'Add Authorization'}
-                    </button>
-                  </div>
+        <button
+          type="button"
+          onClick={() => {
+            if (viewingAuth) {
+              handleCloseViewAuth();
+              return;
+            }
 
-                  {showAddAuthForm && (
-                  <>
-                    <AddAuthorizationForm
-                      form={newAuthForm}
-                      darkMode={darkMode}
-                      isCreatingAuth={isCreatingAuth}
-                      submitLabel={editingAuthId ? 'Save Changes' : 'Add Authorization'}
-                      registeredFacilities={registeredFacilities}
-                      registeredInsurances={registeredInsurances}
-                      registeredWebPortals={registeredWebPortals}
-                      onFieldChange={handleNewAuthFieldChange}
-                      onSubmit={handleCreateAuth}
-                      onCancel={handleCancelAuthForm}
-                    />
+            if (showAddAuthForm) {
+              handleCancelAuthForm();
+              return;
+            }
 
-                    {editingAuthId && (
-                      <div className="mt-4">
-                        {authEventsError && (
-                          <div
-                            className={cn(
-                              'mb-3 rounded-xl border px-4 py-3 text-sm',
-                              darkMode
-                                ? 'border-red-900/70 bg-red-950/40 text-red-200'
-                                : 'border-red-200 bg-red-50 text-red-700',
-                            )}
-                          >
-                            {authEventsError}
-                          </div>
-                        )}
+            setShowAddAuthForm(true);
+          }}
+          className={cn(
+            'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
+            darkMode
+              ? 'bg-blue-600 text-white hover:bg-blue-500'
+              : 'bg-blue-600 text-white hover:bg-blue-700',
+          )}
+        >
+          {showAddAuthForm ? (editingAuthId ? 'Close Edit' : 'Close Form') : viewingAuth ? 'Back to List' : 'Add Authorization'}
+        </button>
+      </div>
 
-                        {isLoadingAuthEvents ? (
-                          <div
-                            className={cn(
-                              'rounded-2xl border p-4 text-sm',
-                              darkMode
-                                ? 'border-gray-700 bg-gray-900 text-gray-300'
-                                : 'border-gray-200 bg-white text-gray-600',
-                            )}
-                          >
-                            Loading authorization timeline...
-                          </div>
-                        ) : (
-                          <AuthTimelineSection
-                            darkMode={darkMode}
-                            events={authEvents}
-                            eventForm={timelineEventForm}
-                            isSavingEvent={isSavingAuthEvent}
-                            editingEventId={editingAuthEventId}
-                            onEventFieldChange={handleTimelineEventFieldChange}
-                            onAddEvent={handleAddTimelineEvent}
-                            onStartEditEvent={handleStartEditTimelineEvent}
-                            onCancelEditEvent={handleCancelEditTimelineEvent}
-                            onUpdateEvent={handleUpdateTimelineEvent}
-                            onDeleteEvent={handleDeleteTimelineEvent}
-                          />
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
+      {showAddAuthForm && (
+        <>
+          <AddAuthorizationForm
+            form={newAuthForm}
+            darkMode={darkMode}
+            isCreatingAuth={isCreatingAuth}
+            submitLabel={editingAuthId ? 'Save Changes' : 'Add Authorization'}
+            registeredFacilities={registeredFacilities}
+            registeredInsurances={registeredInsurances}
+            registeredWebPortals={registeredWebPortals}
+            onFieldChange={handleNewAuthFieldChange}
+            onSubmit={handleCreateAuth}
+            onCancel={handleCancelAuthForm}
+          />
 
-                  <DataTable
-                    data={filteredData}
-                    darkMode={darkMode}
-                    onView={handleStartViewAuth}
-                    onEdit={handleStartEditAuth}
-                    onDelete={handleDeleteAuth}
-                    deletingId={deletingAuthId}
-                  />
+          {editingAuthId && (
+            <div className="mt-4">
+              {authEventsError && (
+                <div
+                  className={cn(
+                    'mb-3 rounded-xl border px-4 py-3 text-sm',
+                    darkMode
+                      ? 'border-red-900/70 bg-red-950/40 text-red-200'
+                      : 'border-red-200 bg-red-50 text-red-700',
+                  )}
+                >
+                  {authEventsError}
                 </div>
-              </>
-            )}
+              )}
 
-            {viewingAuth && (
-              <div className="mt-4">
-                <AuthorizationReadOnlyView
-                  auth={viewingAuth}
+              {isLoadingAuthEvents ? (
+                <div
+                  className={cn(
+                    'rounded-2xl border p-4 text-sm',
+                    darkMode
+                      ? 'border-gray-700 bg-gray-900 text-gray-300'
+                      : 'border-gray-200 bg-white text-gray-600',
+                  )}
+                >
+                  Loading authorization timeline...
+                </div>
+              ) : (
+                <AuthTimelineSection
                   darkMode={darkMode}
                   events={authEvents}
-                  isLoadingEvents={isLoadingAuthEvents}
-                  eventsError={authEventsError}
-                  onClose={handleCloseViewAuth}
-                  onEdit={handleStartEditAuth}
+                  eventForm={timelineEventForm}
+                  isSavingEvent={isSavingAuthEvent}
+                  editingEventId={editingAuthEventId}
+                  confirmingDeleteEventId={confirmingDeleteAuthEventId}
+                  onEventFieldChange={handleTimelineEventFieldChange}
+                  onAddEvent={handleAddTimelineEvent}
+                  onStartEditEvent={handleStartEditTimelineEvent}
+                  onCancelEditEvent={handleCancelEditTimelineEvent}
+                  onUpdateEvent={handleUpdateTimelineEvent}
+                  onStartDeleteEvent={handleStartDeleteTimelineEvent}
+                  onCancelDeleteEvent={handleCancelDeleteTimelineEvent}
+                  onConfirmDeleteEvent={handleConfirmDeleteTimelineEvent}
                 />
-              </div>
-            )}
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {viewingAuth && (
+        <div className="mt-4">
+          <AuthorizationReadOnlyView
+            auth={viewingAuth}
+            darkMode={darkMode}
+            events={authEvents}
+            isLoadingEvents={isLoadingAuthEvents}
+            eventsError={authEventsError}
+            onClose={handleCloseViewAuth}
+            onEdit={handleStartEditAuth}
+          />
+        </div>
+      )}
+
+      {!showAddAuthForm && !viewingAuth && (
+        <DataTable
+          data={filteredData}
+          darkMode={darkMode}
+          onView={handleStartViewAuth}
+          onEdit={handleStartEditAuth}
+          onDelete={handleDeleteAuth}
+          deletingId={deletingAuthId}
+        />
+      )}
+    </div>
+  </>
+)}
 
             {activePage === 'settings' && (
               <div className="grid gap-6 lg:grid-cols-3">

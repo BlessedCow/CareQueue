@@ -15,12 +15,15 @@ interface AuthTimelineSectionProps {
   eventForm: TimelineEventFormState;
   isSavingEvent: boolean;
   editingEventId: number | null;
+  confirmingDeleteEventId: number | null;
   onEventFieldChange: (field: keyof TimelineEventFormState, value: string) => void;
   onAddEvent: () => void;
   onStartEditEvent: (event: AuthEvent) => void;
   onCancelEditEvent: () => void;
   onUpdateEvent: (eventId: number, payload: UpdateAuthEventPayload) => void;
-  onDeleteEvent: (eventId: number) => void;
+  onStartDeleteEvent: (eventId: number) => void;
+  onCancelDeleteEvent: () => void;
+  onConfirmDeleteEvent: (eventId: number) => void;
 }
   
 const EVENT_TYPES = [
@@ -60,12 +63,15 @@ export function AuthTimelineSection({
   eventForm,
   isSavingEvent,
   editingEventId,
+  confirmingDeleteEventId,
   onEventFieldChange,
   onAddEvent,
   onStartEditEvent,
   onCancelEditEvent,
   onUpdateEvent,
-  onDeleteEvent,
+  onStartDeleteEvent,
+  onCancelDeleteEvent,
+  onConfirmDeleteEvent,
 }: AuthTimelineSectionProps) {
   const handleSubmitEvent = () => {
     if (!eventForm.eventDate.trim()) {
@@ -294,16 +300,46 @@ export function AuthTimelineSection({
                   {editingEventId === event.id ? 'Editing' : 'Edit'}
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => onDeleteEvent(event.id)}
-                  className={cn(
-                    'text-xs font-medium transition-colors',
-                    darkMode ? 'text-red-400 hover:text-red-300' : 'text-red-600 hover:text-red-700',
-                  )}
-                >
-                  Delete
-                </button>
+                {confirmingDeleteEventId === event.id ? (
+                  <div className="flex items-center gap-2">
+                    <span className={cn('text-xs', darkMode ? 'text-gray-400' : 'text-gray-500')}>
+                      Delete?
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => onConfirmDeleteEvent(event.id)}
+                      className={cn(
+                        'text-xs font-medium transition-colors',
+                        darkMode ? 'text-red-400 hover:text-red-300' : 'text-red-600 hover:text-red-700',
+                      )}
+                    >
+                      Yes
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={onCancelDeleteEvent}
+                      className={cn(
+                        'text-xs font-medium transition-colors',
+                        darkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-800',
+                      )}
+                    >
+                      No
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => onStartDeleteEvent(event.id)}
+                    className={cn(
+                      'text-xs font-medium transition-colors',
+                      darkMode ? 'text-red-400 hover:text-red-300' : 'text-red-600 hover:text-red-700',
+                    )}
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
               </div>
 

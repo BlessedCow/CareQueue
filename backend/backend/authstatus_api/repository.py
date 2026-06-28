@@ -127,6 +127,44 @@ def _is_terminal_event(event: dict[str, Any]) -> bool:
     return event_type in TERMINAL_EVENT_TYPES or outcome in TERMINAL_OUTCOMES
 
 
+def _status_from_timeline_event(event: dict[str, Any]) -> str | None:
+    event_type = _normalize_event_label(event.get("event_type"))
+    outcome = _normalize_event_label(event.get("outcome"))
+
+    if event_type == "request submitted" or outcome == "pending":
+        return "Pending"
+
+    if outcome in {"approved", "appeal approved", "overturned"}:
+        return "Approved"
+
+    if outcome in {"denied", "denied with peer review option", "appeal denied", "upheld"}:
+        return "Denied"
+
+    if event_type == "peer review" or outcome in {"scheduled", "peer review scheduled"}:
+        return "P2P"
+
+    if event_type == "appeal" or outcome in {"appeal pending"}:
+        return "Appealed"
+
+    if outcome == "no pa required":
+        return "No PA Required"
+
+    if outcome == "more information needed":
+        return "Pending"
+
+    return None
+
+
+def _timeline_status(events: list[dict[str, Any]]) -> str:
+    for event in reversed(events):
+        status = _status_from_timeline_event(event)
+
+        if status:
+            return status
+
+    return "Pending"
+
+
 def _sync_auth_timeline_fields(auth_id: int) -> None:
     with get_conn() as conn:
         rows = conn.execute(
@@ -157,10 +195,10 @@ def _sync_auth_timeline_fields(auth_id: int) -> None:
         conn.execute(
             """
             UPDATE auths
-            SET submitted_at = ?, decision_at = ?, updated_at = ?
+            SET submitted_at = ?, decision_at = ?, status = ?, updated_at = ?
             WHERE id = ?
             """,
-            (submitted_at, decision_at, _now(), auth_id),
+            (submitted_at, decision_at, _timeline_status(events), _now(), auth_id),
         )
 
 def create_auth(payload: dict[str, Any]) -> dict[str, Any]:
