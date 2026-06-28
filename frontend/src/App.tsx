@@ -9,6 +9,7 @@ import {
   updateAuthRequest,
 } from './api/authStatus';
 import { AddAuthorizationForm } from './components/AddAuthorizationForm';
+import { AuthorizationReadOnlyView } from './components/AuthorizationReadOnlyView';
 import {
   DEFAULT_FACILITIES,
   DEFAULT_INSURANCES,
@@ -120,6 +121,7 @@ function App() {
   const [newInsuranceName, setNewInsuranceName] = useState('');
   const [newWebPortalName, setNewWebPortalName] = useState('');
   const [editingAuthId, setEditingAuthId] = useState<string | null>(null);
+  const [viewingAuth, setViewingAuth] = useState<AuthRequest | null>(null);
   const [newAuthForm, setNewAuthForm] = useState({
     clientName: '',
     facility: registeredFacilities[0] ?? '',
@@ -402,7 +404,23 @@ function App() {
     }
   };
 
+  const handleStartViewAuth = (auth: AuthRequest) => {
+    setViewingAuth(auth);
+    setShowAddAuthForm(false);
+    setEditingAuthId(null);
+    resetTimelineEventForm();
+    setAuthsError(null);
+    void loadAuthEvents(auth.id);
+  };
+  
+  const handleCloseViewAuth = () => {
+    setViewingAuth(null);
+    setAuthEvents([]);
+    setAuthEventsError(null);
+  };
+
   const handleStartEditAuth = (auth: AuthRequest) => {
+    setViewingAuth(null);
     loadAuthIntoForm(auth);
     setEditingAuthId(auth.id);
     setShowAddAuthForm(true);
@@ -415,6 +433,7 @@ function App() {
     resetNewAuthForm();
     resetTimelineEventForm();
     setEditingAuthId(null);
+    setViewingAuth(null);
     setAuthEvents([]);
     setAuthEventsError(null);
     setShowAddAuthForm(false);
@@ -698,11 +717,13 @@ function App() {
               <div className={`rounded-xl border p-5 shadow-sm overflow-hidden flex flex-col ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
                 <h3 className="text-lg font-semibold mb-4 shrink-0">Recent Authorizations</h3>
                 <DataTable
-                  data={recentAuthorizations}
+                  data={filteredData}
                   darkMode={darkMode}
+                  onView={handleStartViewAuth}
+                  onEdit={handleStartEditAuth}
                   onDelete={handleDeleteAuth}
                   deletingId={deletingAuthId}
-/>
+                />
               </div>
             </div>
               </>
@@ -818,12 +839,27 @@ function App() {
                   <DataTable
                     data={filteredData}
                     darkMode={darkMode}
+                    onView={handleStartViewAuth}
                     onEdit={handleStartEditAuth}
                     onDelete={handleDeleteAuth}
                     deletingId={deletingAuthId}
                   />
                 </div>
               </>
+            )}
+
+            {viewingAuth && (
+              <div className="mt-4">
+                <AuthorizationReadOnlyView
+                  auth={viewingAuth}
+                  darkMode={darkMode}
+                  events={authEvents}
+                  isLoadingEvents={isLoadingAuthEvents}
+                  eventsError={authEventsError}
+                  onClose={handleCloseViewAuth}
+                  onEdit={handleStartEditAuth}
+                />
+              </div>
             )}
 
             {activePage === 'settings' && (

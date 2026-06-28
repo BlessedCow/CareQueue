@@ -2,11 +2,12 @@ import { useState, useMemo } from 'react';
 import { AuthRequest } from '../data/mockData';
 import { format } from 'date-fns';
 import { cn } from '../utils/cn';
-import { ArrowUpDown, Search, Trash2 } from 'lucide-react';
+import { ArrowUpDown, Eye, Pencil, Search, Trash2 } from 'lucide-react';
 
 interface DataTableProps {
   data: AuthRequest[];
   darkMode: boolean;
+  onView?: (auth: AuthRequest) => void;
   onEdit?: (auth: AuthRequest) => void;
   onDelete?: (auth: AuthRequest) => void;
   deletingId?: string | null;
@@ -34,7 +35,7 @@ function calculateTurnaroundDays(submittedAt?: string | null, decisionAt?: strin
   return `${days} day${days === 1 ? '' : 's'}`;
 }
 
-export function DataTable({ data, darkMode, onEdit, onDelete, deletingId }: DataTableProps) {
+export function DataTable({ data, darkMode, onView, onEdit, onDelete, deletingId }: DataTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -164,17 +165,34 @@ export function DataTable({ data, darkMode, onEdit, onDelete, deletingId }: Data
                   {calculateTurnaroundDays(row.submittedAt, row.decisionAt)}
                 </td>
                 <td className={cn(tdClass, 'text-right')}>
-                  <div className="flex items-center justify-end gap-3">
+                <div className="flex items-center justify-end gap-3">
+                    {onView && (
+                      <button
+                        type="button"
+                        onClick={() => onView(row)}
+                        className={cn(
+                          'inline-flex items-center gap-1 font-medium transition-colors',
+                          darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900',
+                        )}
+                        aria-label={`View authorization record for ${row.patientId}`}
+                      >
+                        <Eye className="h-4 w-4" />
+                        <span>View</span>
+                      </button>
+                    )}
+
                     {onEdit && (
                       <button
                         type="button"
                         onClick={() => onEdit(row)}
                         className={cn(
-                          'font-medium transition-colors',
+                          'inline-flex items-center gap-1 font-medium transition-colors',
                           darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700',
                         )}
+                        aria-label={`Edit authorization record for ${row.patientId}`}
                       >
-                        Edit
+                        <Pencil className="h-4 w-4" />
+                        <span>Edit</span>
                       </button>
                     )}
 
@@ -184,7 +202,7 @@ export function DataTable({ data, darkMode, onEdit, onDelete, deletingId }: Data
                         onClick={() => onDelete(row)}
                         disabled={deletingId === row.id}
                         className={cn(
-                          'inline-flex items-center justify-end gap-1 font-medium transition-colors disabled:cursor-not-allowed',
+                          'inline-flex items-center gap-1 font-medium transition-colors disabled:cursor-not-allowed',
                           darkMode
                             ? 'text-red-400 hover:text-red-300 disabled:text-gray-600'
                             : 'text-red-600 hover:text-red-700 disabled:text-gray-400',
