@@ -165,6 +165,21 @@ def _timeline_status(events: list[dict[str, Any]]) -> str:
     return "Pending"
 
 
+def _initial_timeline_event_payload(auth_record: dict[str, Any]) -> dict[str, Any]:
+    event_date = str(auth_record.get("auth_start_date") or "").strip()
+
+    if not event_date:
+        event_date = str(auth_record.get("created_at") or _now())[:10]
+
+    return {
+        "event_type": "Request Submitted",
+        "event_date": event_date,
+        "event_time": "",
+        "outcome": "Pending",
+        "notes": "Initial authorization entry created.",
+    }
+
+
 def _sync_auth_timeline_fields(auth_id: int) -> None:
     with get_conn() as conn:
         rows = conn.execute(
@@ -232,7 +247,13 @@ def create_auth(payload: dict[str, Any]) -> dict[str, Any]:
         )
         auth_id = int(cursor.lastrowid)
 
-    return get_auth(auth_id)
+    created_auth = get_auth(auth_id)
+
+    if created_auth is not None:
+        create_auth_event(auth_id, _initial_timeline_event_payload(created_auth))
+        return get_auth(auth_id)
+
+    return None
 
 
 def list_auths() -> list[dict[str, Any]]:

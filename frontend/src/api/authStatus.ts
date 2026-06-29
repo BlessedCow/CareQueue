@@ -1,4 +1,4 @@
-import { parseISO } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
 import { AuthRequest, DenialReason, Facility, LOC, Payer, Status } from '../data/mockData';
 
@@ -134,15 +134,18 @@ function toAuthRequest(record: BackendAuthRecord): AuthRequest {
 }
 
 function mapApiAuthToAuthRequest(item: any): AuthRequest {
+  const authDate = item.auth_start_date || item.start_date || item.created_at;
+
   return {
     id: String(item.id),
     patientId: item.client_name ?? 'Unknown Client',
     facility: item.facility ?? 'Unknown Facility',
     status: item.status ?? 'Pending',
     payer: item.insurance ?? 'Unknown Insurance',
-    date: item.created_at ? new Date(item.created_at) : new Date(),
-    requestedDays: Number(item.requested_days ?? item.requestedDays ?? 0),
-    approvedDays: Number(item.approved_days ?? item.approvedDays ?? 0),
+    date: authDate ? parseISO(authDate.slice(0, 10)) : new Date(),
+    dateStr: authDate ? authDate.slice(0, 10) : format(new Date(), 'yyyy-MM-dd'),
+    requestedDays: Number(item.requested_days ?? item.los_requested ?? item.requestedDays ?? 0),
+    approvedDays: Number(item.approved_days ?? item.days_approved ?? item.approvedDays ?? 0),
     urSpecialist: item.ur_specialist ?? 'Unassigned',
     loc: item.loc ?? '',
     authType: item.auth_type ?? '',
@@ -183,6 +186,8 @@ export interface CreateAuthRequestPayload {
   submission_methods: string;
   requested_days?: number;
   approved_days?: number;
+  auth_start_date?: string;
+  auth_end_date?: string;
   care_manager_details?: string;
   submittedAt?: string | null;
   decisionAt?: string | null;

@@ -3,7 +3,7 @@ import { AuthRequest } from '../data/mockData';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   BarChart, Bar,
-  PieChart, Pie, Cell
+  PieChart, Pie
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
 
@@ -15,21 +15,47 @@ interface ChartProps {
 export function TrendChart({ data, darkMode }: ChartProps) {
   const chartData = useMemo(() => {
     const countsByDate = data.reduce((acc, curr) => {
-      if (!acc[curr.dateStr]) {
-        acc[curr.dateStr] = { date: curr.dateStr, Approved: 0, Denied: 0, Pending: 0, Total: 0 };
+      const dateKey = format(curr.date, 'yyyy-MM-dd');
+  
+      if (!acc[dateKey]) {
+        acc[dateKey] = {
+          date: dateKey,
+          Approved: 0,
+          Denied: 0,
+          Pending: 0,
+          Total: 0,
+        };
       }
-      if (curr.status === 'Approved') acc[curr.dateStr].Approved++;
-      else if (curr.status === 'Denied') acc[curr.dateStr].Denied++;
-      else if (curr.status === 'Pending') acc[curr.dateStr].Pending++;
-      acc[curr.dateStr].Total++;
+  
+      if (curr.status === 'Approved') {
+        acc[dateKey].Approved += 1;
+      } else if (curr.status === 'Denied') {
+        acc[dateKey].Denied += 1;
+      } else if (curr.status === 'Pending') {
+        acc[dateKey].Pending += 1;
+      }
+  
+      acc[dateKey].Total += 1;
       return acc;
-    }, {} as Record<string, any>);
-
-    return Object.values(countsByDate).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    }, {} as Record<string, { date: string; Approved: number; Denied: number; Pending: number; Total: number }>);
+  
+    return Object.values(countsByDate).sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+    );
   }, [data]);
 
   const textColor = darkMode ? '#9CA3AF' : '#4B5563';
   const gridColor = darkMode ? '#374151' : '#E5E7EB';
+
+  if (chartData.length === 0) {
+    return (
+      <div className="h-80 w-full flex items-center justify-center">
+        <p className={darkMode ? 'text-sm text-gray-400' : 'text-sm text-gray-500'}>
+          No authorization trend data available for the selected filters.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="h-80 w-full">
@@ -50,45 +76,93 @@ export function TrendChart({ data, darkMode }: ChartProps) {
             labelFormatter={(label) => format(parseISO(label), 'MMM d, yyyy')}
           />
           <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-          <Line type="monotone" dataKey="Approved" stroke="#10B981" strokeWidth={2} dot={false} activeDot={{ r: 6 }} />
-          <Line type="monotone" dataKey="Denied" stroke="#F43F5E" strokeWidth={2} dot={false} activeDot={{ r: 6 }} />
-          <Line type="monotone" dataKey="Pending" stroke="#F59E0B" strokeWidth={2} dot={false} activeDot={{ r: 6 }} />
+          <Line
+            type="monotone"
+            dataKey="Total"
+            stroke="#3B82F6"
+            strokeWidth={3}
+            dot={{ r: 4 }}
+            activeDot={{ r: 6 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="Approved"
+            stroke="#10B981"
+            strokeWidth={2}
+            dot={{ r: 3 }}
+            activeDot={{ r: 5 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="Denied"
+            stroke="#F43F5E"
+            strokeWidth={2}
+            dot={{ r: 3 }}
+            activeDot={{ r: 5 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="Pending"
+            stroke="#F59E0B"
+            strokeWidth={2}
+            dot={{ r: 3 }}
+            activeDot={{ r: 5 }}
+          />
         </LineChart>
       </ResponsiveContainer>
     </div>
   );
 }
 
+const LOC_COLORS: Record<string, string> = {
+  DTX: '#f97316', // Orange
+  RTC: '#5c6bc0', // Red
+  PHP: '#a855f7', // Purple
+  IOP: '#22c55e', // Green
+  OP: '#eab308', // Gold
+};
+
+const DEFAULT_LOC_COLOR = '#64748b';
+
 export function LOCChart({ data, darkMode }: ChartProps) {
   const chartData = useMemo(() => {
     const locCounts = data.reduce((acc, curr) => {
-      acc[curr.loc] = (acc[curr.loc] || 0) + 1;
+      const loc = String(curr.loc || 'Unknown').trim().toUpperCase();
+      acc[loc] = (acc[loc] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
-    return Object.entries(locCounts).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-  }, [data]);
 
-  const COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#10B981', '#F59E0B'];
+    return Object.entries(locCounts)
+      .map(([name, value]) => ({
+        name,
+        value,
+        fill: LOC_COLORS[name] ?? DEFAULT_LOC_COLOR,
+      }))
+      .sort((a, b) => b.value - a.value);
+  }, [data]);
 
   return (
     <div className="h-80 w-full flex items-center justify-center">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
-          <Pie
-            data={chartData}
-            cx="50%"
-            cy="50%"
-            innerRadius={80}
-            outerRadius={110}
-            paddingAngle={2}
-            dataKey="value"
-          >
-            {chartData.map((_entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke={darkMode ? '#111827' : '#ffffff'} strokeWidth={2} />
-            ))}
-          </Pie>
-          <Tooltip 
-            contentStyle={{ backgroundColor: darkMode ? '#1F2937' : '#FFFFFF', borderColor: darkMode ? '#374151' : '#E5E7EB', color: darkMode ? '#F3F4F6' : '#111827', borderRadius: '8px' }}
+        <Pie
+          data={chartData}
+          cx="50%"
+          cy="50%"
+          innerRadius={80}
+          outerRadius={110}
+          paddingAngle={2}
+          dataKey="value"
+          stroke={darkMode ? '#111827' : '#ffffff'}
+          strokeWidth={2}
+        />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: darkMode ? '#1F2937' : '#FFFFFF',
+              borderColor: darkMode ? '#374151' : '#E5E7EB',
+              color: darkMode ? '#F3F4F6' : '#111827',
+              borderRadius: '8px',
+            }}
             itemStyle={{ color: darkMode ? '#F3F4F6' : '#111827' }}
           />
           <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
@@ -100,10 +174,14 @@ export function LOCChart({ data, darkMode }: ChartProps) {
 
 export function DenialChart({ data, darkMode }: ChartProps) {
   const chartData = useMemo(() => {
-    const denialCounts = data.filter(d => d.denialReason).reduce((acc, curr) => {
-      if (curr.denialReason) {
-        acc[curr.denialReason] = (acc[curr.denialReason] || 0) + 1;
+    const denialCounts = data.reduce((acc, curr) => {
+      const denialReason = String(curr.denialReason || '').trim();
+    
+      if (!denialReason || denialReason === 'N/A') {
+        return acc;
       }
+    
+      acc[denialReason] = (acc[denialReason] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
     
@@ -114,6 +192,16 @@ export function DenialChart({ data, darkMode }: ChartProps) {
 
   const textColor = darkMode ? '#9CA3AF' : '#4B5563';
   const gridColor = darkMode ? '#374151' : '#E5E7EB';
+
+  if (chartData.length === 0) {
+    return (
+      <div className="h-80 w-full flex items-center justify-center">
+        <p className={darkMode ? 'text-sm text-gray-400' : 'text-sm text-gray-500'}>
+          No denial reasons found for the selected filters.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="h-80 w-full">

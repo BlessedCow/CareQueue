@@ -417,6 +417,7 @@ function App() {
   };
 
   const handleStartViewAuth = (auth: AuthRequest) => {
+    setActivePage('authorizations');
     setViewingAuth(auth);
     setShowAddAuthForm(false);
     setEditingAuthId(null);
@@ -493,6 +494,8 @@ function App() {
         approved_days: newAuthForm.approvedDays ? Number(newAuthForm.approvedDays) : 0,
         insurance: newAuthForm.insurance.trim(),
         auth_type: newAuthForm.authType,
+        auth_start_date: newAuthForm.startDate,
+        auth_end_date: newAuthForm.endDate,
         submission_methods:
           newAuthForm.submissionMethod === 'Live Call' || newAuthForm.submissionMethod === 'Voicemail'
             ? `${newAuthForm.submissionMethod}: ${newAuthForm.phoneNumber}${newAuthForm.phoneExtension ? ` ext. ${newAuthForm.phoneExtension}` : ''}`
@@ -759,15 +762,16 @@ function App() {
                 <DenialChart data={filteredData} darkMode={darkMode} />
               </div>
               <div className={`rounded-xl border p-5 shadow-sm overflow-hidden flex flex-col ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-                <h3 className="text-lg font-semibold mb-4 shrink-0">Recent Authorizations</h3>
-                <DataTable
-                  data={filteredData}
-                  darkMode={darkMode}
-                  onView={handleStartViewAuth}
-                  onEdit={handleStartEditAuth}
-                  onDelete={handleDeleteAuth}
-                  deletingId={deletingAuthId}
-                />
+              <h3 className="text-lg font-semibold mb-4 shrink-0">Recent Authorizations</h3>
+              <p className={cn('mb-4 text-sm', darkMode ? 'text-gray-400' : 'text-gray-600')}>
+                Select a row to view authorization details.
+              </p>
+              <DataTable
+                data={filteredData}
+                darkMode={darkMode}
+                onView={handleStartViewAuth}
+                showActions={false}
+              />
               </div>
             </div>
               </>
