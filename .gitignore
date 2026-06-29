@@ -73,3 +73,6 @@ backend/.streamlit/secrets.toml
 # OS files
 .DS_Store
 Thumbs.db
+
+# Other files to ignore
+/TODO.txt

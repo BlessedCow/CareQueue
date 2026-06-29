@@ -604,6 +604,12 @@ function App() {
   
     return ['All', ...uniqueInsurances];
   }, [authRequests, registeredInsurances]);
+  
+  const handleClearFilters = () => {
+    setDateRange('30d');
+    setSelectedFacility('All');
+    setSelectedInsurance('All');
+  };
 
   useEffect(() => {
     if (!facilityOptions.includes(selectedFacility)) {
@@ -731,6 +737,7 @@ function App() {
               setSelectedInsurance={setSelectedInsurance}
               insurances={insuranceOptions}
               darkMode={darkMode}
+              onClearFilters={handleClearFilters}
             />
             
             <KPICards data={filteredData} darkMode={darkMode} />
@@ -791,6 +798,7 @@ function App() {
       setSelectedInsurance={setSelectedInsurance}
       insurances={insuranceOptions}
       darkMode={darkMode}
+      onClearFilters={handleClearFilters}
     />
     )}
 

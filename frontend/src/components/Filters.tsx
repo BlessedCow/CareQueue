@@ -12,6 +12,7 @@ interface FiltersProps {
   setSelectedInsurance: (val: string) => void;
   insurances: string[];
   darkMode: boolean;
+  onClearFilters: () => void;
 }
 
 export default function Filters({
@@ -24,6 +25,7 @@ export default function Filters({
   setSelectedInsurance,
   insurances,
   darkMode,
+  onClearFilters,
 }: FiltersProps) {
   const selectClasses = cn(
     'appearance-none rounded-lg border py-2 pl-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors',
@@ -35,23 +37,31 @@ export default function Filters({
     darkMode ? 'text-gray-400' : 'text-gray-600',
   );
 
+  const hasActiveFilters = dateRange !== '30d' || selectedFacility !== 'All' || selectedInsurance !== 'All';
+
+  const filterSummary = [
+    `Date: ${dateRange === '7d' ? 'Last 7 Days' : dateRange === '90d' ? 'Last 90 Days' : 'Last 30 Days'}`,
+    `Facility: ${selectedFacility}`,
+    `Insurance: ${selectedInsurance}`,
+  ].join(' • ');
+
   return (
     <div
       className={cn(
-        'flex flex-col gap-4 rounded-xl border p-4 shadow-sm sm:flex-row sm:items-end',
+        'grid gap-4 rounded-xl border p-4 shadow-sm md:grid-cols-2 xl:grid-cols-4 xl:items-end',
         darkMode ? 'bg-gray-900/50 border-gray-800' : 'bg-white border-gray-200',
       )}
     >
       <div className="flex items-end gap-2">
         <Calendar className={cn('mb-2 h-5 w-5', darkMode ? 'text-gray-400' : 'text-gray-500')} />
 
-        <div>
+        <div className="min-w-0 flex-1">
           <label className={labelClasses}>Date Range</label>
           <div className="relative">
             <select
               value={dateRange}
               onChange={(event) => setDateRange(event.target.value as '7d' | '30d' | '90d')}
-              className={selectClasses}
+              className={cn(selectClasses, 'w-full')}
             >
               <option value="7d">Last 7 Days</option>
               <option value="30d">Last 30 Days</option>
@@ -69,13 +79,13 @@ export default function Filters({
       <div className="flex items-end gap-2">
         <Filter className={cn('mb-2 h-5 w-5', darkMode ? 'text-gray-400' : 'text-gray-500')} />
 
-        <div>
+        <div className="min-w-0 flex-1">
           <label className={labelClasses}>Facility</label>
           <div className="relative">
             <select
               value={selectedFacility}
               onChange={(event) => setSelectedFacility(event.target.value)}
-              className={selectClasses}
+              className={cn(selectClasses, 'w-full')}
             >
               {facilities.map((facility) => (
                 <option key={facility} value={facility}>
@@ -92,13 +102,13 @@ export default function Filters({
         </div>
       </div>
 
-      <div>
+      <div className="flex flex-col">
         <label className={labelClasses}>Insurance</label>
         <div className="relative">
           <select
             value={selectedInsurance}
             onChange={(event) => setSelectedInsurance(event.target.value)}
-            className={selectClasses}
+            className={cn(selectClasses, 'w-full')}
           >
             {insurances.map((insurance) => (
               <option key={insurance} value={insurance}>
@@ -112,6 +122,28 @@ export default function Filters({
             </svg>
           </div>
         </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <label className={labelClasses}>Active Filters</label>
+
+        <span className={cn('text-xs leading-5', darkMode ? 'text-gray-400' : 'text-gray-600')}>
+          {filterSummary}
+        </span>
+
+        <button
+          type="button"
+          onClick={onClearFilters}
+          disabled={!hasActiveFilters}
+          className={cn(
+            'w-fit rounded-lg border px-3 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+            darkMode
+              ? 'border-gray-700 text-gray-200 hover:bg-gray-800'
+              : 'border-gray-300 text-gray-700 hover:bg-gray-100',
+          )}
+        >
+          Clear Filters
+        </button>
       </div>
     </div>
   );
