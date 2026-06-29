@@ -31,6 +31,7 @@ import KPICards from './components/KPICards';
 import { TrendChart, DenialChart, LOCChart } from './components/Charts';
 import { DataTable } from './components/DataTable';
 import Filters from './components/Filters';
+import { UpcomingWorkflowCard } from './components/UpcomingWorkflowCard';
 import {
   createAuthEvent,
   deleteAuthEvent,
@@ -758,24 +759,28 @@ function App() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className={`rounded-xl border p-5 shadow-sm ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-                <h3 className="text-lg font-semibold mb-4">Denial Reasons</h3>
-                <DenialChart data={filteredData} darkMode={darkMode} />
+                <h3 className="text-lg font-semibold mb-1">Upcoming Workflow</h3>
+                <p className={cn('mb-4 text-sm', darkMode ? 'text-gray-400' : 'text-gray-600')}>
+                  Status-based follow-up items for the selected filters.
+                </p>
+                <UpcomingWorkflowCard data={filteredData} darkMode={darkMode} />
               </div>
+
               <div className={`rounded-xl border p-5 shadow-sm overflow-hidden flex flex-col ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-              <h3 className="text-lg font-semibold mb-4 shrink-0">Recent Authorizations</h3>
-              <p className={cn('mb-4 text-sm', darkMode ? 'text-gray-400' : 'text-gray-600')}>
-                Select a row to view authorization details.
-              </p>
-              <DataTable
-                data={filteredData}
-                darkMode={darkMode}
-                onView={handleStartViewAuth}
-                showActions={false}
-              />
+                <h3 className="text-lg font-semibold mb-4 shrink-0">Recent Authorizations</h3>
+                <p className={cn('mb-4 text-sm', darkMode ? 'text-gray-400' : 'text-gray-600')}>
+                  Select a row to view authorization details.
+                </p>
+                <DataTable
+                  data={filteredData}
+                  darkMode={darkMode}
+                  onView={handleStartViewAuth}
+                  showActions={false}
+                />
               </div>
             </div>
-              </>
-            )}
+          </>
+        )}
 
 {activePage === 'authorizations' && (
   <>
