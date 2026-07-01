@@ -171,20 +171,6 @@ npm run build
 
 CareQueue is intended to run locally. The backend encrypts selected sensitive fields before storing them in SQLite. However, field level encryption alone does not make the project HIPAA compliant.
 
-Do not commit or upload:
-
-```text
-.env
-*.db
-*.sqlite
-*.sqlite3
-data/
-auth_tracker_backup.json
-real client names
-real member IDs
-real clinical notes
-```
-
 See `DISCLAIMER.md` and `SECURITY.md` before using this project with real information.
 
 ## Repository Status
@@ -193,4 +179,5 @@ CareQueue is an early stage local first prototype. It is currently intended for 
 
 ## License
 
-No license has been selected at this time. All rights reserved.
+MIT License
+See `LICENSE.md` for more information.
