@@ -65,6 +65,16 @@ def _row_to_dict(row: Any) -> dict[str, Any]:
         if field in decrypted:
             decrypted[field] = bool(decrypted[field])
 
+    for field in {
+        "auth_start_date",
+        "auth_end_date",
+        "review_due_date",
+        "submitted_at",
+        "decision_at",
+    }:
+        if decrypted.get(field) is None:
+            decrypted[field] = ""
+
     return decrypted
 
 

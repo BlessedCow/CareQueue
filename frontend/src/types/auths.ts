@@ -30,6 +30,7 @@ export interface AuthRequest {
   authType?: string;
   submissionMethods?: string;
   reviewDueDate?: string;
+  authEndDate?: string;
   submittedAt?: string | null;
   decisionAt?: string | null;
 }

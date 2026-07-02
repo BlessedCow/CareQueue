@@ -1,6 +1,6 @@
 import { format, parseISO } from 'date-fns';
 
-import { AuthRequest, DenialReason, Facility, LOC, Payer, Status } from '../data/mockData';
+import { AuthRequest, DenialReason, Facility, LOC, Payer, Status } from '../types/auth';
 
 const API_BASE_URL = import.meta.env.VITE_AUTHSTATUS_API_BASE_URL ?? 'http://127.0.0.1:8000';
 
@@ -152,6 +152,7 @@ function mapApiAuthToAuthRequest(item: any): AuthRequest {
     authType: item.auth_type ?? '',
     submissionMethods: item.submission_methods ?? '',
     reviewDueDate: item.review_due_date ?? '',
+    authEndDate: item.auth_end_date ?? '',
     submittedAt: item.submitted_at ?? null,
     decisionAt: item.decision_at ?? null,
   };
