@@ -89,6 +89,7 @@ const DEFAULT_DASHBOARD_CARD_SETTINGS: DashboardCardSettings = {
   upcomingWorkflow: true,
   recentAuthorizations: true,
 };
+const DASHBOARD_CARD_SETTINGS_STORAGE_KEY = 'carequeue.dashboardCardSettings';
 
 const DASHBOARD_CARD_LABELS: Record<DashboardCardKey, string> = {
   kpis: 'KPI Cards',
@@ -98,6 +99,25 @@ const DASHBOARD_CARD_LABELS: Record<DashboardCardKey, string> = {
   recentAuthorizations: 'Recent Authorizations',
 };
 
+function loadDashboardCardSettings(): DashboardCardSettings {
+  try {
+    const storedValue = window.localStorage.getItem(DASHBOARD_CARD_SETTINGS_STORAGE_KEY);
+
+    if (!storedValue) {
+      return DEFAULT_DASHBOARD_CARD_SETTINGS;
+    }
+
+    const parsedValue = JSON.parse(storedValue) as Partial<DashboardCardSettings>;
+
+    return {
+      ...DEFAULT_DASHBOARD_CARD_SETTINGS,
+      ...parsedValue,
+    };
+  } catch {
+    return DEFAULT_DASHBOARD_CARD_SETTINGS;
+  }
+}
+
 function App() {
   const [darkMode, setDarkMode] = useState(true);
   const [activePage, setActivePage] = useState<AppPage>('dashboard');
@@ -106,7 +126,7 @@ function App() {
   const [selectedInsurance, setSelectedInsurance] = useState<string>('All');
   const [selectedWorkQueue, setSelectedWorkQueue] = useState<WorkQueueFilter>('All');
   const [dashboardCardSettings, setDashboardCardSettings] = useState<DashboardCardSettings>(
-    DEFAULT_DASHBOARD_CARD_SETTINGS,
+    loadDashboardCardSettings,
   );
   const [authRequests, setAuthRequests] = useState<AuthRequest[]>([]);
   const [isLoadingAuths, setIsLoadingAuths] = useState(true);
@@ -149,6 +169,13 @@ function App() {
     window.localStorage.setItem(SETTINGS_STORAGE_KEYS.webPortals, JSON.stringify(registeredWebPortals));
   }, [registeredWebPortals]);
   
+  useEffect(() => {
+    window.localStorage.setItem(
+      DASHBOARD_CARD_SETTINGS_STORAGE_KEY,
+      JSON.stringify(dashboardCardSettings),
+    );
+  }, [dashboardCardSettings]);
+
   const [newFacilityName, setNewFacilityName] = useState('');
   const [newInsuranceName, setNewInsuranceName] = useState('');
   const [newWebPortalName, setNewWebPortalName] = useState('');
@@ -612,7 +639,7 @@ function App() {
     if (workQueueFilter === 'All') {
       return true;
     }
-  
+
     if (workQueueFilter === 'Needs Action') {
       return (
         item.status === 'Pending' ||
@@ -630,6 +657,20 @@ function App() {
     return item.status === workQueueFilter;
   };
 
+
+  const getDateRangeDays = (range: '7d' | '30d' | '90d') => {
+    if (range === '7d') {
+      return 7;
+    }
+  
+    if (range === '90d') {
+      return 90;
+    }
+  
+    return 30;
+  };
+
+
   const filteredData = useMemo(() => {
     const today = new Date();
     let daysToSubtract = 30;
@@ -645,6 +686,22 @@ function App() {
       const matchWorkQueue = matchesWorkQueueFilter(item, selectedWorkQueue);
 
       return inDateRange && matchFacility && matchInsurance && matchWorkQueue;
+    });
+  }, [authRequests, dateRange, selectedFacility, selectedInsurance, selectedWorkQueue]);
+
+  const comparisonFilteredData = useMemo(() => {
+    const today = new Date();
+    const daysToSubtract = getDateRangeDays(dateRange);
+    const currentStartDate = subDays(today, daysToSubtract);
+    const previousStartDate = subDays(currentStartDate, daysToSubtract);
+  
+    return authRequests.filter((item) => {
+      const inPreviousDateRange = item.date >= previousStartDate && item.date < currentStartDate;
+      const matchFacility = selectedFacility === 'All' || item.facility === selectedFacility;
+      const matchInsurance = selectedInsurance === 'All' || item.payer === selectedInsurance;
+      const matchWorkQueue = matchesWorkQueueFilter(item, selectedWorkQueue);
+  
+      return inPreviousDateRange && matchFacility && matchInsurance && matchWorkQueue;
     });
   }, [authRequests, dateRange, selectedFacility, selectedInsurance, selectedWorkQueue]);
 
@@ -812,7 +869,13 @@ function App() {
               onClearFilters={handleClearFilters}
             />
             
-            {dashboardCardSettings.kpis && <KPICards data={filteredData} darkMode={darkMode} />}
+            {dashboardCardSettings.kpis && (
+              <KPICards
+                data={filteredData}
+                comparisonData={comparisonFilteredData}
+                darkMode={darkMode}
+              />
+            )}
             
             {(dashboardCardSettings.trends || dashboardCardSettings.levelOfCare) && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
