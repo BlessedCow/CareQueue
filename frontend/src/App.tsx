@@ -188,6 +188,7 @@ function App() {
     status: 'Pending',
     startDate: '',
     endDate: '',
+    reviewDueDate: '',
     requestedDays: '',
     approvedDays: '',
     insurance: registeredInsurances[0] ?? '',
@@ -307,6 +308,7 @@ function App() {
       status: 'Pending',
       startDate: '',
       endDate: '',
+      reviewDueDate: '',
       requestedDays: '',
       approvedDays: '',
       insurance: registeredInsurances[0] ?? '',
@@ -334,6 +336,7 @@ function App() {
       status: auth.status || 'Pending',
       startDate: auth.dateStr || '',
       endDate: '',
+      reviewDueDate: auth.reviewDueDate ?? '',
       requestedDays: String(auth.requestedDays ?? ''),
       approvedDays: String(auth.approvedDays ?? ''),
       insurance: auth.payer,
@@ -594,6 +597,7 @@ function App() {
       authType: 'Concurrent',
       startDate: '',
       endDate: '',
+      reviewDueDate: '',
       requestedDays: '',
       approvedDays: '',
     }));
@@ -649,6 +653,7 @@ function App() {
         auth_type: newAuthForm.authType,
         auth_start_date: newAuthForm.startDate,
         auth_end_date: newAuthForm.endDate,
+        review_due_date: newAuthForm.reviewDueDate,
         submission_methods:
           newAuthForm.submissionMethod === 'Live Call' || newAuthForm.submissionMethod === 'Voicemail'
             ? `${newAuthForm.submissionMethod}: ${newAuthForm.phoneNumber}${newAuthForm.phoneExtension ? ` ext. ${newAuthForm.phoneExtension}` : ''}`
@@ -1001,7 +1006,7 @@ function App() {
                   <div className={`rounded-xl border p-5 shadow-sm ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
                     <h3 className="text-lg font-semibold mb-1">Upcoming Workflow</h3>
                     <p className={cn('mb-4 text-sm', darkMode ? 'text-gray-400' : 'text-gray-600')}>
-                      Status-based follow-up items for the selected filters.
+                    Due dates and status-based follow-up items for the selected filters.
                     </p>
                     <UpcomingWorkflowCard data={filteredData} darkMode={darkMode} />
                   </div>
@@ -1014,7 +1019,7 @@ function App() {
                       Select a row to view authorization details.
                     </p>
                     <DataTable
-                      data={filteredData}
+                      data={filteredData} 
                       darkMode={darkMode}
                       onView={handleStartViewAuth}
                       showActions={false}
@@ -1147,7 +1152,7 @@ function App() {
             onSubmit={handleCreateAuth}
             onCancel={handleCancelAuthForm}
           />
-          
+
           {showAddAuthForm && !editingAuthId && newAuthForm.authType === 'Concurrent' && authEvents.length > 0 && (
             <div
               className={cn(

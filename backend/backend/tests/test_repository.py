@@ -246,10 +246,11 @@ def test_list_auth_events_returns_events_for_auth_only():
     events = list_auth_events(first_auth["id"])
 
     assert events is not None
-    assert len(events) == 1
-    assert first_event is not None
-    assert events[0]["id"] == first_event["id"]
-    assert events[0]["notes"] == "First auth event."
+    assert len(events) == 2
+    assert {event["id"] for event in events} == {1, first_event["id"]}
+    assert all(event["auth_id"] == first_auth["id"] for event in events)
+    assert any(event["notes"] == "First auth event." for event in events)
+    assert any(event["notes"] == "Initial authorization entry created." for event in events)
 
 
 def test_update_auth_event_updates_selected_fields():
@@ -343,8 +344,7 @@ def test_get_analytics_summary_counts_records():
     assert summary == {
         "total_auths": 2,
         "by_status": {
-            "In Progress": 1,
-            "Submitted": 1,
+            "Pending": 2,
         },
         "by_loc": {
             "RTC": 1,

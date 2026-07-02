@@ -32,6 +32,7 @@ class AuthBase(BaseModel):
     days_approved: str = ""
     auth_start_date: str = ""
     auth_end_date: str = ""
+    review_due_date: str = ""
     submitted_at: str | None = None
     decision_at: str | None = None
 
@@ -68,6 +69,7 @@ class AuthUpdate(BaseModel):
     auth_start_date: str | None = None
     auth_end_date: str | None = None
     submitted_at: str | None = None
+    review_due_date: str | None = None
     decision_at: str | None = None
     requested_days: int | None = Field(default=None, ge=0)
     approved_days: int | None = Field(default=None, ge=0)

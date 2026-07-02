@@ -22,6 +22,7 @@ function formatPhoneNumber(value: string) {
     status: string;
     startDate: string;
     endDate: string;
+    reviewDueDate: string;
     requestedDays: string;
     approvedDays: string;
     insurance: string;
@@ -163,6 +164,20 @@ export function AddAuthorizationForm({
           )}
         />
       </label>
+
+        <label className="space-y-1 text-sm">
+    <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Review Due Date</span>
+    <input
+      type="date"
+      value={form.reviewDueDate}
+      onChange={(event) => onFieldChange('reviewDueDate', event.target.value)}
+      className={cn(
+        'w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500',
+        darkMode ? 'border-gray-700 bg-gray-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900',
+      )}
+    />
+  </label>
+
 
         <label className="space-y-1 text-sm">
         <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Days Requested</span>

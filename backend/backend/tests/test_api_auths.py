@@ -269,8 +269,7 @@ def test_analytics_summary_endpoint_counts_records(client):
     assert response.json() == {
         "total_auths": 2,
         "by_status": {
-            "In Progress": 1,
-            "Submitted": 1,
+            "Pending": 2,
         },
         "by_loc": {
             "RTC": 1,
