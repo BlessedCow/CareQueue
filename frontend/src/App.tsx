@@ -73,6 +73,31 @@ const loadStoredList = (key: string, fallback: string[]) => {
   }
 };
 
+type DashboardCardKey =
+  | 'kpis'
+  | 'trends'
+  | 'levelOfCare'
+  | 'upcomingWorkflow'
+  | 'recentAuthorizations';
+
+type DashboardCardSettings = Record<DashboardCardKey, boolean>;
+
+const DEFAULT_DASHBOARD_CARD_SETTINGS: DashboardCardSettings = {
+  kpis: true,
+  trends: true,
+  levelOfCare: true,
+  upcomingWorkflow: true,
+  recentAuthorizations: true,
+};
+
+const DASHBOARD_CARD_LABELS: Record<DashboardCardKey, string> = {
+  kpis: 'KPI Cards',
+  trends: 'Authorization Trends',
+  levelOfCare: 'Level of Care Breakdown',
+  upcomingWorkflow: 'Upcoming Workflow',
+  recentAuthorizations: 'Recent Authorizations',
+};
+
 function App() {
   const [darkMode, setDarkMode] = useState(true);
   const [activePage, setActivePage] = useState<AppPage>('dashboard');
@@ -80,6 +105,9 @@ function App() {
   const [selectedFacility, setSelectedFacility] = useState<string>('All');
   const [selectedInsurance, setSelectedInsurance] = useState<string>('All');
   const [selectedWorkQueue, setSelectedWorkQueue] = useState<WorkQueueFilter>('All');
+  const [dashboardCardSettings, setDashboardCardSettings] = useState<DashboardCardSettings>(
+    DEFAULT_DASHBOARD_CARD_SETTINGS,
+  );
   const [authRequests, setAuthRequests] = useState<AuthRequest[]>([]);
   const [isLoadingAuths, setIsLoadingAuths] = useState(true);
   const [authsError, setAuthsError] = useState<string | null>(null);
@@ -228,6 +256,19 @@ function App() {
       [field]: value,
     }));
   };
+
+
+  const handleToggleDashboardCard = (cardKey: DashboardCardKey) => {
+    setDashboardCardSettings((currentSettings) => ({
+      ...currentSettings,
+      [cardKey]: !currentSettings[cardKey],
+    }));
+  };
+  
+  const handleResetDashboardCards = () => {
+    setDashboardCardSettings(DEFAULT_DASHBOARD_CARD_SETTINGS);
+  };
+
   
   const resetNewAuthForm = () => {
     setNewAuthForm({
@@ -771,41 +812,54 @@ function App() {
               onClearFilters={handleClearFilters}
             />
             
-            <KPICards data={filteredData} darkMode={darkMode} />
+            {dashboardCardSettings.kpis && <KPICards data={filteredData} darkMode={darkMode} />}
             
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className={`lg:col-span-2 rounded-xl border p-5 shadow-sm ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-                <h3 className="text-lg font-semibold mb-4">Authorization Trends</h3>
-                <TrendChart data={filteredData} darkMode={darkMode} />
-              </div>
-              <div className={`rounded-xl border p-5 shadow-sm ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-                <h3 className="text-lg font-semibold mb-4">Level of Care Breakdown</h3>
-                <LOCChart data={filteredData} darkMode={darkMode} />
-              </div>
-            </div>
+            {(dashboardCardSettings.trends || dashboardCardSettings.levelOfCare) && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {dashboardCardSettings.trends && (
+                  <div className={`lg:col-span-2 rounded-xl border p-5 shadow-sm ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+                    <h3 className="text-lg font-semibold mb-4">Authorization Trends</h3>
+                    <TrendChart data={filteredData} darkMode={darkMode} />
+                  </div>
+                )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className={`rounded-xl border p-5 shadow-sm ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-                <h3 className="text-lg font-semibold mb-1">Upcoming Workflow</h3>
-                <p className={cn('mb-4 text-sm', darkMode ? 'text-gray-400' : 'text-gray-600')}>
-                  Status-based follow-up items for the selected filters.
-                </p>
-                <UpcomingWorkflowCard data={filteredData} darkMode={darkMode} />
+                {dashboardCardSettings.levelOfCare && (
+                  <div className={`rounded-xl border p-5 shadow-sm ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+                    <h3 className="text-lg font-semibold mb-4">Level of Care Breakdown</h3>
+                    <LOCChart data={filteredData} darkMode={darkMode} />
+                  </div>
+                )}
               </div>
+            )}
 
-              <div className={`rounded-xl border p-5 shadow-sm overflow-hidden flex flex-col ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-                <h3 className="text-lg font-semibold mb-4 shrink-0">Recent Authorizations</h3>
-                <p className={cn('mb-4 text-sm', darkMode ? 'text-gray-400' : 'text-gray-600')}>
-                  Select a row to view authorization details.
-                </p>
-                <DataTable
-                  data={filteredData}
-                  darkMode={darkMode}
-                  onView={handleStartViewAuth}
-                  showActions={false}
-                />
+            {(dashboardCardSettings.upcomingWorkflow || dashboardCardSettings.recentAuthorizations) && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {dashboardCardSettings.upcomingWorkflow && (
+                  <div className={`rounded-xl border p-5 shadow-sm ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+                    <h3 className="text-lg font-semibold mb-1">Upcoming Workflow</h3>
+                    <p className={cn('mb-4 text-sm', darkMode ? 'text-gray-400' : 'text-gray-600')}>
+                      Status-based follow-up items for the selected filters.
+                    </p>
+                    <UpcomingWorkflowCard data={filteredData} darkMode={darkMode} />
+                  </div>
+                )}
+
+                {dashboardCardSettings.recentAuthorizations && (
+                  <div className={`rounded-xl border p-5 shadow-sm overflow-hidden flex flex-col ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+                    <h3 className="text-lg font-semibold mb-4 shrink-0">Recent Authorizations</h3>
+                    <p className={cn('mb-4 text-sm', darkMode ? 'text-gray-400' : 'text-gray-600')}>
+                      Select a row to view authorization details.
+                    </p>
+                    <DataTable
+                      data={filteredData}
+                      darkMode={darkMode}
+                      onView={handleStartViewAuth}
+                      showActions={false}
+                    />
+                  </div>
+                )}
               </div>
-            </div>
+            )}
           </>
         )}
 
@@ -1140,6 +1194,50 @@ function App() {
                         </button>
                       </div>
                     ))}
+                  </div>
+
+                  <div className={`rounded-xl border p-5 shadow-sm ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+                    <div className="mb-4 flex items-start justify-between gap-4">
+                      <div>
+                        <h3 className="text-lg font-semibold">Dashboard Cards</h3>
+                        <p className={cn('mt-1 text-sm', darkMode ? 'text-gray-400' : 'text-gray-600')}>
+                          Choose which cards appear on the Dashboard.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleResetDashboardCards}
+                        className={cn(
+                          'rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
+                          darkMode
+                            ? 'border-gray-700 text-gray-200 hover:bg-gray-800'
+                            : 'border-gray-300 text-gray-700 hover:bg-gray-100',
+                        )}
+                      >
+                        Reset
+                      </button>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {(Object.entries(DASHBOARD_CARD_LABELS) as [DashboardCardKey, string][]).map(([cardKey, label]) => (
+                        <label
+                          key={cardKey}
+                          className={cn(
+                            'flex cursor-pointer items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm',
+                            darkMode ? 'border-gray-800 bg-gray-950 text-gray-200' : 'border-gray-200 bg-gray-50 text-gray-700',
+                          )}
+                        >
+                          <span className="font-medium">{label}</span>
+                          <input
+                            type="checkbox"
+                            checked={dashboardCardSettings[cardKey]}
+                            onChange={() => handleToggleDashboardCard(cardKey)}
+                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
