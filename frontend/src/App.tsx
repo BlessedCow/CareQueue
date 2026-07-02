@@ -186,6 +186,8 @@ function App() {
     facility: registeredFacilities[0] ?? '',
     loc: 'RTC',
     status: 'Pending',
+    startDate: '',
+    endDate: '',
     requestedDays: '',
     approvedDays: '',
     insurance: registeredInsurances[0] ?? '',
@@ -303,6 +305,8 @@ function App() {
       facility: registeredFacilities[0] ?? '',
       loc: 'RTC',
       status: 'Pending',
+      startDate: '',
+      endDate: '',
       requestedDays: '',
       approvedDays: '',
       insurance: registeredInsurances[0] ?? '',
@@ -328,6 +332,8 @@ function App() {
       facility: auth.facility,
       loc: auth.loc || 'RTC',
       status: auth.status || 'Pending',
+      startDate: auth.dateStr || '',
+      endDate: '',
       requestedDays: String(auth.requestedDays ?? ''),
       approvedDays: String(auth.approvedDays ?? ''),
       insurance: auth.payer,
@@ -374,18 +380,77 @@ function App() {
     }
   };
   
-  const handleTimelineEventFieldChange = (
-    field: keyof TimelineEventFormState,
-    value: string,
-  ) => {
+  const getLatestTimelineEvent = () => {
+    if (authEvents.length === 0) {
+      return null;
+    }
+  
+    return [...authEvents].sort((firstEvent, secondEvent) => {
+      const firstDate = `${firstEvent.eventDate || ''}T${firstEvent.eventTime || '00:00'}`;
+      const secondDate = `${secondEvent.eventDate || ''}T${secondEvent.eventTime || '00:00'}`;
+  
+      return secondDate.localeCompare(firstDate);
+    })[0];
+  };
+
+  const handleTimelineEventFieldChange = (field: keyof TimelineEventFormState, value: string) => {
     setTimelineEventForm((currentForm) => ({
       ...currentForm,
       [field]: value,
     }));
   };
+
+  const handlePrefillTimelineFromLastEvent = () => {
+    const latestEvent = getLatestTimelineEvent();
   
+    if (!latestEvent) {
+      return;
+    }
+  
+    setNewAuthForm((currentForm) => ({
+      ...currentForm,
+      startDate: latestEvent.eventDate || currentForm.startDate,
+    }));
+  
+    setTimelineEventForm({
+      eventDate: latestEvent.eventDate,
+      eventTime: latestEvent.eventTime,
+      eventType: latestEvent.eventType,
+      outcome: latestEvent.outcome,
+      notes: '',
+    });
+  
+    setEditingAuthEventId(null);
+    setConfirmingDeleteAuthEventId(null);
+    setAuthEventsError(null);
+  };
+  
+
+  const handleStartConcurrentReview = () => {
+    const latestEvent = getLatestTimelineEvent();
+  
+    if (latestEvent?.eventDate) {
+      setNewAuthForm((currentForm) => ({
+        ...currentForm,
+        startDate: latestEvent.eventDate,
+      }));
+    }
+  
+    setTimelineEventForm({
+      eventDate: latestEvent?.eventDate || '',
+      eventTime: '',
+      eventType: 'Request Submitted',
+      outcome: 'Pending',
+      notes: 'Concurrent review submitted.',
+    });
+  
+    setEditingAuthEventId(null);
+    setConfirmingDeleteAuthEventId(null);
+    setAuthEventsError(null);
+  };
+
   const handleAddTimelineEvent = async () => {
-    if (!editingAuthId || !timelineEventForm.eventDate.trim()) {
+    if (!editingAuthId) {
       return;
     }
   
@@ -394,20 +459,20 @@ function App() {
   
     try {
       const createdEvent = await createAuthEvent(editingAuthId, {
-        event_type: timelineEventForm.eventType,
         event_date: timelineEventForm.eventDate,
         event_time: timelineEventForm.eventTime,
+        event_type: timelineEventForm.eventType,
         outcome: timelineEventForm.outcome,
-        notes: timelineEventForm.notes.trim(),
+        notes: timelineEventForm.notes,
       });
   
-      setAuthEvents((currentEvents) => [...currentEvents, createdEvent]);
+      setAuthEvents((currentEvents) => [createdEvent, ...currentEvents]);
       resetTimelineEventForm();
-
+  
       const refreshedAuths = await fetchAuthRequests();
       setAuthRequests(refreshedAuths);
     } catch (error) {
-      setAuthEventsError(error instanceof Error ? error.message : 'Failed to save authorization timeline event.');
+      setAuthEventsError(error instanceof Error ? error.message : 'Failed to add authorization timeline event.');
     } finally {
       setIsSavingAuthEvent(false);
     }
@@ -520,6 +585,24 @@ function App() {
     setAuthEvents([]);
     setAuthEventsError(null);
     setShowAddAuthForm(false);
+  };
+
+  const handleStartConcurrentAuthorization = () => {
+    setNewAuthForm((currentForm) => ({
+      ...currentForm,
+      status: 'Pending',
+      authType: 'Concurrent',
+      startDate: '',
+      endDate: '',
+      requestedDays: '',
+      approvedDays: '',
+    }));
+  
+    resetTimelineEventForm();
+    setEditingAuthId(null);
+    setViewingAuth(null);
+    setAuthsError(null);
+    setShowAddAuthForm(true);
   };
 
   useEffect(() => {
@@ -670,6 +753,18 @@ function App() {
     return 30;
   };
 
+
+  const getComparisonPeriodLabel = (range: '7d' | '30d' | '90d') => {
+    if (range === '7d') {
+      return 'Compared with the previous 7 days';
+    }
+  
+    if (range === '90d') {
+      return 'Compared with the previous 90 days';
+    }
+  
+    return 'Compared with the previous 30 days';
+  };
 
   const filteredData = useMemo(() => {
     const today = new Date();
@@ -870,11 +965,16 @@ function App() {
             />
             
             {dashboardCardSettings.kpis && (
-              <KPICards
-                data={filteredData}
-                comparisonData={comparisonFilteredData}
-                darkMode={darkMode}
-              />
+              <div className="space-y-2">
+                <KPICards
+                  data={filteredData}
+                  comparisonData={comparisonFilteredData}
+                  darkMode={darkMode}
+                />
+                <p className={cn('text-xs', darkMode ? 'text-gray-400' : 'text-gray-600')}>
+                  {getComparisonPeriodLabel(dateRange)}
+                </p>
+              </div>
             )}
             
             {(dashboardCardSettings.trends || dashboardCardSettings.levelOfCare) && (
@@ -960,23 +1060,45 @@ function App() {
     <div className={`rounded-xl border p-5 shadow-sm overflow-hidden flex flex-col ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
       <div className="flex items-center justify-between gap-4 mb-4 shrink-0">
         <div>
-          <h3 className="text-lg font-semibold">
+        <h3 className="text-lg font-semibold">
             {showAddAuthForm
               ? editingAuthId
                 ? 'Edit Authorization'
-                : 'Add Authorization'
+                : newAuthForm.authType === 'Concurrent'
+                  ? 'Add Concurrent Authorization'
+                  : 'Add Authorization'
               : viewingAuth
                 ? 'Authorization Details'
                 : 'Authorization Work Queue'}
           </h3>
           <p className={cn('text-sm mt-1', darkMode ? 'text-gray-400' : 'text-gray-600')}>
-            {showAddAuthForm
+          {showAddAuthForm
+            ? editingAuthId
               ? 'Update authorization details and timeline events.'
-              : viewingAuth
-                ? 'Review authorization details and timeline history.'
-                : 'View authorization records by facility and date range.'}
+              : newAuthForm.authType === 'Concurrent'
+                ? 'Create a new concurrent authorization using copied client and payer details.'
+                : 'Create a new authorization record.'
+            : viewingAuth
+              ? 'Review authorization details and timeline history.'
+              : 'View authorization records by facility and date range.'}
           </p>
         </div>
+
+        <div className="flex flex-wrap justify-end gap-2">
+        {showAddAuthForm && editingAuthId && (
+          <button
+            type="button"
+            onClick={handleStartConcurrentAuthorization}
+            className={cn(
+              'rounded-lg border px-4 py-2 text-sm font-medium transition-colors',
+              darkMode
+                ? 'border-emerald-800 bg-emerald-950/40 text-emerald-200 hover:bg-emerald-900/50'
+                : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100',
+            )}
+          >
+            Start Concurrent
+          </button>
+        )}
 
         <button
           type="button"
@@ -1003,6 +1125,7 @@ function App() {
           {showAddAuthForm ? (editingAuthId ? 'Close Edit' : 'Close Form') : viewingAuth ? 'Back to List' : 'Add Authorization'}
         </button>
       </div>
+      </div>
 
       {showAddAuthForm && (
         <>
@@ -1010,7 +1133,13 @@ function App() {
             form={newAuthForm}
             darkMode={darkMode}
             isCreatingAuth={isCreatingAuth}
-            submitLabel={editingAuthId ? 'Save Changes' : 'Add Authorization'}
+            submitLabel={
+              editingAuthId
+                ? 'Save Changes'
+                : newAuthForm.authType === 'Concurrent'
+                  ? 'Add Concurrent Authorization'
+                  : 'Add Authorization'
+            }
             registeredFacilities={registeredFacilities}
             registeredInsurances={registeredInsurances}
             registeredWebPortals={registeredWebPortals}
@@ -1018,6 +1147,51 @@ function App() {
             onSubmit={handleCreateAuth}
             onCancel={handleCancelAuthForm}
           />
+          
+          {showAddAuthForm && !editingAuthId && newAuthForm.authType === 'Concurrent' && authEvents.length > 0 && (
+            <div
+              className={cn(
+                'mt-4 rounded-2xl border p-4',
+                darkMode ? 'border-gray-800 bg-gray-950/60' : 'border-gray-200 bg-white',
+              )}
+            >
+              <div className="mb-3">
+                <h4 className="text-sm font-semibold">Previous Authorization Timeline</h4>
+                <p className={cn('mt-1 text-xs', darkMode ? 'text-gray-400' : 'text-gray-600')}>
+                  Reference the prior authorization dates while creating this concurrent review.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                {authEvents.map((event) => (
+                  <div
+                    key={event.id}
+                    className={cn(
+                      'rounded-xl border px-4 py-3 text-sm',
+                      darkMode ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-gray-50',
+                    )}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="font-medium">
+                        {event.eventType}
+                        {event.outcome ? ` - ${event.outcome}` : ''}
+                      </div>
+                      <div className={cn('text-xs', darkMode ? 'text-gray-400' : 'text-gray-600')}>
+                        {event.eventDate}
+                        {event.eventTime ? ` at ${event.eventTime}` : ''}
+                      </div>
+                    </div>
+
+                    {event.notes && (
+                      <p className={cn('mt-2 whitespace-pre-wrap text-xs', darkMode ? 'text-gray-400' : 'text-gray-600')}>
+                        {event.notes}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {editingAuthId && (
             <div className="mt-4">
@@ -1061,6 +1235,8 @@ function App() {
                   onStartDeleteEvent={handleStartDeleteTimelineEvent}
                   onCancelDeleteEvent={handleCancelDeleteTimelineEvent}
                   onConfirmDeleteEvent={handleConfirmDeleteTimelineEvent}
+                  onPrefillFromLastEvent={handlePrefillTimelineFromLastEvent}
+                  onStartConcurrentReview={handleStartConcurrentReview}
                 />
               )}
             </div>

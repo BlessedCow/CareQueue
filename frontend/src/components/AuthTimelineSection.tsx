@@ -24,6 +24,8 @@ interface AuthTimelineSectionProps {
   onStartDeleteEvent: (eventId: number) => void;
   onCancelDeleteEvent: () => void;
   onConfirmDeleteEvent: (eventId: number) => void;
+  onPrefillFromLastEvent: () => void;
+  onStartConcurrentReview: () => void;
 }
   
 const EVENT_TYPES = [
@@ -72,6 +74,8 @@ export function AuthTimelineSection({
   onStartDeleteEvent,
   onCancelDeleteEvent,
   onConfirmDeleteEvent,
+  onPrefillFromLastEvent,
+  onStartConcurrentReview,
 }: AuthTimelineSectionProps) {
   const handleSubmitEvent = () => {
     if (!eventForm.eventDate.trim()) {
@@ -128,6 +132,42 @@ export function AuthTimelineSection({
           ? 'Editing timeline event. Save changes or cancel edit before adding another event.'
           : 'Add a timeline event using the real request or outcome date, not necessarily today’s date.'}
       </div>
+
+      {!editingEventId && events.length > 0 && (
+        <div className="mb-3 space-y-2">
+          <p className={cn('text-xs', darkMode ? 'text-gray-400' : 'text-gray-600')}>
+            Quick actions can reuse the latest timeline event date for concurrent reviews or payer responses.
+          </p>
+
+          <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onPrefillFromLastEvent}
+            className={cn(
+              'rounded-lg border px-3 py-2 text-xs font-medium transition-colors',
+              darkMode
+                ? 'border-gray-700 text-gray-200 hover:bg-gray-800'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-100',
+            )}
+          >
+            Use Last Event Date
+          </button>
+
+          <button
+            type="button"
+            onClick={onStartConcurrentReview}
+            className={cn(
+              'rounded-lg border px-3 py-2 text-xs font-medium transition-colors',
+              darkMode
+                ? 'border-blue-800 bg-blue-950/40 text-blue-200 hover:bg-blue-900/50'
+                : 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100',
+            )}
+          >
+            Start Concurrent Review
+          </button>
+        </div>
+      </div>
+      )}
 
       <div className="grid gap-3 md:grid-cols-4">
         <div>
