@@ -18,6 +18,7 @@ import {
 import {
   Activity,
   Bell,
+  CalendarDays,
   FileText,
   LayoutDashboard,
   LogOut,
@@ -32,6 +33,7 @@ import { TrendChart, DenialChart, LOCChart } from './components/Charts';
 import { DataTable } from './components/DataTable';
 import Filters, { type WorkQueueFilter } from './components/Filters';
 import { UpcomingWorkflowCard } from './components/UpcomingWorkflowCard';
+import { CalendarPage } from './components/CalendarPage';
 import {
   createAuthEvent,
   deleteAuthEvent,
@@ -45,7 +47,7 @@ import {
   type TimelineEventFormState,
 } from './components/AuthTimelineSection';
 
-type AppPage = 'dashboard' | 'authorizations' | 'settings';
+type AppPage = 'dashboard' | 'authorizations' | 'calendar' | 'settings';
 
 const SETTINGS_STORAGE_KEYS = {
   facilities: 'carequeue.registeredFacilities',
@@ -220,6 +222,11 @@ function App() {
       page: 'authorizations',
       label: 'Authorizations',
       icon: FileText,
+    },
+    {
+      page: 'calendar',
+      label: 'Calendar',
+      icon: CalendarDays,
     },
     {
       page: 'settings',
@@ -855,12 +862,14 @@ function App() {
   const pageTitle = {
     dashboard: 'Dashboard',
     authorizations: 'Authorizations',
+    calendar: 'Calendar',
     settings: 'Settings',
   }[activePage];
 
   const pageDescription = {
     dashboard: 'Authorization performance and workload overview',
     authorizations: 'View and manage authorization records',
+    calendar: 'Track review dates and LCDs',
     settings: 'Configure CareQueue preferences',
   }[activePage];
 
@@ -1030,6 +1039,43 @@ function App() {
             )}
           </>
         )}
+
+{activePage === 'calendar' && (
+              <>
+                {isLoadingAuths && (
+                  <div className={cn('rounded-lg border px-4 py-3 text-sm', darkMode ? 'border-blue-900/60 bg-blue-950/30 text-blue-200' : 'border-blue-200 bg-blue-50 text-blue-700')}>
+                    Loading authorization records...
+                  </div>
+                )}
+
+                {authsError && (
+                  <div className={cn('rounded-lg border px-4 py-3 text-sm', darkMode ? 'border-red-900/60 bg-red-950/30 text-red-200' : 'border-red-200 bg-red-50 text-red-700')}>
+                    {authsError}
+                  </div>
+                )}
+
+                <Filters
+                  dateRange={dateRange}
+                  setDateRange={setDateRange}
+                  selectedFacility={selectedFacility}
+                  setSelectedFacility={setSelectedFacility}
+                  facilities={facilityOptions}
+                  selectedInsurance={selectedInsurance}
+                  setSelectedInsurance={setSelectedInsurance}
+                  insurances={insuranceOptions}
+                  selectedWorkQueue={selectedWorkQueue}
+                  setSelectedWorkQueue={setSelectedWorkQueue}
+                  darkMode={darkMode}
+                  onClearFilters={handleClearFilters}
+                />
+
+                <CalendarPage
+                  data={filteredData}
+                  darkMode={darkMode}
+                  onSelectAuth={handleStartViewAuth}
+                />
+              </>
+            )}
 
 {activePage === 'authorizations' && (
   <>
