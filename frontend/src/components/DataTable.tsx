@@ -20,6 +20,7 @@ type SortField = keyof Pick<
 >;
 type SortOrder = 'asc' | 'desc';
 
+
 function calculateTurnaroundDays(submittedAt?: string | null, decisionAt?: string | null) {
   if (!submittedAt || !decisionAt) {
     return 'Pending';
@@ -38,6 +39,78 @@ function calculateTurnaroundDays(submittedAt?: string | null, decisionAt?: strin
 
   return `${days} day${days === 1 ? '' : 's'}`;
 }
+
+
+function calculateDaysSince(date: Date) {
+  const today = new Date();
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const millisecondsPerDay = 1000 * 60 * 60 * 24;
+
+  return Math.max(0, Math.floor((startOfToday.getTime() - startOfDate.getTime()) / millisecondsPerDay));
+}
+
+function getWorkflowCue(row: AuthRequest) {
+  const status = String(row.status);
+  const daysSinceAuthDate = calculateDaysSince(row.date);
+
+  if (status === 'Pending') {
+    return daysSinceAuthDate === 0 ? 'Pending today' : `Pending ${daysSinceAuthDate}d`;
+  }
+
+  if (status === 'P2P') {
+    return 'Peer review needed';
+  }
+
+  if (status === 'Appealed') {
+    return 'Appeal pending';
+  }
+
+  if (status === 'Denied') {
+    return 'Follow-up needed';
+  }
+
+  if (status === 'Approved' && row.approvedDays < row.requestedDays) {
+    return 'Partial approval';
+  }
+
+  if (status === 'Approved') {
+    return 'Complete';
+  }
+
+  if (status === 'No PA Required') {
+    return 'No PA required';
+  }
+
+  return 'Review status';
+}
+
+function getWorkflowCueColor(status: AuthRequest['status'], darkMode: boolean) {
+  const cleanStatus = String(status);
+
+  if (cleanStatus === 'Pending') {
+    return darkMode ? 'text-amber-300' : 'text-amber-700';
+  }
+
+  if (cleanStatus === 'P2P') {
+    return darkMode ? 'text-blue-300' : 'text-blue-700';
+  }
+
+  if (cleanStatus === 'Appealed') {
+    return darkMode ? 'text-purple-300' : 'text-purple-700';
+  }
+
+  if (cleanStatus === 'Denied') {
+    return darkMode ? 'text-red-300' : 'text-red-700';
+  }
+
+  if (cleanStatus === 'Approved' || cleanStatus === 'No PA Required') {
+    return darkMode ? 'text-emerald-300' : 'text-emerald-700';
+  }
+
+  return darkMode ? 'text-gray-400' : 'text-gray-600';
+}
+
 
 export function DataTable({
   data,
@@ -185,10 +258,16 @@ export function DataTable({
                 </td>
                 <td className={tdClass}>{row.facility}</td>
                 <td className={tdClass}>
-                  <span className={cn("px-2.5 py-1 rounded-full text-xs font-medium", getStatusColor(row.status))}>
+                <div className="flex flex-col gap-1">
+                  <span className={cn('w-fit px-2.5 py-1 rounded-full text-xs font-medium', getStatusColor(row.status))}>
                     {row.status}
                   </span>
-                </td>
+
+                  <span className={cn('text-xs font-medium', getWorkflowCueColor(row.status, darkMode))}>
+                    {getWorkflowCue(row)}
+                  </span>
+                </div>
+              </td>
                 <td className={tdClass}>
                   <span className={cn("text-sm", row.approvedDays < row.requestedDays && row.status === 'Approved' ? "text-amber-500 font-medium" : "")}>
                     {row.requestedDays} / {row.status === 'Pending' ? '-' : row.approvedDays}
