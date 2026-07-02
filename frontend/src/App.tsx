@@ -30,7 +30,7 @@ import { cn } from './utils/cn';
 import KPICards from './components/KPICards';
 import { TrendChart, DenialChart, LOCChart } from './components/Charts';
 import { DataTable } from './components/DataTable';
-import Filters from './components/Filters';
+import Filters, { type WorkQueueFilter } from './components/Filters';
 import { UpcomingWorkflowCard } from './components/UpcomingWorkflowCard';
 import {
   createAuthEvent,
@@ -79,6 +79,7 @@ function App() {
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d'>('30d');
   const [selectedFacility, setSelectedFacility] = useState<string>('All');
   const [selectedInsurance, setSelectedInsurance] = useState<string>('All');
+  const [selectedWorkQueue, setSelectedWorkQueue] = useState<WorkQueueFilter>('All');
   const [authRequests, setAuthRequests] = useState<AuthRequest[]>([]);
   const [isLoadingAuths, setIsLoadingAuths] = useState(true);
   const [authsError, setAuthsError] = useState<string | null>(null);
@@ -566,6 +567,28 @@ function App() {
     setItems((items) => items.filter((item) => item !== value));
   };
 
+  const matchesWorkQueueFilter = (item: AuthRequest, workQueueFilter: WorkQueueFilter) => {
+    if (workQueueFilter === 'All') {
+      return true;
+    }
+  
+    if (workQueueFilter === 'Needs Action') {
+      return (
+        item.status === 'Pending' ||
+        item.status === 'P2P' ||
+        item.status === 'Appealed' ||
+        item.status === 'Denied' ||
+        (item.status === 'Approved' && item.approvedDays < item.requestedDays)
+      );
+    }
+  
+    if (workQueueFilter === 'Partial Approvals') {
+      return item.status === 'Approved' && item.approvedDays < item.requestedDays;
+    }
+  
+    return item.status === workQueueFilter;
+  };
+
   const filteredData = useMemo(() => {
     const today = new Date();
     let daysToSubtract = 30;
@@ -578,10 +601,11 @@ function App() {
       const inDateRange = item.date >= startDate && item.date <= today;
       const matchFacility = selectedFacility === 'All' || item.facility === selectedFacility;
       const matchInsurance = selectedInsurance === 'All' || item.payer === selectedInsurance;
-  
-      return inDateRange && matchFacility && matchInsurance;
+      const matchWorkQueue = matchesWorkQueueFilter(item, selectedWorkQueue);
+
+      return inDateRange && matchFacility && matchInsurance && matchWorkQueue;
     });
-  }, [authRequests, dateRange, selectedFacility, selectedInsurance]);
+  }, [authRequests, dateRange, selectedFacility, selectedInsurance, selectedWorkQueue]);
 
   const recentAuthorizations = useMemo(() => {
     return filteredData.slice(0, 5);
@@ -613,6 +637,7 @@ function App() {
     setDateRange('30d');
     setSelectedFacility('All');
     setSelectedInsurance('All');
+    setSelectedWorkQueue('All');
   };
 
   useEffect(() => {
@@ -740,6 +765,8 @@ function App() {
               selectedInsurance={selectedInsurance}
               setSelectedInsurance={setSelectedInsurance}
               insurances={insuranceOptions}
+              selectedWorkQueue={selectedWorkQueue}
+              setSelectedWorkQueue={setSelectedWorkQueue} 
               darkMode={darkMode}
               onClearFilters={handleClearFilters}
             />
@@ -806,6 +833,8 @@ function App() {
       selectedInsurance={selectedInsurance}
       setSelectedInsurance={setSelectedInsurance}
       insurances={insuranceOptions}
+      selectedWorkQueue={selectedWorkQueue}
+      setSelectedWorkQueue={setSelectedWorkQueue}
       darkMode={darkMode}
       onClearFilters={handleClearFilters}
     />

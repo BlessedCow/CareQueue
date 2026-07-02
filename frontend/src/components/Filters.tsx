@@ -2,6 +2,16 @@ import { Calendar, Filter } from 'lucide-react';
 
 import { cn } from '../utils/cn';
 
+export type WorkQueueFilter =
+  | 'All'
+  | 'Needs Action'
+  | 'Pending'
+  | 'P2P'
+  | 'Appealed'
+  | 'Denied'
+  | 'Approved'
+  | 'Partial Approvals';
+
 interface FiltersProps {
   dateRange: '7d' | '30d' | '90d';
   setDateRange: (val: '7d' | '30d' | '90d') => void;
@@ -11,6 +21,8 @@ interface FiltersProps {
   selectedInsurance: string;
   setSelectedInsurance: (val: string) => void;
   insurances: string[];
+  selectedWorkQueue: WorkQueueFilter;
+  setSelectedWorkQueue: (val: WorkQueueFilter) => void;
   darkMode: boolean;
   onClearFilters: () => void;
 }
@@ -24,6 +36,8 @@ export default function Filters({
   selectedInsurance,
   setSelectedInsurance,
   insurances,
+  selectedWorkQueue,
+  setSelectedWorkQueue,
   darkMode,
   onClearFilters,
 }: FiltersProps) {
@@ -37,18 +51,23 @@ export default function Filters({
     darkMode ? 'text-gray-400' : 'text-gray-600',
   );
 
-  const hasActiveFilters = dateRange !== '30d' || selectedFacility !== 'All' || selectedInsurance !== 'All';
+  const hasActiveFilters =
+    dateRange !== '30d' ||
+    selectedFacility !== 'All' ||
+    selectedInsurance !== 'All' ||
+    selectedWorkQueue !== 'All';
 
   const filterSummary = [
     `Date: ${dateRange === '7d' ? 'Last 7 Days' : dateRange === '90d' ? 'Last 90 Days' : 'Last 30 Days'}`,
     `Facility: ${selectedFacility}`,
     `Insurance: ${selectedInsurance}`,
+    `Queue: ${selectedWorkQueue}`,
   ].join(' • ');
 
   return (
     <div
       className={cn(
-        'grid gap-4 rounded-xl border p-4 shadow-sm md:grid-cols-2 xl:grid-cols-4 xl:items-end',
+        'grid gap-4 rounded-xl border p-4 shadow-sm md:grid-cols-2 xl:grid-cols-5 xl:items-end',
         darkMode ? 'bg-gray-900/50 border-gray-800' : 'bg-white border-gray-200',
       )}
     >
@@ -115,6 +134,31 @@ export default function Filters({
                 {insurance}
               </option>
             ))}
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+            <svg className="h-4 w-4 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+              <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col">
+        <label className={labelClasses}>Work Queue</label>
+        <div className="relative">
+          <select
+            value={selectedWorkQueue}
+            onChange={(event) => setSelectedWorkQueue(event.target.value as WorkQueueFilter)}
+            className={cn(selectClasses, 'w-full')}
+          >
+            <option value="All">All</option>
+            <option value="Needs Action">Needs Action</option>
+            <option value="Pending">Pending</option>
+            <option value="P2P">P2P</option>
+            <option value="Appealed">Appealed</option>
+            <option value="Denied">Denied</option>
+            <option value="Approved">Approved</option>
+            <option value="Partial Approvals">Partial Approvals</option>
           </select>
           <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
             <svg className="h-4 w-4 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
