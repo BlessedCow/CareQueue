@@ -16,7 +16,7 @@ interface CalendarEvent {
   dateKey: string;
   label: string;
   auth: AuthRequest;
-  tone: 'start' | 'review' | 'lcd';
+  tone: 'start' | 'review' | 'lcd' | 'complete';
 }
 
 function startOfMonth(date: Date) {
@@ -43,6 +43,27 @@ function parseDateOnly(value?: string) {
   }
 
   return new Date(year, month - 1, day);
+}
+
+function parseDateLike(value?: string | null) {
+    if (!value) {
+      return null;
+    }
+  
+    const dateOnly = parseDateOnly(value.slice(0, 10));
+  
+    if (dateOnly) {
+      return dateOnly;
+    }
+  
+    const parsedDate = new Date(value);
+  
+    if (Number.isNaN(parsedDate.getTime())) {
+      return null;
+    }
+  
+    parsedDate.setHours(0, 0, 0, 0);
+    return parsedDate;
 }
 
 function getDateKey(date: Date) {
@@ -100,63 +121,89 @@ function getEventToneClasses(tone: CalendarEvent['tone'], darkMode: boolean) {
       : 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100';
   }
 
+  if (tone === 'complete') {
+    return darkMode
+      ? 'border-emerald-900/70 bg-emerald-950/40 text-emerald-200 hover:bg-emerald-900/50'
+      : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100';
+  }
+
   return darkMode
     ? 'border-blue-900/70 bg-blue-950/40 text-blue-200 hover:bg-blue-900/50'
     : 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100';
 }
 
-function buildCalendarEvents(data: AuthRequest[]) {
-  const events: CalendarEvent[] = [];
-
-  data.forEach((auth) => {
-    const authStartDate = parseDateOnly(auth.dateStr);
-    const reviewDueDate = parseDateOnly(auth.reviewDueDate);
-    const authEndDate = parseDateOnly(auth.authEndDate);
-
-    if (authStartDate) {
-      events.push({
-        id: `${auth.id}-start`,
-        date: authStartDate,
-        dateKey: getDateKey(authStartDate),
-        label: 'Auth Start',
-        auth,
-        tone: 'start',
-      });
-    }
-
-    if (reviewDueDate) {
-      events.push({
-        id: `${auth.id}-review`,
-        date: reviewDueDate,
-        dateKey: getDateKey(reviewDueDate),
-        label: 'Review Due',
-        auth,
-        tone: 'review',
-      });
-    }
-
-    if (authEndDate) {
-      events.push({
-        id: `${auth.id}-lcd`,
-        date: authEndDate,
-        dateKey: getDateKey(authEndDate),
-        label: 'Auth End / LCD',
-        auth,
-        tone: 'lcd',
-      });
-    }
-  });
-
-  return events.sort((firstEvent, secondEvent) => firstEvent.date.getTime() - secondEvent.date.getTime());
-}
+function buildCalendarEvents(data: AuthRequest[]): CalendarEvent[] {
+    const events: CalendarEvent[] = [];
+  
+    data.forEach((auth) => {
+      const authStartDate = parseDateOnly(auth.dateStr);
+      const reviewDueDate = parseDateOnly(auth.reviewDueDate);
+      const authEndDate = parseDateOnly(auth.authEndDate);
+      const completedDate = parseDateLike(auth.decisionAt);
+  
+      if (authStartDate) {
+        events.push({
+          id: `${auth.id}-start`,
+          date: authStartDate,
+          dateKey: getDateKey(authStartDate),
+          label: 'Auth Start',
+          auth,
+          tone: 'start',
+        });
+      }
+  
+      if (reviewDueDate) {
+        events.push({
+          id: `${auth.id}-review`,
+          date: reviewDueDate,
+          dateKey: getDateKey(reviewDueDate),
+          label: 'Review Due',
+          auth,
+          tone: 'review',
+        });
+      }
+  
+      if (authEndDate) {
+        events.push({
+          id: `${auth.id}-lcd`,
+          date: authEndDate,
+          dateKey: getDateKey(authEndDate),
+          label: 'Auth End / LCD',
+          auth,
+          tone: 'lcd',
+        });
+      }
+  
+      if (completedDate && (auth.status === 'Approved' || auth.status === 'No PA Required')) {
+        events.push({
+          id: `${auth.id}-complete`,
+          date: completedDate,
+          dateKey: getDateKey(completedDate),
+          label: 'Completed Auth',
+          auth,
+          tone: 'complete',
+        });
+      }
+    });
+  
+    return events.sort((firstEvent, secondEvent) => firstEvent.date.getTime() - secondEvent.date.getTime());
+  }
 
 function isToday(date: Date) {
   return getDateKey(date) === getDateKey(new Date());
 }
 
+const CALENDAR_LEGEND_ITEMS: { label: string; tone: CalendarEvent['tone'] }[] = [
+    { label: 'Auth Start', tone: 'start' },
+    { label: 'Review Due', tone: 'review' },
+    { label: 'Auth End / LCD', tone: 'lcd' },
+    { label: 'Completed Auth', tone: 'complete' },
+  ];
+
 export function CalendarPage({ data, darkMode, onSelectAuth }: CalendarPageProps) {
     const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
     const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
+    const [showLegend, setShowLegend] = useState(true);
 
   const calendarDays = useMemo(() => getCalendarDays(visibleMonth), [visibleMonth]);
   const events = useMemo(() => buildCalendarEvents(data), [data]);
@@ -203,6 +250,19 @@ export function CalendarPage({ data, darkMode, onSelectAuth }: CalendarPageProps
           </div>
 
           <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowLegend((currentValue) => !currentValue)}
+            className={cn(
+                'rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
+                darkMode
+                ? 'border-gray-700 text-gray-200 hover:bg-gray-800'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-100',
+            )}
+            >
+            {showLegend ? 'Hide Legend' : 'Show Legend'}
+            </button>
+            
             <button
               type="button"
               onClick={() => setVisibleMonth((currentMonth) => addMonths(currentMonth, -1))}
@@ -250,6 +310,27 @@ export function CalendarPage({ data, darkMode, onSelectAuth }: CalendarPageProps
           </div>
         </div>
 
+        {showLegend && (
+          <div
+            className={cn(
+              'mb-5 flex flex-wrap gap-2 rounded-xl border p-3',
+              darkMode ? 'border-gray-800 bg-gray-950/50' : 'border-gray-200 bg-gray-50',
+            )}
+          >
+            {CALENDAR_LEGEND_ITEMS.map((item) => (
+              <div
+                key={item.label}
+                className={cn(
+                  'rounded-lg border px-3 py-2 text-xs font-medium',
+                  getEventToneClasses(item.tone, darkMode),
+                )}
+              >
+                {item.label}
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="mb-3 grid grid-cols-7 gap-2">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((dayLabel) => (
             <div
@@ -268,12 +349,19 @@ export function CalendarPage({ data, darkMode, onSelectAuth }: CalendarPageProps
             const isCurrentMonth = date.getMonth() === visibleMonthIndex;
 
             return (
-              <button
+                <div
                 key={dateKey}
-                type="button"
+                role="button"
+                tabIndex={0}
                 onClick={() => setSelectedDateKey(dateKey)}
+                onKeyDown={(keyEvent) => {
+                  if (keyEvent.key === 'Enter' || keyEvent.key === ' ') {
+                    keyEvent.preventDefault();
+                    setSelectedDateKey(dateKey);
+                  }
+                }}
                 className={cn(
-                  'min-h-36 rounded-xl border p-3 text-left transition-colors',
+                  'min-h-36 cursor-pointer rounded-xl border p-3 text-left transition-colors',
                   darkMode
                     ? 'border-gray-800 bg-gray-950/40 hover:bg-gray-900'
                     : 'border-gray-200 bg-gray-50 hover:bg-gray-100',
@@ -324,7 +412,7 @@ export function CalendarPage({ data, darkMode, onSelectAuth }: CalendarPageProps
                     </p>
                   )}
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>
