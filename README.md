@@ -1,8 +1,49 @@
 # CareQueue
 
-CareQueue is a local-first utilization review workflow and authorization dashboard. It combines a Python backend for tracking authorization records with a React frontend for visualizing authorization activity, workload, and review patterns.
+CareQueue is a local-first utilization review workflow and authorization dashboard. It combines a FastAPI backend for tracking authorization records with a React frontend for visualizing authorization activity, workload, review dates, LCDs, and follow-up workflow.
 
-The project is designed for local development and private workflow experimentation. It is not intended to be used as a production healthcare system without additional privacy, security, compliance, and organizational review.
+CareQueue is designed for local development, learning, and private workflow experimentation. It is not intended to be used as a production healthcare system without additional privacy, security, compliance, legal, and organizational review.
+
+## What CareQueue Does
+
+CareQueue helps track utilization review authorization work such as:
+
+- Initial and concurrent authorization records
+- Authorization status, requested days, approved days, and payer decisions
+- Review due dates and authorization end dates / LCDs
+- Authorization timeline events
+- Pending, denied, appealed, P2P, no-PA, and approved workflows
+- Facility, payer, level of care, and work queue filtering
+- Calendar-based review planning
+- Dashboard-level workload and trend visibility
+
+## Current Features
+
+### Backend
+
+- FastAPI backend API
+- Local SQLite storage
+- Field-level encryption for selected sensitive fields
+- Authorization record create, read, update, and delete endpoints
+- Authorization timeline event endpoints
+- Analytics summary endpoint
+- Development encryption key endpoint
+- Backend tests for encryption, repository behavior, and API routes
+
+### Frontend
+
+- React/Vite/Tailwind frontend
+- Dashboard with KPI cards, charts, recent authorizations, and upcoming workflow
+- Calendar page for auth start dates, review due dates, auth end dates / LCDs, and completed auth dates
+- Authorization work queue with filters and CRUD actions
+- Read-only authorization detail view
+- Authorization edit form
+- Concurrent authorization workflow
+- Authorization timeline events with add, edit, delete, and quick actions
+- Settings page for registered facilities, insurances, web portals, and dashboard card visibility
+- Persisted local browser settings for dashboard cards and registered options
+- Dark mode layout
+- Modular frontend structure with page components and shared hooks
 
 ## Project Structure
 
@@ -17,6 +58,13 @@ CareQueue/
 │   ├── test_app.py
 │   ├── backend/
 │   │   ├── authstatus_api/
+│   │   │   ├── routers/
+│   │   │   ├── crypto.py
+│   │   │   ├── database.py
+│   │   │   ├── main.py
+│   │   │   ├── repository.py
+│   │   │   ├── schemas.py
+│   │   │   └── settings.py
 │   │   ├── tests/
 │   │   ├── requirements.txt
 │   │   ├── requirements-dev.txt
@@ -24,6 +72,13 @@ CareQueue/
 │   └── ...
 ├── frontend/
 │   ├── src/
+│   │   ├── api/
+│   │   ├── components/
+│   │   ├── components/layout/
+│   │   ├── hooks/
+│   │   ├── pages/
+│   │   ├── types/
+│   │   └── utils/
 │   ├── public/
 │   ├── package.json
 │   ├── vite.config.ts
@@ -31,30 +86,9 @@ CareQueue/
 ├── README.md
 ├── DISCLAIMER.md
 ├── SECURITY.md
+├── LICENSE
 └── .gitignore
 ```
-
-## Current Features
-
-### Backend
-
-- FastAPI backend API
-- Local SQLite storage
-- Field level encryption for selected PHI/PII-like fields
-- Authorization record CRUD endpoints
-- PATCH/update support
-- Analytics summary endpoint
-- Backend test coverage for encryption, repository behavior, and API routes
-
-### Frontend
-
-- React/Vite dashboard
-- Authorization data fetched from the backend API
-- KPI cards
-- Charts
-- Filter controls
-- Authorization table
-- Dark mode dashboard layout
 
 ## Current API Endpoints
 
@@ -62,9 +96,15 @@ CareQueue/
 GET    /api/health
 GET    /api/auths
 POST   /api/auths
-GET    /api/auths/{id}
-PATCH  /api/auths/{id}
-DELETE /api/auths/{id}
+GET    /api/auths/{auth_id}
+PATCH  /api/auths/{auth_id}
+DELETE /api/auths/{auth_id}
+
+GET    /api/auths/{auth_id}/events
+POST   /api/auths/{auth_id}/events
+PATCH  /api/auths/{auth_id}/events/{event_id}
+DELETE /api/auths/{auth_id}/events/{event_id}
+
 GET    /api/analytics/summary
 GET    /api/dev/encryption-key
 ```
