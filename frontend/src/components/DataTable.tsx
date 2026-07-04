@@ -20,6 +20,104 @@ type SortField = keyof Pick<
 >;
 type SortOrder = 'asc' | 'desc';
 
+function parseDateOnly(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(`${value}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date;
+}
+
+function formatDateOnly(value?: string | null) {
+  const date = parseDateOnly(value);
+
+  if (!date) {
+    return 'Not set';
+  }
+
+  return format(date, 'MMM d, yyyy');
+}
+
+function calculateDaysUntil(value?: string | null) {
+  const date = parseDateOnly(value);
+
+  if (!date) {
+    return null;
+  }
+
+  const today = new Date();
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const millisecondsPerDay = 1000 * 60 * 60 * 24;
+
+  return Math.ceil((startOfDate.getTime() - startOfToday.getTime()) / millisecondsPerDay);
+}
+
+function getScheduleCue(row: AuthRequest) {
+  const reviewDaysUntil = calculateDaysUntil(row.reviewDueDate);
+  const lcdDaysUntil = calculateDaysUntil(row.authEndDate);
+
+  if (reviewDaysUntil !== null && reviewDaysUntil < 0) {
+    return `Overdue review ${Math.abs(reviewDaysUntil)}d`;
+  }
+
+  if (reviewDaysUntil === 0) {
+    return 'Review due today';
+  }
+
+  if (reviewDaysUntil !== null && reviewDaysUntil <= 7) {
+    return `Review due in ${reviewDaysUntil}d`;
+  }
+
+  if (lcdDaysUntil !== null && lcdDaysUntil < 0) {
+    return `LCD passed ${Math.abs(lcdDaysUntil)}d`;
+  }
+
+  if (lcdDaysUntil === 0) {
+    return 'LCD today';
+  }
+
+  if (lcdDaysUntil !== null && lcdDaysUntil <= 7) {
+    return `LCD in ${lcdDaysUntil}d`;
+  }
+
+  if (!row.reviewDueDate && !row.authEndDate) {
+    return 'No schedule date';
+  }
+
+  return 'Scheduled';
+}
+
+function getScheduleCueColor(row: AuthRequest, darkMode: boolean) {
+  const reviewDaysUntil = calculateDaysUntil(row.reviewDueDate);
+  const lcdDaysUntil = calculateDaysUntil(row.authEndDate);
+
+  if (
+    (reviewDaysUntil !== null && reviewDaysUntil < 0) ||
+    (lcdDaysUntil !== null && lcdDaysUntil < 0)
+  ) {
+    return darkMode ? 'text-red-300' : 'text-red-700';
+  }
+
+  if (
+    (reviewDaysUntil !== null && reviewDaysUntil <= 7) ||
+    (lcdDaysUntil !== null && lcdDaysUntil <= 7)
+  ) {
+    return darkMode ? 'text-amber-300' : 'text-amber-700';
+  }
+
+  if (!row.reviewDueDate && !row.authEndDate) {
+    return darkMode ? 'text-gray-500' : 'text-gray-500';
+  }
+
+  return darkMode ? 'text-emerald-300' : 'text-emerald-700';
+}
 
 function calculateTurnaroundDays(submittedAt?: string | null, decisionAt?: string | null) {
   if (!submittedAt || !decisionAt) {
@@ -219,6 +317,9 @@ export function DataTable({
                 <div className="flex items-center">Days (Req/Appr)</div>
               </th>
               <th className={thClass}>
+                <div className="flex items-center">Schedule</div>
+              </th>
+              <th className={thClass}>
                 <div className="flex items-center">Turnaround</div>
               </th>
             {showActions && (
@@ -273,6 +374,23 @@ export function DataTable({
                     {row.requestedDays} / {row.status === 'Pending' ? '-' : row.approvedDays}
                   </span>
                 </td>
+                <td className={tdClass}>
+                <div className="flex flex-col gap-1">
+                  <div className="text-xs">
+                    <span className={darkMode ? 'text-gray-400' : 'text-gray-500'}>Review: </span>
+                    <span>{formatDateOnly(row.reviewDueDate)}</span>
+                  </div>
+
+                  <div className="text-xs">
+                    <span className={darkMode ? 'text-gray-400' : 'text-gray-500'}>LCD: </span>
+                    <span>{formatDateOnly(row.authEndDate)}</span>
+                  </div>
+
+                  <span className={cn('text-xs font-medium', getScheduleCueColor(row, darkMode))}>
+                    {getScheduleCue(row)}
+                  </span>
+                </div>
+              </td>
                 <td className={tdClass}>
                   {calculateTurnaroundDays(row.submittedAt, row.decisionAt)}
                 </td>
@@ -336,7 +454,7 @@ export function DataTable({
                 {filteredAndSortedData.length === 0 && (
                   <tr>
                     <td
-                      colSpan={showActions ? 7 : 6}
+                      colSpan={showActions ? 8 : 7}
                       className={cn('px-4 py-8 text-center text-sm', darkMode ? 'text-gray-500' : 'text-gray-500')}
                     >
                       No matching records found.
