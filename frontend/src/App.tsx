@@ -260,6 +260,11 @@ function App() {
     handleTimelineEventFieldChange("outcome", "Pending");
   };
 
+  const handleOpenAuthDetails = async (auth: AuthRequest) => {
+    setActivePage("authorizations");
+    await handleStartViewAuth(auth);
+  };
+
   const handleCreateAuth = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setAuthsError(null);
@@ -317,7 +322,7 @@ function App() {
           filteredData={filteredData}
           comparisonFilteredData={comparisonFilteredData}
           comparisonPeriodLabel={comparisonPeriodLabel}
-          onViewAuth={handleStartViewAuth}
+          onViewAuth={handleOpenAuthDetails}
         />
       )}
 
@@ -338,7 +343,7 @@ function App() {
           setSelectedWorkQueue={setSelectedWorkQueue}
           onClearFilters={handleClearFilters}
           filteredData={filteredData}
-          onSelectAuth={handleStartViewAuth}
+          onSelectAuth={handleOpenAuthDetails}
         />
       )}
 

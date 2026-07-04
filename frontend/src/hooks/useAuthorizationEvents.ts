@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from "react";
 
 import {
   createAuthEvent,
@@ -8,15 +8,16 @@ import {
   type CreateAuthEventPayload,
   type UpdateAuthEventPayload,
   updateAuthEvent,
-} from '../api/authEvents';
-import type { TimelineEventFormState } from '../components/AuthTimelineSection';
+} from "../api/authEvents";
+import type { TimelineEventFormState } from "../components/AuthTimelineSection";
+import { sortAuthEventsNewestFirst } from "../utils/authEvents";
 
 const DEFAULT_TIMELINE_EVENT_FORM: TimelineEventFormState = {
-  eventDate: '',
-  eventTime: '',
-  eventType: 'Review',
-  outcome: '',
-  notes: '',
+  eventDate: "",
+  eventTime: "",
+  eventType: "Review",
+  outcome: "",
+  notes: "",
 };
 
 function resetTimelineEventFormState(): TimelineEventFormState {
@@ -28,13 +29,13 @@ export function useAuthorizationEvents() {
   const [isLoadingAuthEvents, setIsLoadingAuthEvents] = useState(false);
   const [isSavingAuthEvent, setIsSavingAuthEvent] = useState(false);
   const [authEventsError, setAuthEventsError] = useState<string | null>(null);
-  const [editingAuthEventId, setEditingAuthEventId] = useState<number | null>(null);
-  const [confirmingDeleteAuthEventId, setConfirmingDeleteAuthEventId] = useState<number | null>(
-    null,
+  const [editingAuthEventId, setEditingAuthEventId] = useState<number | null>(
+    null
   );
-  const [timelineEventForm, setTimelineEventForm] = useState<TimelineEventFormState>(
-    DEFAULT_TIMELINE_EVENT_FORM,
-  );
+  const [confirmingDeleteAuthEventId, setConfirmingDeleteAuthEventId] =
+    useState<number | null>(null);
+  const [timelineEventForm, setTimelineEventForm] =
+    useState<TimelineEventFormState>(DEFAULT_TIMELINE_EVENT_FORM);
 
   const resetTimelineEventForm = () => {
     setTimelineEventForm(resetTimelineEventFormState());
@@ -55,9 +56,12 @@ export function useAuthorizationEvents() {
 
     try {
       const events = await fetchAuthEvents(authId);
-      setAuthEvents(events);
+      setAuthEvents(sortAuthEventsNewestFirst(events));
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to load authorization events.';
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to load authorization events.";
       setAuthEventsError(message);
     } finally {
       setIsLoadingAuthEvents(false);
@@ -66,7 +70,7 @@ export function useAuthorizationEvents() {
 
   const handleTimelineEventFieldChange = (
     field: keyof TimelineEventFormState,
-    value: string,
+    value: string
   ) => {
     setTimelineEventForm((currentForm) => ({
       ...currentForm,
@@ -88,10 +92,15 @@ export function useAuthorizationEvents() {
       };
 
       const createdEvent = await createAuthEvent(authId, payload);
-      setAuthEvents((currentEvents) => [createdEvent, ...currentEvents]);
+      setAuthEvents((currentEvents) =>
+        sortAuthEventsNewestFirst([createdEvent, ...currentEvents])
+      );
       resetTimelineEventForm();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to add timeline event.';
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to add timeline event.";
       setAuthEventsError(message);
     } finally {
       setIsSavingAuthEvent(false);
@@ -102,10 +111,10 @@ export function useAuthorizationEvents() {
     setEditingAuthEventId(event.id);
     setTimelineEventForm({
       eventDate: event.eventDate,
-      eventTime: event.eventTime ?? '',
+      eventTime: event.eventTime ?? "",
       eventType: event.eventType,
-      outcome: event.outcome ?? '',
-      notes: event.notes ?? '',
+      outcome: event.outcome ?? "",
+      notes: event.notes ?? "",
     });
   };
 
@@ -115,7 +124,7 @@ export function useAuthorizationEvents() {
 
   const handleUpdateTimelineEvent = async (
     eventId: number,
-    payload: UpdateAuthEventPayload,
+    payload: UpdateAuthEventPayload
   ) => {
     setIsSavingAuthEvent(true);
     setAuthEventsError(null);
@@ -124,12 +133,19 @@ export function useAuthorizationEvents() {
       const updatedEvent = await updateAuthEvent(eventId, payload);
 
       setAuthEvents((currentEvents) =>
-        currentEvents.map((event) => (event.id === updatedEvent.id ? updatedEvent : event)),
+        sortAuthEventsNewestFirst(
+          currentEvents.map((event) =>
+            event.id === updatedEvent.id ? updatedEvent : event
+          )
+        )
       );
 
       resetTimelineEventForm();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to update timeline event.';
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to update timeline event.";
       setAuthEventsError(message);
     } finally {
       setIsSavingAuthEvent(false);
@@ -150,10 +166,15 @@ export function useAuthorizationEvents() {
 
     try {
       await deleteAuthEvent(eventId);
-      setAuthEvents((currentEvents) => currentEvents.filter((event) => event.id !== eventId));
+      setAuthEvents((currentEvents) =>
+        currentEvents.filter((event) => event.id !== eventId)
+      );
       setConfirmingDeleteAuthEventId(null);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to delete timeline event.';
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to delete timeline event.";
       setAuthEventsError(message);
     } finally {
       setIsSavingAuthEvent(false);
@@ -170,7 +191,7 @@ export function useAuthorizationEvents() {
     setTimelineEventForm((currentForm) => ({
       ...currentForm,
       eventDate: latestEvent.eventDate,
-      eventTime: latestEvent.eventTime ?? '',
+      eventTime: latestEvent.eventTime ?? "",
     }));
   };
 

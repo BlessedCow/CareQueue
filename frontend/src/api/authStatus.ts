@@ -1,8 +1,16 @@
-import { format, parseISO } from 'date-fns';
+import { format, parseISO } from "date-fns";
 
-import { AuthRequest, DenialReason, Facility, LOC, Payer, Status } from '../types/auth';
+import {
+  AuthRequest,
+  DenialReason,
+  Facility,
+  LOC,
+  Payer,
+  Status,
+} from "../types/auth";
 
-const API_BASE_URL = import.meta.env.VITE_AUTHSTATUS_API_BASE_URL ?? 'http://127.0.0.1:8000';
+const API_BASE_URL =
+  import.meta.env.VITE_AUTHSTATUS_API_BASE_URL ?? "http://127.0.0.1:8000";
 
 interface BackendAuthRecord {
   id: number;
@@ -44,37 +52,40 @@ interface BackendAuthListResponse {
 function normalizeStatus(status: string): Status {
   const cleanStatus = status.trim().toLowerCase();
 
-  if (cleanStatus.includes('approved')) return 'Approved';
-  if (cleanStatus.includes('denied')) return 'Denied';
-  if (cleanStatus.includes('p2p')) return 'P2P';
-  if (cleanStatus.includes('appeal')) return 'Appealed';
+  if (cleanStatus.includes("approved")) return "Approved";
+  if (cleanStatus.includes("denied")) return "Denied";
+  if (cleanStatus.includes("p2p")) return "P2P";
+  if (cleanStatus.includes("appeal")) return "Appealed";
 
-  return 'Pending';
+  return "Pending";
 }
 
 function normalizeLoc(loc: string): LOC {
   const cleanLoc = loc.trim().toLowerCase();
 
-  if (cleanLoc.includes('detox') || cleanLoc === 'dtx') return 'Detox';
-  if (cleanLoc.includes('residential') || cleanLoc === 'rtc') return 'Residential';
-  if (cleanLoc === 'php') return 'PHP';
-  if (cleanLoc === 'iop') return 'IOP';
-  if (cleanLoc === 'op') return 'OP';
+  if (cleanLoc.includes("detox") || cleanLoc === "dtx") return "Detox";
+  if (cleanLoc.includes("residential") || cleanLoc === "rtc")
+    return "Residential";
+  if (cleanLoc === "php") return "PHP";
+  if (cleanLoc === "iop") return "IOP";
+  if (cleanLoc === "op") return "OP";
 
-  return 'OP';
+  return "OP";
 }
 
 function normalizePayer(insurance: string): Payer {
   const cleanInsurance = insurance.trim().toLowerCase();
 
-  if (cleanInsurance.includes('bcbs') || cleanInsurance.includes('blue')) return 'BCBS';
-  if (cleanInsurance.includes('aetna')) return 'Aetna';
-  if (cleanInsurance.includes('cigna')) return 'Cigna';
-  if (cleanInsurance.includes('uhc') || cleanInsurance.includes('united')) return 'UHC';
-  if (cleanInsurance.includes('optum')) return 'Optum';
-  if (cleanInsurance.includes('magellan')) return 'Magellan';
+  if (cleanInsurance.includes("bcbs") || cleanInsurance.includes("blue"))
+    return "BCBS";
+  if (cleanInsurance.includes("aetna")) return "Aetna";
+  if (cleanInsurance.includes("cigna")) return "Cigna";
+  if (cleanInsurance.includes("uhc") || cleanInsurance.includes("united"))
+    return "UHC";
+  if (cleanInsurance.includes("optum")) return "Optum";
+  if (cleanInsurance.includes("magellan")) return "Magellan";
 
-  return 'Optum';
+  return "Optum";
 }
 
 function normalizeFacility(facility: string): Facility {
@@ -92,19 +103,19 @@ function parseNumber(value: string): number {
 }
 
 function mapDenialReason(record: BackendAuthRecord): DenialReason | undefined {
-  if (normalizeStatus(record.status) !== 'Denied') {
+  if (normalizeStatus(record.status) !== "Denied") {
     return undefined;
   }
 
   if (record.waiting_on_clinicals) {
-    return 'Clinicals Not Submitted';
+    return "Clinicals Not Submitted";
   }
 
   if (!record.progress_made) {
-    return 'Lack of Progress';
+    return "Lack of Progress";
   }
 
-  return 'Other';
+  return "Other";
 }
 
 function getRecordDate(record: BackendAuthRecord): string {
@@ -129,8 +140,10 @@ function toAuthRequest(record: BackendAuthRecord): AuthRequest {
     requestedDays,
     approvedDays,
     denialReason: mapDenialReason(record),
-    urSpecialist: record.care_manager_enabled ? 'Care Manager Assigned' : 'Unassigned',
-    daysToDecision: status === 'Pending' ? 0 : 1,
+    urSpecialist: record.care_manager_enabled
+      ? "Care Manager Assigned"
+      : "Unassigned",
+    daysToDecision: status === "Pending" ? 0 : 1,
   };
 }
 
@@ -139,20 +152,26 @@ function mapApiAuthToAuthRequest(item: any): AuthRequest {
 
   return {
     id: String(item.id),
-    patientId: item.client_name ?? 'Unknown Client',
-    facility: item.facility ?? 'Unknown Facility',
-    status: item.status ?? 'Pending',
-    payer: item.insurance ?? 'Unknown Insurance',
+    patientId: item.client_name ?? "Unknown Client",
+    facility: item.facility ?? "Unknown Facility",
+    status: item.status ?? "Pending",
+    payer: item.insurance ?? "Unknown Insurance",
     date: authDate ? parseISO(authDate.slice(0, 10)) : new Date(),
-    dateStr: authDate ? authDate.slice(0, 10) : format(new Date(), 'yyyy-MM-dd'),
-    requestedDays: Number(item.requested_days ?? item.los_requested ?? item.requestedDays ?? 0),
-    approvedDays: Number(item.approved_days ?? item.days_approved ?? item.approvedDays ?? 0),
-    urSpecialist: item.ur_specialist ?? 'Unassigned',
-    loc: item.loc ?? '',
-    authType: item.auth_type ?? '',
-    submissionMethods: item.submission_methods ?? '',
-    reviewDueDate: item.review_due_date ?? '',
-    authEndDate: item.auth_end_date ?? '',
+    dateStr: authDate
+      ? authDate.slice(0, 10)
+      : format(new Date(), "yyyy-MM-dd"),
+    requestedDays: Number(
+      item.requested_days ?? item.los_requested ?? item.requestedDays ?? 0
+    ),
+    approvedDays: Number(
+      item.approved_days ?? item.days_approved ?? item.approvedDays ?? 0
+    ),
+    urSpecialist: item.ur_specialist ?? "Unassigned",
+    loc: item.loc ?? "",
+    authType: item.auth_type ?? "",
+    submissionMethods: item.submission_methods ?? "",
+    reviewDueDate: item.review_due_date ?? "",
+    authEndDate: item.auth_end_date ?? "",
     submittedAt: item.submitted_at ?? null,
     decisionAt: item.decision_at ?? null,
   };
@@ -162,7 +181,9 @@ export async function fetchAuthRequests(): Promise<AuthRequest[]> {
   const response = await fetch(`${API_BASE_URL}/api/auths`);
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch authorization records: ${response.status}`);
+    throw new Error(
+      `Failed to fetch authorization records: ${response.status}`
+    );
   }
 
   const data = await response.json();
@@ -171,11 +192,13 @@ export async function fetchAuthRequests(): Promise<AuthRequest[]> {
 
 export async function deleteAuthRequest(id: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/api/auths/${id}`, {
-    method: 'DELETE',
+    method: "DELETE",
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to delete authorization record: ${response.status}`);
+    throw new Error(
+      `Failed to delete authorization record: ${response.status}`
+    );
   }
 }
 
@@ -204,17 +227,21 @@ export interface CreateAuthRequestPayload {
 
 export type UpdateAuthRequestPayload = Partial<CreateAuthRequestPayload>;
 
-export async function createAuthRequest(payload: CreateAuthRequestPayload): Promise<AuthRequest> {
+export async function createAuthRequest(
+  payload: CreateAuthRequestPayload
+): Promise<AuthRequest> {
   const response = await fetch(`${API_BASE_URL}/api/auths`, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to create authorization record: ${response.status}`);
+    throw new Error(
+      `Failed to create authorization record: ${response.status}`
+    );
   }
 
   const data = await response.json();
@@ -223,18 +250,20 @@ export async function createAuthRequest(payload: CreateAuthRequestPayload): Prom
 
 export async function updateAuthRequest(
   id: string,
-  payload: UpdateAuthRequestPayload,
+  payload: UpdateAuthRequestPayload
 ): Promise<AuthRequest> {
   const response = await fetch(`${API_BASE_URL}/api/auths/${id}`, {
-    method: 'PATCH',
+    method: "PATCH",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to update authorization record: ${response.status}`);
+    throw new Error(
+      `Failed to update authorization record: ${response.status}`
+    );
   }
 
   const data = await response.json();

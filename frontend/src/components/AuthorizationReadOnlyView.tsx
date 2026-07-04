@@ -1,6 +1,7 @@
 import type { AuthEvent } from '../api/authEvents';
 import type { AuthRequest } from '../types/auth';
 import { cn } from '../utils/cn';
+import { formatEventTimestamp, sortAuthEventsNewestFirst } from '../utils/authEvents';
 
 interface AuthorizationReadOnlyViewProps {
   auth: AuthRequest;
@@ -59,6 +60,7 @@ export function AuthorizationReadOnlyView({
 }: AuthorizationReadOnlyViewProps) {
   const labelClass = cn('text-xs font-medium uppercase tracking-wide', darkMode ? 'text-gray-500' : 'text-gray-500');
   const valueClass = cn('mt-1 text-sm font-medium', darkMode ? 'text-gray-100' : 'text-gray-900');
+  const sortedEvents = sortAuthEventsNewestFirst(events);
 
   return (
     <section
@@ -191,13 +193,13 @@ export function AuthorizationReadOnlyView({
 
         {isLoadingEvents ? (
           <p className={cn('mt-3 text-sm', darkMode ? 'text-gray-400' : 'text-gray-500')}>Loading timeline...</p>
-        ) : events.length === 0 ? (
+        ) : sortedEvents.length === 0 ? (
           <p className={cn('mt-3 text-sm', darkMode ? 'text-gray-400' : 'text-gray-500')}>
             No timeline events recorded yet.
           </p>
         ) : (
           <div className="mt-3 space-y-3">
-            {events.map((event) => (
+            {sortedEvents.map((event) => (
               <div
                 key={event.id}
                 className={cn(
@@ -211,8 +213,7 @@ export function AuthorizationReadOnlyView({
                 </div>
 
                 <div className={cn('mt-1 text-xs', darkMode ? 'text-gray-400' : 'text-gray-500')}>
-                  {event.eventDate}
-                  {event.eventTime ? ` at ${event.eventTime}` : ''}
+                  {formatEventTimestamp(event.eventDate, event.eventTime)}
                 </div>
 
                 {event.notes ? (
