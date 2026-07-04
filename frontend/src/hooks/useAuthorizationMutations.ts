@@ -1,15 +1,25 @@
-import { useState } from 'react';
+import { useState } from "react";
 
 import {
-    createAuthRequest,
-    deleteAuthRequest,
-    updateAuthRequest,
-    type CreateAuthRequestPayload,
-  } from '../api/authStatus';
-import type { AuthRequest } from '../types/auth';
-import type { NewAuthFormState } from './useAuthorizationForm';
+  createAuthRequest,
+  deleteAuthRequest,
+  updateAuthRequest,
+  type CreateAuthRequestPayload,
+} from "../api/authStatus";
+import type { AuthRequest } from "../types/auth";
+import type { NewAuthFormState } from "./useAuthorizationForm";
 
 function buildAuthorizationPayload(form: NewAuthFormState): CreateAuthRequestPayload {
+  const careManagerDetails = [
+    form.careManagerName ? `Name: ${form.careManagerName}` : '',
+    form.careManagerContactType ? `Contact Type: ${form.careManagerContactType}` : '',
+    form.careManagerPhone ? `Phone: ${form.careManagerPhone}` : '',
+    form.careManagerFax ? `Fax: ${form.careManagerFax}` : '',
+    form.careManagerNotes ? `Notes: ${form.careManagerNotes}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
   return {
     client_name: form.clientName,
     facility: form.facility,
@@ -22,18 +32,15 @@ function buildAuthorizationPayload(form: NewAuthFormState): CreateAuthRequestPay
     approved_days: Number(form.approvedDays) || 0,
     insurance: form.insurance,
     auth_type: form.authType,
-    submission_method: form.submissionMethod,
-    phone_number: form.phoneNumber,
-    phone_extension: form.phoneExtension,
-    fax_number: form.faxNumber,
-    web_portal: form.webPortal,
-    web_portal_url: form.webPortalUrl,
-    has_care_manager: form.hasCareManager,
-    care_manager_name: form.careManagerName,
-    care_manager_contact_type: form.careManagerContactType,
-    care_manager_phone: form.careManagerPhone,
-    care_manager_fax: form.careManagerFax,
-    care_manager_notes: form.careManagerNotes,
+    submission_methods: form.submissionMethod,
+    insurance_phone: form.phoneExtension
+      ? `${form.phoneNumber} ext. ${form.phoneExtension}`
+      : form.phoneNumber,
+    insurance_fax: form.faxNumber,
+    fax_numbers: form.faxNumber,
+    portal_name: form.webPortal,
+    care_manager_enabled: form.hasCareManager,
+    care_manager_details: careManagerDetails,
   };
 }
 

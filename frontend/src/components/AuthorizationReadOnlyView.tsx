@@ -34,6 +34,20 @@ function formatDateTime(value?: string | null) {
   return date.toLocaleString();
 }
 
+function formatDateOnly(value?: string | null) {
+  if (!value) {
+    return 'Not provided';
+  }
+
+  const date = new Date(`${value}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString();
+}
+
 export function AuthorizationReadOnlyView({
   auth,
   darkMode,
@@ -117,6 +131,21 @@ export function AuthorizationReadOnlyView({
         <div>
           <div className={labelClass}>Status</div>
           <div className={valueClass}>{auth.status}</div>
+        </div>
+
+        <div>
+          <div className={labelClass}>Auth Start Date</div>
+          <div className={valueClass}>{formatDateOnly(auth.dateStr)}</div>
+        </div>
+
+        <div>
+          <div className={labelClass}>Auth End Date / LCD</div>
+          <div className={valueClass}>{formatDateOnly(auth.authEndDate)}</div>
+        </div>
+
+        <div>
+          <div className={labelClass}>Review Due Date</div>
+          <div className={valueClass}>{formatDateOnly(auth.reviewDueDate)}</div>
         </div>
 
         <div>

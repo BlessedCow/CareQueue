@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
 
 // API
-import {
-  fetchAuthRequests,
-} from "./api/authStatus";
+import { fetchAuthRequests } from "./api/authStatus";
 
 // Pages
 import { DashboardPage } from "./pages/DashboardPage";
@@ -16,9 +14,9 @@ import { useDashboardCardSettings } from "./hooks/useDashboardCardSettings";
 import { useRegisteredOptions } from "./hooks/useRegisteredOptions";
 import { useAuthorizationFilters } from "./hooks/useAuthorizationFilters";
 import { useAuthorizationEvents } from "./hooks/useAuthorizationEvents";
-import { useAuthorizationForm } from './hooks/useAuthorizationForm';
-import { useAuthorizationSelection } from './hooks/useAuthorizationSelection';
-import { useAuthorizationMutations } from './hooks/useAuthorizationMutations';
+import { useAuthorizationForm } from "./hooks/useAuthorizationForm";
+import { useAuthorizationSelection } from "./hooks/useAuthorizationSelection";
+import { useAuthorizationMutations } from "./hooks/useAuthorizationMutations";
 
 // AppShell
 import { AppShell } from "./components/layout/AppShell";
@@ -202,14 +200,19 @@ function App() {
 
   const handleDeleteAuth = async (auth: AuthRequest) => {
     setAuthsError(null);
-  
+
     try {
       await removeAuthorization(auth);
-  
-      setAuthRequests((currentAuths) => currentAuths.filter((item) => item.id !== auth.id));
+
+      setAuthRequests((currentAuths) =>
+        currentAuths.filter((item) => item.id !== auth.id)
+      );
       handleAuthDeleted(auth.id, authEvents);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to delete authorization.';
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to delete authorization.";
       setAuthsError(message);
     }
   };
@@ -260,24 +263,29 @@ function App() {
   const handleCreateAuth = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setAuthsError(null);
-  
+
     try {
       const savedAuth = await saveAuthorization({
         editingAuthId,
         form: newAuthForm,
       });
-  
+
       setAuthRequests((currentAuths) => {
         if (editingAuthId) {
-          return currentAuths.map((auth) => (auth.id === savedAuth.id ? savedAuth : auth));
+          return currentAuths.map((auth) =>
+            auth.id === savedAuth.id ? savedAuth : auth
+          );
         }
-  
+
         return [savedAuth, ...currentAuths];
       });
-  
+
       handleAuthSaved();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to save authorization.";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to save authorization.";
       setAuthsError(message);
     }
   };

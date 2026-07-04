@@ -192,9 +192,14 @@ export interface CreateAuthRequestPayload {
   auth_start_date?: string;
   auth_end_date?: string;
   review_due_date?: string;
+  insurance_phone?: string;
+  insurance_fax?: string;
+  portal_name?: string;
+  fax_numbers?: string;
+  care_manager_enabled?: boolean;
   care_manager_details?: string;
-  submittedAt?: string | null;
-  decisionAt?: string | null;
+  submitted_at?: string | null;
+  decision_at?: string | null;
 }
 
 export type UpdateAuthRequestPayload = Partial<CreateAuthRequestPayload>;
