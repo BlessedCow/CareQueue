@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { CheckCircle2, Clock, TrendingDown, TrendingUp, XCircle } from 'lucide-react';
 
-import { AuthRequest } from '../data/mockData';
+import { AuthRequest } from '../types/auth';
 import { cn } from '../utils/cn';
 
 interface KPICardsProps {

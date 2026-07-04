@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { AuthRequest } from '../data/mockData';
+import { AuthRequest } from '../types/auth';
 import { format } from 'date-fns';
 import { cn } from '../utils/cn';
 import { ArrowUpDown, Eye, Pencil, Search, Trash2 } from 'lucide-react';

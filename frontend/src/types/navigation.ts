@@ -1,0 +1,1 @@
+export type AppPage = 'dashboard' | 'authorizations' | 'calendar' | 'settings';

@@ -1,5 +1,5 @@
 import type { AuthEvent } from '../api/authEvents';
-import type { AuthRequest } from '../data/mockData';
+import type { AuthRequest } from '../types/auth';
 import { cn } from '../utils/cn';
 
 interface AuthorizationReadOnlyViewProps {

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { AuthRequest } from '../data/mockData';
+import { AuthRequest } from '../types/auth';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   BarChart, Bar,
