@@ -8,7 +8,8 @@ import {
 import { AuthorizationReadOnlyView } from "../components/AuthorizationReadOnlyView";
 import { DataTable } from "../components/DataTable";
 import Filters, { type WorkQueueFilter } from "../components/Filters";
-import type { NewAuthFormState } from '../hooks/useAuthorizationForm';
+import type { NewAuthFormState } from "../hooks/useAuthorizationForm";
+import type { WorkflowViewMode } from "../hooks/useWorkflowViewMode";
 import type { AuthRequest } from "../types/auth";
 import { cn } from "../utils/cn";
 
@@ -16,10 +17,8 @@ type DateRange = "7d" | "30d" | "90d";
 
 interface AuthorizationsPageProps {
   darkMode: boolean;
-
   isLoadingAuths: boolean;
   authsError: string | null;
-
   dateRange: DateRange;
   setDateRange: (value: DateRange) => void;
   selectedFacility: string;
@@ -31,19 +30,16 @@ interface AuthorizationsPageProps {
   selectedWorkQueue: WorkQueueFilter;
   setSelectedWorkQueue: (value: WorkQueueFilter) => void;
   onClearFilters: () => void;
-
+  workflowViewMode: WorkflowViewMode;
   filteredData: AuthRequest[];
-
   showAddAuthForm: boolean;
   viewingAuth: AuthRequest | null;
   editingAuthId: string | null;
   newAuthForm: NewAuthFormState;
   isCreatingAuth: boolean;
-
   registeredFacilities: string[];
   registeredInsurances: string[];
   registeredWebPortals: string[];
-
   authEvents: AuthEvent[];
   authEventsError: string | null;
   isLoadingAuthEvents: boolean;
@@ -51,24 +47,19 @@ interface AuthorizationsPageProps {
   editingAuthEventId: number | null;
   confirmingDeleteAuthEventId: number | null;
   timelineEventForm: TimelineEventFormState;
-
   deletingAuthId: string | null;
-
   onShowAddAuthForm: () => void;
   onCancelAuthForm: () => void;
   onCloseViewAuth: () => void;
   onStartConcurrentAuthorization: () => void;
-
   onFieldChange: (
     field: keyof NewAuthFormState,
     value: string | boolean
   ) => void;
   onSubmitAuth: (event: FormEvent<HTMLFormElement>) => void;
-
   onViewAuth: (auth: AuthRequest) => void;
   onEditAuth: (auth: AuthRequest) => void;
   onDeleteAuth: (auth: AuthRequest) => void;
-
   onTimelineEventFieldChange: (
     field: keyof TimelineEventFormState,
     value: string
@@ -119,6 +110,7 @@ export function AuthorizationsPage({
   confirmingDeleteAuthEventId,
   timelineEventForm,
   deletingAuthId,
+  workflowViewMode,
   onShowAddAuthForm,
   onCancelAuthForm,
   onCloseViewAuth,
@@ -433,6 +425,7 @@ export function AuthorizationsPage({
             onEdit={onEditAuth}
             onDelete={onDeleteAuth}
             deletingId={deletingAuthId}
+            workflowViewMode={workflowViewMode}
           />
         )}
       </div>

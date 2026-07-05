@@ -4,6 +4,7 @@ import { DataTable } from "../components/DataTable";
 import Filters, { type WorkQueueFilter } from "../components/Filters";
 import KPICards from "../components/KPICards";
 import { UpcomingWorkflowCard } from "../components/UpcomingWorkflowCard";
+import type { WorkflowViewMode } from "../hooks/useWorkflowViewMode";
 import { cn } from "../utils/cn";
 
 type DateRange = "7d" | "30d" | "90d";
@@ -37,10 +38,12 @@ interface DashboardPageProps {
   comparisonFilteredData: AuthRequest[];
   comparisonPeriodLabel: string;
   onViewAuth: (auth: AuthRequest) => void;
+  workflowViewMode: WorkflowViewMode;
 }
 
 export function DashboardPage({
   darkMode,
+  workflowViewMode,
   isLoadingAuths,
   authsError,
   dateRange,
@@ -208,6 +211,7 @@ export function DashboardPage({
                 darkMode={darkMode}
                 onView={onViewAuth}
                 showActions={false}
+                workflowViewMode={workflowViewMode}
               />
             </div>
           )}

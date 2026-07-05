@@ -68,6 +68,7 @@ def _row_to_dict(row: Any) -> dict[str, Any]:
     for field in {
         "auth_start_date",
         "auth_end_date",
+        "programming_days",
         "review_due_date",
         "submitted_at",
         "decision_at",

@@ -9,16 +9,20 @@ import {
 import type { AuthRequest } from "../types/auth";
 import type { NewAuthFormState } from "./useAuthorizationForm";
 
-function buildAuthorizationPayload(form: NewAuthFormState): CreateAuthRequestPayload {
+function buildAuthorizationPayload(
+  form: NewAuthFormState
+): CreateAuthRequestPayload {
   const careManagerDetails = [
-    form.careManagerName ? `Name: ${form.careManagerName}` : '',
-    form.careManagerContactType ? `Contact Type: ${form.careManagerContactType}` : '',
-    form.careManagerPhone ? `Phone: ${form.careManagerPhone}` : '',
-    form.careManagerFax ? `Fax: ${form.careManagerFax}` : '',
-    form.careManagerNotes ? `Notes: ${form.careManagerNotes}` : '',
+    form.careManagerName ? `Name: ${form.careManagerName}` : "",
+    form.careManagerContactType
+      ? `Contact Type: ${form.careManagerContactType}`
+      : "",
+    form.careManagerPhone ? `Phone: ${form.careManagerPhone}` : "",
+    form.careManagerFax ? `Fax: ${form.careManagerFax}` : "",
+    form.careManagerNotes ? `Notes: ${form.careManagerNotes}` : "",
   ]
     .filter(Boolean)
-    .join('\n');
+    .join("\n");
 
   return {
     client_name: form.clientName,
@@ -27,6 +31,7 @@ function buildAuthorizationPayload(form: NewAuthFormState): CreateAuthRequestPay
     status: form.status,
     auth_start_date: form.startDate,
     auth_end_date: form.endDate,
+    programming_days: form.programmingDays,
     review_due_date: form.reviewDueDate,
     requested_days: Number(form.requestedDays) || 0,
     approved_days: Number(form.approvedDays) || 0,

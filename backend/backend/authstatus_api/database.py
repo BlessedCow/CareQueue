@@ -35,6 +35,7 @@ AUTH_TABLE_COLUMNS = {
     "approved_days",
     "auth_start_date",
     "auth_end_date",
+    "programming_days",
     "review_due_date",
     "submitted_at",
     "decision_at",
@@ -110,6 +111,7 @@ def init_db() -> None:
                 approved_days INTEGER NOT NULL DEFAULT 0,
                 auth_start_date TEXT,
                 auth_end_date TEXT,
+                programming_days TEXT,
                 submitted_at TEXT,
                 review_due_date TEXT,
                 decision_at TEXT,
@@ -142,5 +144,6 @@ def init_db() -> None:
         ensure_column(conn, "auths", "requested_days", "INTEGER NOT NULL DEFAULT 0")
         ensure_column(conn, "auths", "approved_days", "INTEGER NOT NULL DEFAULT 0")
         ensure_column(conn, "auths", "review_due_date", "TEXT")
+        ensure_column(conn, "auths", "programming_days", "TEXT")
         ensure_column(conn, "auths", "submitted_at", "TEXT")
         ensure_column(conn, "auths", "decision_at", "TEXT")

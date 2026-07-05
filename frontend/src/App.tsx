@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 // API
 import { fetchAuthRequests } from "./api/authStatus";
@@ -17,6 +17,7 @@ import { useAuthorizationEvents } from "./hooks/useAuthorizationEvents";
 import { useAuthorizationForm } from "./hooks/useAuthorizationForm";
 import { useAuthorizationSelection } from "./hooks/useAuthorizationSelection";
 import { useAuthorizationMutations } from "./hooks/useAuthorizationMutations";
+import { useWorkflowViewMode } from "./hooks/useWorkflowViewMode";
 
 // AppShell
 import { AppShell } from "./components/layout/AppShell";
@@ -60,6 +61,8 @@ function App() {
     handleRemoveWebPortal,
   } = useRegisteredOptions(authRequests);
 
+  const { workflowViewMode, setWorkflowViewMode } = useWorkflowViewMode();
+  
   const {
     dateRange,
     setDateRange,
@@ -305,6 +308,7 @@ function App() {
       {activePage === "dashboard" && (
         <DashboardPage
           darkMode={darkMode}
+          workflowViewMode={workflowViewMode}
           isLoadingAuths={isLoadingAuths}
           authsError={authsError}
           dateRange={dateRange}
@@ -373,6 +377,7 @@ function App() {
           registeredInsurances={registeredInsurances}
           registeredWebPortals={registeredWebPortals}
           authEvents={authEvents}
+          workflowViewMode={workflowViewMode}
           authEventsError={authEventsError}
           isLoadingAuthEvents={isLoadingAuthEvents}
           isSavingAuthEvent={isSavingAuthEvent}
@@ -429,6 +434,8 @@ function App() {
           dashboardCardSettings={dashboardCardSettings}
           onToggleDashboardCard={handleToggleDashboardCard}
           onResetDashboardCards={handleResetDashboardCards}
+          workflowViewMode={workflowViewMode}
+          onWorkflowViewModeChange={setWorkflowViewMode}
         />
       )}
     </AppShell>

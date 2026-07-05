@@ -40,6 +40,7 @@ interface BackendAuthRecord {
   days_approved: string;
   auth_start_date: string;
   auth_end_date: string;
+  programming_days: string;
   review_due_date: string;
   created_at: string;
   updated_at: string;
@@ -172,6 +173,7 @@ function mapApiAuthToAuthRequest(item: any): AuthRequest {
     submissionMethods: item.submission_methods ?? "",
     reviewDueDate: item.review_due_date ?? "",
     authEndDate: item.auth_end_date ?? "",
+    programmingDays: item.programming_days ?? "",
     submittedAt: item.submitted_at ?? null,
     decisionAt: item.decision_at ?? null,
   };
@@ -214,6 +216,7 @@ export interface CreateAuthRequestPayload {
   approved_days?: number;
   auth_start_date?: string;
   auth_end_date?: string;
+  programming_days?: string;
   review_due_date?: string;
   insurance_phone?: string;
   insurance_fax?: string;

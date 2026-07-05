@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from "react";
 
-import type { AuthRequest } from '../types/auth';
+import type { AuthRequest } from "../types/auth";
+import { calculateAuthEndDate } from "../utils/authSchedule";
 
 export interface NewAuthFormState {
   clientName: string;
@@ -9,6 +10,7 @@ export interface NewAuthFormState {
   status: string;
   startDate: string;
   endDate: string;
+  programmingDays: string;
   reviewDueDate: string;
   requestedDays: string;
   approvedDays: string;
@@ -29,29 +31,30 @@ export interface NewAuthFormState {
 }
 
 export const DEFAULT_AUTH_FORM: NewAuthFormState = {
-  clientName: '',
-  facility: '',
-  loc: '',
-  status: 'Pending',
-  startDate: '',
-  endDate: '',
-  reviewDueDate: '',
-  requestedDays: '',
-  approvedDays: '',
-  insurance: '',
-  authType: 'Initial',
-  submissionMethod: '',
-  phoneNumber: '',
-  phoneExtension: '',
-  faxNumber: '',
-  webPortal: '',
-  webPortalUrl: '',
+  clientName: "",
+  facility: "",
+  loc: "",
+  status: "Pending",
+  startDate: "",
+  endDate: "",
+  programmingDays: "",
+  reviewDueDate: "",
+  requestedDays: "",
+  approvedDays: "",
+  insurance: "",
+  authType: "Initial",
+  submissionMethod: "",
+  phoneNumber: "",
+  phoneExtension: "",
+  faxNumber: "",
+  webPortal: "",
+  webPortalUrl: "",
   hasCareManager: false,
-  careManagerName: '',
-  careManagerContactType: '',
-  careManagerPhone: '',
-  careManagerFax: '',
-  careManagerNotes: '',
+  careManagerName: "",
+  careManagerContactType: "",
+  careManagerPhone: "",
+  careManagerFax: "",
+  careManagerNotes: "",
 };
 
 export function getAuthFormFromAuth(auth: AuthRequest): NewAuthFormState {
@@ -60,66 +63,118 @@ export function getAuthFormFromAuth(auth: AuthRequest): NewAuthFormState {
     facility: auth.facility,
     loc: auth.loc,
     status: auth.status,
-    startDate: auth.dateStr || '',
-    endDate: auth.authEndDate ?? '',
-    reviewDueDate: auth.reviewDueDate ?? '',
-    requestedDays: String(auth.requestedDays ?? ''),
-    approvedDays: String(auth.approvedDays ?? ''),
+    startDate: auth.dateStr || "",
+    endDate: auth.authEndDate ?? "",
+    programmingDays: auth.programmingDays ?? "",
+    reviewDueDate: auth.reviewDueDate ?? "",
+    requestedDays: String(auth.requestedDays ?? ""),
+    approvedDays: String(auth.approvedDays ?? ""),
     insurance: auth.payer,
-    authType: auth.authType ?? 'Initial',
-    submissionMethod: auth.submissionMethods ?? '',
-    phoneNumber: '',
-    phoneExtension: '',
-    faxNumber: '',
-    webPortal: '',
-    webPortalUrl: '',
+    authType: auth.authType ?? "Initial",
+    submissionMethod: auth.submissionMethods ?? "",
+    phoneNumber: "",
+    phoneExtension: "",
+    faxNumber: "",
+    webPortal: "",
+    webPortalUrl: "",
     hasCareManager: false,
-    careManagerName: '',
-    careManagerContactType: '',
-    careManagerPhone: '',
-    careManagerFax: '',
-    careManagerNotes: '',
+    careManagerName: "",
+    careManagerContactType: "",
+    careManagerPhone: "",
+    careManagerFax: "",
+    careManagerNotes: "",
   };
 }
 
 export function getConcurrentAuthFormFromCurrentForm(
-  currentForm: NewAuthFormState,
+  currentForm: NewAuthFormState
 ): NewAuthFormState {
   return {
     ...currentForm,
-    status: 'Pending',
-    authType: 'Concurrent',
-    startDate: '',
-    endDate: '',
-    reviewDueDate: '',
-    requestedDays: '',
-    approvedDays: '',
+    status: "Pending",
+    authType: "Concurrent",
+    startDate: "",
+    endDate: "",
+    reviewDueDate: "",
+    requestedDays: "",
+    approvedDays: "",
   };
 }
 
 export function useAuthorizationForm() {
-  const [newAuthForm, setNewAuthForm] = useState<NewAuthFormState>(DEFAULT_AUTH_FORM);
+  const [newAuthForm, setNewAuthForm] =
+    useState<NewAuthFormState>(DEFAULT_AUTH_FORM);
 
   const resetNewAuthForm = () => {
+    setReviewDueDateWasEdited(false);
     setNewAuthForm(DEFAULT_AUTH_FORM);
   };
 
+  const [reviewDueDateWasEdited, setReviewDueDateWasEdited] = useState(false);
+
   const handleNewAuthFieldChange = (
     field: keyof NewAuthFormState,
-    value: string | boolean,
+    value: string | boolean
   ) => {
+    if (field === "reviewDueDate") {
+      setReviewDueDateWasEdited(true);
+    }
+
     setNewAuthForm((currentForm) => ({
       ...currentForm,
       [field]: value,
     }));
   };
 
+  useEffect(() => {
+    const approvedDays = Number(newAuthForm.approvedDays);
+
+    const coveredDays =
+      Number.isFinite(approvedDays) && approvedDays > 0
+        ? newAuthForm.approvedDays.trim()
+        : newAuthForm.requestedDays.trim();
+
+    const calculatedAuthEndDate = calculateAuthEndDate(
+      newAuthForm.startDate,
+      coveredDays,
+      newAuthForm.programmingDays
+    );
+
+    if (!calculatedAuthEndDate) {
+      return;
+    }
+
+    setNewAuthForm((currentForm) => {
+      if (currentForm.endDate === calculatedAuthEndDate) {
+        return currentForm;
+      }
+
+      return {
+        ...currentForm,
+        endDate: calculatedAuthEndDate,
+        reviewDueDate: reviewDueDateWasEdited
+          ? currentForm.reviewDueDate
+          : calculatedAuthEndDate,
+      };
+    });
+  }, [
+    newAuthForm.startDate,
+    newAuthForm.requestedDays,
+    newAuthForm.approvedDays,
+    newAuthForm.programmingDays,
+    reviewDueDateWasEdited,
+  ]);
+
   const loadAuthIntoForm = (auth: AuthRequest) => {
+    setReviewDueDateWasEdited(false);
     setNewAuthForm(getAuthFormFromAuth(auth));
   };
 
   const loadConcurrentAuthForm = () => {
-    setNewAuthForm((currentForm) => getConcurrentAuthFormFromCurrentForm(currentForm));
+    setReviewDueDateWasEdited(false);
+    setNewAuthForm((currentForm) =>
+      getConcurrentAuthFormFromCurrentForm(currentForm)
+    );
   };
 
   return {
