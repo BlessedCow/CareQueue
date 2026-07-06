@@ -36,7 +36,27 @@ BOOLEAN_FIELDS = {
     "facility_informed",
     "waiting_on_clinicals",
 }
+def _sql_columns(
+    payload: dict[str, Any],
+    allowed_columns: set[str],
+    excluded_columns: set[str],
+) -> list[str]:
+    return [
+        key
+        for key in payload
+        if key in allowed_columns and key not in excluded_columns
+    ]
 
+
+def _insert_sql(table_name: str, columns: list[str]) -> str:
+    column_names = ", ".join(columns)
+    placeholders = ", ".join("?" for _ in columns)
+
+    return f"INSERT INTO {table_name} ({column_names}) VALUES ({placeholders})"  # nosec
+
+
+def _update_assignments(columns: list[str]) -> str:
+    return ", ".join(f"{column} = ?" for column in columns)
 
 def _now() -> str:
     return datetime.now().isoformat(timespec="seconds")
@@ -241,21 +261,19 @@ def create_auth(payload: dict[str, Any]) -> dict[str, Any]:
     if _has_decision(prepared) and not prepared.get("decision_at"):
         prepared["decision_at"] = now
 
-    allowed_payload = {
-        key: value
-        for key, value in prepared.items()
-        if key in AUTH_TABLE_COLUMNS and key != "id"
-    }
-
-    keys = list(allowed_payload)
-    columns = ", ".join(keys)
-    placeholders = ", ".join("?" for _ in keys)
+    keys = _sql_columns(
+        prepared,
+        set(AUTH_TABLE_COLUMNS),
+        {"id"},
+    )
+    values = [prepared[key] for key in keys]
 
     with get_conn() as conn:
         cursor = conn.execute(
-            f"INSERT INTO auths ({columns}) VALUES ({placeholders})",
-            [allowed_payload[key] for key in keys],
+            _insert_sql("auths", keys),
+            values,
         )
+    
         auth_id = int(cursor.lastrowid)
 
     created_auth = get_auth(auth_id)
@@ -305,21 +323,21 @@ def update_auth(auth_id: int, payload: dict[str, Any]) -> dict[str, Any] | None:
     elif not prepared.get("decision_at"):
         prepared.pop("decision_at", None)
 
-    allowed_payload = {
-        key: value
-        for key, value in prepared.items()
-        if key in AUTH_TABLE_COLUMNS and key not in {"id", "created_at"}
-    }
+    keys = _sql_columns(
+        prepared,
+        set(AUTH_TABLE_COLUMNS),
+        {"id", "created_at"},
+    )
 
-    if not allowed_payload:
+    if not keys:
         return get_auth(auth_id)
 
-    assignments = ", ".join(f"{key} = ?" for key in allowed_payload)
-    values = [allowed_payload[key] for key in allowed_payload]
+    assignments = _update_assignments(keys)
+    values = [prepared[key] for key in keys]
 
     with get_conn() as conn:
         conn.execute(
-            f"UPDATE auths SET {assignments} WHERE id = ?",
+            f"UPDATE auths SET {assignments} WHERE id = ?",    # nosec
             [*values, auth_id],
         )
 
@@ -338,20 +356,17 @@ def create_auth_event(auth_id: int, payload: dict[str, Any]) -> dict[str, Any] |
     prepared["created_at"] = now
     prepared["updated_at"] = now
 
-    allowed_payload = {
-        key: value
-        for key, value in prepared.items()
-        if key in AUTH_EVENT_TABLE_COLUMNS and key != "id"
-    }
-
-    keys = list(allowed_payload)
-    columns = ", ".join(keys)
-    placeholders = ", ".join("?" for _ in keys)
+    keys = _sql_columns(
+        prepared,
+        set(AUTH_EVENT_TABLE_COLUMNS),
+        {"id"},
+    )
+    values = [prepared[key] for key in keys]
 
     with get_conn() as conn:
         cursor = conn.execute(
-            f"INSERT INTO auth_events ({columns}) VALUES ({placeholders})",
-            [allowed_payload[key] for key in keys],
+            _insert_sql("auth_events", keys),
+            values,
         )
         event_id = int(cursor.lastrowid)
 
@@ -412,22 +427,22 @@ def update_auth_event(
     prepared = _prepare_event_payload(payload)
     prepared["updated_at"] = _now()
 
-    allowed_payload = {
-        key: value
-        for key, value in prepared.items()
-        if key in AUTH_EVENT_TABLE_COLUMNS and key not in {"id", "auth_id", "created_at"}
-    }
+    keys = _sql_columns(
+        prepared,
+        set(AUTH_EVENT_TABLE_COLUMNS),
+        {"id", "auth_id", "created_at"},
+    )
 
-    if not allowed_payload:
+    if not keys:
         _sync_auth_timeline_fields(auth_id)
         return get_auth_event(auth_id, event_id)
 
-    assignments = ", ".join(f"{key} = ?" for key in allowed_payload)
-    values = [allowed_payload[key] for key in allowed_payload]
+    assignments = _update_assignments(keys)
+    values = [prepared[key] for key in keys]
 
     with get_conn() as conn:
         conn.execute(
-            f"UPDATE auth_events SET {assignments} WHERE auth_id = ? AND id = ?",
+            f"UPDATE auth_events SET {assignments} WHERE auth_id = ? AND id = ?",    # nosec
             [*values, auth_id, event_id],
         )
 
