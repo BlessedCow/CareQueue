@@ -162,18 +162,7 @@ function buildCalendarEvents(data: AuthRequest[]): CalendarEvent[] {
           tone: 'review',
         });
       }
-  
-      if (authEndDate) {
-        events.push({
-          id: `${auth.id}-lcd`,
-          date: authEndDate,
-          dateKey: getDateKey(authEndDate),
-          label: 'Auth End / LCD',
-          auth,
-          tone: 'lcd',
-        });
-      }
-  
+
       if (completedDate && (auth.status === 'Approved' || auth.status === 'No PA Required')) {
         events.push({
           id: `${auth.id}-complete`,
@@ -196,7 +185,6 @@ function isToday(date: Date) {
 const CALENDAR_LEGEND_ITEMS: { label: string; tone: CalendarEvent['tone'] }[] = [
     { label: 'Auth Start', tone: 'start' },
     { label: 'Review Due', tone: 'review' },
-    { label: 'Auth End / LCD', tone: 'lcd' },
     { label: 'Completed Auth', tone: 'complete' },
   ];
 
@@ -245,7 +233,7 @@ export function CalendarPage({ data, darkMode, onSelectAuth }: CalendarPageProps
           <div>
             <h3 className="text-lg font-semibold">Authorization Calendar</h3>
             <p className={cn('mt-1 text-sm', darkMode ? 'text-gray-400' : 'text-gray-600')}>
-              Track auth starts, review due dates, and auth end dates / LCDs.
+              Track auth starts and review due dates.
             </p>
           </div>
 

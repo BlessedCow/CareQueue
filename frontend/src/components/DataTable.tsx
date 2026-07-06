@@ -112,6 +112,19 @@ function getScheduleCue(row: AuthRequest) {
   return "Scheduled";
 }
 
+function getDaysConfirmationCue(row: AuthRequest) {
+  if (Number(row.approvedDays) > 0) {
+    return "Confirmed from approved days";
+  }
+
+  if (Number(row.requestedDays) > 0) {
+    return "Days not confirmed";
+  }
+
+  return "No days recorded";
+  getScheduleCueColor(row, darkMode);
+}
+
 function getScheduleCueColor(row: AuthRequest, darkMode: boolean) {
   const reviewDaysUntil = calculateDaysUntil(row.reviewDueDate);
   const lcdDaysUntil = calculateDaysUntil(row.authEndDate);
@@ -500,20 +513,11 @@ export function DataTable({
                             darkMode ? "text-gray-400" : "text-gray-500"
                           }
                         >
-                          Review:{" "}
+                          Review Due:{" "}
                         </span>
-                        <span>{formatDateOnly(row.reviewDueDate)}</span>
-                      </div>
-
-                      <div className="text-xs">
-                        <span
-                          className={
-                            darkMode ? "text-gray-400" : "text-gray-500"
-                          }
-                        >
-                          LCD:{" "}
+                        <span>
+                          {formatDateOnly(row.reviewDueDate)}
                         </span>
-                        <span>{formatDateOnly(row.authEndDate)}</span>
                       </div>
 
                       <span
@@ -523,6 +527,15 @@ export function DataTable({
                         )}
                       >
                         {getScheduleCue(row)}
+                      </span>
+
+                      <span
+                        className={cn(
+                          "text-xs",
+                          darkMode ? "text-gray-400" : "text-gray-500"
+                        )}
+                      >
+                        {getDaysConfirmationCue(row)}
                       </span>
                     </div>
                   </td>
