@@ -43,6 +43,8 @@ const EVENT_TYPES = [
   "Initial Authorization",
   "Continued Stay",
   "Request Submitted",
+  "Authorization Complete",
+  "Discharge",
   "Payer Response",
   "Peer Review",
   "Appeal",
@@ -63,6 +65,7 @@ const OUTCOMES = [
   "No PA Required",
   "Scheduled",
   "Completed",
+  "Discharged",
   "Submitted",
   "Appeal Pending",
   "Appeal Approved",
@@ -90,6 +93,13 @@ export function AuthTimelineSection({
   onStartContinuedStay,
 }: AuthTimelineSectionProps) {
   const sortedEvents = sortAuthEventsNewestFirst(events);
+  const normalizedOutcome = eventForm.outcome.trim().toLowerCase();
+
+  const isTerminalOutcome = [
+    "completed",
+    "discharged",
+    "no pa required",
+  ].includes(normalizedOutcome);
   const handleSubmitEvent = () => {
     if (!eventForm.eventDate.trim()) {
       return;
@@ -314,11 +324,12 @@ export function AuthTimelineSection({
           <input
             type="date"
             value={eventForm.authStartDate}
+            disabled={isTerminalOutcome}
             onChange={(event) =>
               onEventFieldChange("authStartDate", event.target.value)
             }
             className={cn(
-              "w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors",
+              "w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-60",
               darkMode
                 ? "border-gray-700 bg-gray-950 text-gray-100 focus:border-blue-500"
                 : "border-gray-300 bg-white text-gray-900 focus:border-blue-500"
@@ -338,11 +349,12 @@ export function AuthTimelineSection({
           <input
             type="date"
             value={eventForm.authEndDate}
+            disabled={isTerminalOutcome}
             onChange={(event) =>
               onEventFieldChange("authEndDate", event.target.value)
             }
             className={cn(
-              "w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors",
+              "w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-60",
               darkMode
                 ? "border-gray-700 bg-gray-950 text-gray-100 focus:border-blue-500"
                 : "border-gray-300 bg-white text-gray-900 focus:border-blue-500"
@@ -362,11 +374,12 @@ export function AuthTimelineSection({
           <input
             type="date"
             value={eventForm.reviewDueDate}
+            disabled={isTerminalOutcome}
             onChange={(event) =>
               onEventFieldChange("reviewDueDate", event.target.value)
             }
             className={cn(
-              "w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors",
+              "w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-60",
               darkMode
                 ? "border-gray-700 bg-gray-950 text-gray-100 focus:border-blue-500"
                 : "border-gray-300 bg-white text-gray-900 focus:border-blue-500"
@@ -387,11 +400,12 @@ export function AuthTimelineSection({
             type="number"
             min="0"
             value={eventForm.requestedDays}
+            disabled={isTerminalOutcome}
             onChange={(event) =>
               onEventFieldChange("requestedDays", event.target.value)
             }
             className={cn(
-              "w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors",
+              "w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-60",
               darkMode
                 ? "border-gray-700 bg-gray-950 text-gray-100 focus:border-blue-500"
                 : "border-gray-300 bg-white text-gray-900 focus:border-blue-500"
@@ -412,11 +426,12 @@ export function AuthTimelineSection({
             type="number"
             min="0"
             value={eventForm.approvedDays}
+            disabled={isTerminalOutcome}
             onChange={(event) =>
               onEventFieldChange("approvedDays", event.target.value)
             }
             className={cn(
-              "w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors",
+              "w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-60",
               darkMode
                 ? "border-gray-700 bg-gray-950 text-gray-100 focus:border-blue-500"
                 : "border-gray-300 bg-white text-gray-900 focus:border-blue-500"

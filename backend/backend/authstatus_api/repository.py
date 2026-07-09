@@ -214,6 +214,16 @@ def _status_from_timeline_event(event: dict[str, Any]) -> str | None:
 
 def _timeline_status(events: list[dict[str, Any]]) -> str:
     for event in reversed(events):
+        outcome = str(event.get("outcome") or "").strip().lower()
+        event_type = str(event.get("event_type") or "").strip().lower()
+
+        if outcome == "completed" or event_type == "authorization complete":
+            return "Completed"
+
+        if outcome == "discharged" or event_type == "discharge":
+            return "Discharged"
+    
+    for event in reversed(events):
         status = _status_from_timeline_event(event)
 
         if status:

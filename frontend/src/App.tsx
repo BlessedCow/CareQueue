@@ -201,6 +201,19 @@ function App() {
     loadAuthEvents,
   });
 
+  const refreshAuthRequests = async () => {
+    const records = await fetchAuthRequests();
+    setAuthRequests(records);
+
+    if (editingAuthId) {
+      const updatedAuth = records.find((auth) => auth.id === editingAuthId);
+
+      if (updatedAuth) {
+        loadAuthIntoForm(updatedAuth);
+      }
+    }
+  };
+
   const handleDeleteAuth = async (auth: AuthRequest) => {
     setAuthsError(null);
 
@@ -395,30 +408,33 @@ function App() {
           onEditAuth={handleStartEditAuth}
           onDeleteAuth={handleDeleteAuth}
           onTimelineEventFieldChange={handleTimelineEventFieldChange}
-          onAddTimelineEvent={() => {
+          onAddTimelineEvent={async () => {
             if (!editingAuthId) {
               return;
             }
 
-            handleAddTimelineEvent(editingAuthId);
+            await handleAddTimelineEvent(editingAuthId);
+            await refreshAuthRequests();
           }}
           onStartEditTimelineEvent={handleStartEditTimelineEvent}
           onCancelEditTimelineEvent={handleCancelEditTimelineEvent}
-          onUpdateTimelineEvent={(eventId, payload) => {
+          onUpdateTimelineEvent={async (eventId, payload) => {
             if (!editingAuthId) {
               return;
             }
 
-            handleUpdateTimelineEvent(editingAuthId, eventId, payload);
+            await handleUpdateTimelineEvent(editingAuthId, eventId, payload);
+            await refreshAuthRequests();
           }}
           onStartDeleteTimelineEvent={handleStartDeleteTimelineEvent}
           onCancelDeleteTimelineEvent={handleCancelDeleteTimelineEvent}
-          onConfirmDeleteTimelineEvent={(eventId) => {
+          onConfirmDeleteTimelineEvent={async (eventId) => {
             if (!editingAuthId) {
               return;
             }
 
-            handleConfirmDeleteTimelineEvent(editingAuthId, eventId);
+            await handleConfirmDeleteTimelineEvent(editingAuthId, eventId);
+            await refreshAuthRequests();
           }}
           onStartContinuedStay={() =>
             handleStartContinuedStay({

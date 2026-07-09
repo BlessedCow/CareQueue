@@ -53,6 +53,9 @@ interface BackendAuthListResponse {
 function normalizeStatus(status: string): Status {
   const cleanStatus = status.trim().toLowerCase();
 
+  if (cleanStatus === "completed") return "Completed";
+  if (cleanStatus === "discharged") return "Discharged";
+  if (cleanStatus === "no pa required") return "No PA Required";
   if (cleanStatus.includes("approved")) return "Approved";
   if (cleanStatus.includes("denied")) return "Denied";
   if (cleanStatus.includes("p2p")) return "P2P";

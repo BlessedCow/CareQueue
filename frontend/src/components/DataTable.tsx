@@ -52,6 +52,10 @@ function formatDateOnly(value?: string | null) {
   return format(date, "MMM d, yyyy");
 }
 
+function isClosedStatus(status: AuthRequest["status"]) {
+  return ["Completed", "Discharged", "No PA Required"].includes(status);
+}
+
 function calculateDaysUntil(value?: string | null) {
   const date = parseDateOnly(value);
 
@@ -80,6 +84,10 @@ function calculateDaysUntil(value?: string | null) {
 function getScheduleCue(row: AuthRequest) {
   const reviewDaysUntil = calculateDaysUntil(row.reviewDueDate);
   const lcdDaysUntil = calculateDaysUntil(row.authEndDate);
+
+  if (["Completed", "Discharged", "No PA Required"].includes(row.status)) {
+    return "Closed";
+  }
 
   if (reviewDaysUntil !== null && reviewDaysUntil < 0) {
     return `Overdue review ${Math.abs(reviewDaysUntil)}d`;
@@ -128,6 +136,10 @@ function getDaysConfirmationCue(row: AuthRequest) {
 function getScheduleCueColor(row: AuthRequest, darkMode: boolean) {
   const reviewDaysUntil = calculateDaysUntil(row.reviewDueDate);
   const lcdDaysUntil = calculateDaysUntil(row.authEndDate);
+
+  if (["Completed", "Discharged", "No PA Required"].includes(row.status)) {
+    return "Closed";
+  }
 
   if (
     (reviewDaysUntil !== null && reviewDaysUntil < 0) ||
@@ -229,6 +241,14 @@ function getWorkflowCue(row: AuthRequest) {
 
   if (status === "No PA Required") {
     return "No PA required";
+  }
+
+  if (status === "Completed") {
+    return "Completed";
+  }
+
+  if (status === "Discharged") {
+    return "Discharged";
   }
 
   return "Review status";
@@ -506,38 +526,57 @@ export function DataTable({
 
                 {isDetailedView && (
                   <td className={tdClass}>
-                    <div className="flex flex-col gap-1">
-                      <div className="text-xs">
+                    {isClosedStatus(row.status) ? (
+                      <div className="flex flex-col gap-1">
                         <span
-                          className={
-                            darkMode ? "text-gray-400" : "text-gray-500"
-                          }
+                          className={cn(
+                            "text-xs font-medium",
+                            darkMode ? "text-gray-300" : "text-gray-700"
+                          )}
                         >
-                          Review Due:{" "}
+                          Status: {row.status}
                         </span>
-                        <span>
-                          {formatDateOnly(row.reviewDueDate)}
+                        <span
+                          className={cn(
+                            "text-xs",
+                            darkMode ? "text-gray-400" : "text-gray-500"
+                          )}
+                        >
+                          Authorization closed
                         </span>
                       </div>
+                    ) : (
+                      <div className="flex flex-col gap-1">
+                        <div className="text-xs">
+                          <span
+                            className={
+                              darkMode ? "text-gray-400" : "text-gray-500"
+                            }
+                          >
+                            Review Due:{" "}
+                          </span>
+                          <span>{formatDateOnly(row.reviewDueDate)}</span>
+                        </div>
 
-                      <span
-                        className={cn(
-                          "text-xs font-medium",
-                          getScheduleCueColor(row, darkMode)
-                        )}
-                      >
-                        {getScheduleCue(row)}
-                      </span>
+                        <span
+                          className={cn(
+                            "text-xs font-medium",
+                            getScheduleCueColor(row, darkMode)
+                          )}
+                        >
+                          {getScheduleCue(row)}
+                        </span>
 
-                      <span
-                        className={cn(
-                          "text-xs",
-                          darkMode ? "text-gray-400" : "text-gray-500"
-                        )}
-                      >
-                        {getDaysConfirmationCue(row)}
-                      </span>
-                    </div>
+                        <span
+                          className={cn(
+                            "text-xs",
+                            darkMode ? "text-gray-400" : "text-gray-500"
+                          )}
+                        >
+                          {getDaysConfirmationCue(row)}
+                        </span>
+                      </div>
+                    )}
                   </td>
                 )}
 

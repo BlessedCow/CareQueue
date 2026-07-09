@@ -70,7 +70,7 @@ function formatDate(value?: string) {
 }
 
 function isActiveWorkflowStatus(item: AuthRequest) {
-  return item.status !== 'No PA Required';
+  return !["Completed", "Discharged", "No PA Required"].includes(item.status);
 }
 
 function getDatePhrase(daysUntil: number) {
