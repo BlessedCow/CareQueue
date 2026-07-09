@@ -13,7 +13,7 @@ import type { WorkflowViewMode } from "../hooks/useWorkflowViewMode";
 import type { AuthRequest } from "../types/auth";
 import { cn } from "../utils/cn";
 
-type DateRange = "7d" | "30d" | "90d";
+type DateRange = "7d" | "30d" | "90d" | "all";
 
 interface AuthorizationsPageProps {
   darkMode: boolean;
@@ -74,8 +74,7 @@ interface AuthorizationsPageProps {
   onStartDeleteTimelineEvent: (eventId: number) => void;
   onCancelDeleteTimelineEvent: () => void;
   onConfirmDeleteTimelineEvent: (eventId: number) => void;
-  onPrefillTimelineFromLastEvent: () => void;
-  onStartConcurrentReview: () => void;
+  onStartContinuedStay: () => void;
 }
 
 export function AuthorizationsPage({
@@ -128,8 +127,7 @@ export function AuthorizationsPage({
   onStartDeleteTimelineEvent,
   onCancelDeleteTimelineEvent,
   onConfirmDeleteTimelineEvent,
-  onPrefillTimelineFromLastEvent,
-  onStartConcurrentReview,
+  onStartContinuedStay,
 }: AuthorizationsPageProps) {
   return (
     <>
@@ -394,8 +392,7 @@ export function AuthorizationsPage({
                     onStartDeleteEvent={onStartDeleteTimelineEvent}
                     onCancelDeleteEvent={onCancelDeleteTimelineEvent}
                     onConfirmDeleteEvent={onConfirmDeleteTimelineEvent}
-                    onPrefillFromLastEvent={onPrefillTimelineFromLastEvent}
-                    onStartConcurrentReview={onStartConcurrentReview}
+                    onStartContinuedStay={onStartContinuedStay}
                   />
                 )}
               </div>

@@ -62,7 +62,7 @@ function App() {
   } = useRegisteredOptions(authRequests);
 
   const { workflowViewMode, setWorkflowViewMode } = useWorkflowViewMode();
-  
+
   const {
     dateRange,
     setDateRange,
@@ -112,7 +112,7 @@ function App() {
     handleStartDeleteTimelineEvent,
     handleCancelDeleteTimelineEvent,
     handleConfirmDeleteTimelineEvent,
-    handlePrefillTimelineFromLastEvent,
+    handleStartContinuedStay,
   } = useAuthorizationEvents();
 
   useEffect(() => {
@@ -259,7 +259,7 @@ function App() {
   ]);
 
   const handleStartConcurrentReview = () => {
-    handleTimelineEventFieldChange("eventType", "Concurrent Review");
+    handleTimelineEventFieldChange("eventType", "Continued Stay");
     handleTimelineEventFieldChange("outcome", "Pending");
   };
 
@@ -404,12 +404,30 @@ function App() {
           }}
           onStartEditTimelineEvent={handleStartEditTimelineEvent}
           onCancelEditTimelineEvent={handleCancelEditTimelineEvent}
-          onUpdateTimelineEvent={handleUpdateTimelineEvent}
+          onUpdateTimelineEvent={(eventId, payload) => {
+            if (!editingAuthId) {
+              return;
+            }
+
+            handleUpdateTimelineEvent(editingAuthId, eventId, payload);
+          }}
           onStartDeleteTimelineEvent={handleStartDeleteTimelineEvent}
           onCancelDeleteTimelineEvent={handleCancelDeleteTimelineEvent}
-          onConfirmDeleteTimelineEvent={handleConfirmDeleteTimelineEvent}
-          onPrefillTimelineFromLastEvent={handlePrefillTimelineFromLastEvent}
-          onStartConcurrentReview={handleStartConcurrentReview}
+          onConfirmDeleteTimelineEvent={(eventId) => {
+            if (!editingAuthId) {
+              return;
+            }
+
+            handleConfirmDeleteTimelineEvent(editingAuthId, eventId);
+          }}
+          onStartContinuedStay={() =>
+            handleStartContinuedStay({
+              programmingDays: newAuthForm.programmingDays,
+              authEndDate: newAuthForm.endDate,
+              requestedDays: newAuthForm.requestedDays,
+              approvedDays: newAuthForm.approvedDays,
+            })
+          }
         />
       )}
 

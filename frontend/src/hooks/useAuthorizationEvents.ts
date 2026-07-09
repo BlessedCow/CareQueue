@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   createAuthEvent,
@@ -11,6 +11,10 @@ import {
 } from "../api/authEvents";
 import type { TimelineEventFormState } from "../components/AuthTimelineSection";
 import { sortAuthEventsNewestFirst } from "../utils/authEvents";
+import {
+  addDaysToDate,
+  calculateContinuedStayDefaults,
+} from "../utils/authSchedule";
 
 const DEFAULT_TIMELINE_EVENT_FORM: TimelineEventFormState = {
   eventDate: "",
@@ -18,6 +22,11 @@ const DEFAULT_TIMELINE_EVENT_FORM: TimelineEventFormState = {
   eventType: "Review",
   outcome: "",
   notes: "",
+  requestedDays: "",
+  approvedDays: "",
+  authStartDate: "",
+  authEndDate: "",
+  reviewDueDate: "",
 };
 
 function resetTimelineEventFormState(): TimelineEventFormState {
@@ -36,6 +45,9 @@ export function useAuthorizationEvents() {
     useState<number | null>(null);
   const [timelineEventForm, setTimelineEventForm] =
     useState<TimelineEventFormState>(DEFAULT_TIMELINE_EVENT_FORM);
+
+  const [timelineProgrammingDays, setTimelineProgrammingDays] =
+    useState("7 days/week");
 
   const resetTimelineEventForm = () => {
     setTimelineEventForm(resetTimelineEventFormState());
@@ -72,11 +84,82 @@ export function useAuthorizationEvents() {
     field: keyof TimelineEventFormState,
     value: string
   ) => {
+    setTimelineEventForm((currentForm) => {
+      const nextForm = {
+        ...currentForm,
+        [field]: value,
+      };
+
+      const shouldRecalculate =
+        nextForm.eventType === "Continued Stay" &&
+        ["authStartDate", "requestedDays", "approvedDays"].includes(field);
+
+      if (!shouldRecalculate) {
+        return nextForm;
+      }
+
+      const coveredDays =
+        nextForm.approvedDays.trim() || nextForm.requestedDays.trim();
+
+      if (!nextForm.authStartDate || !coveredDays) {
+        return nextForm;
+      }
+
+      const calculatedEndDate = calculateContinuedStayDefaults({
+        previousEndDate: addDaysToDate(nextForm.authStartDate, -1),
+        requestedDays: nextForm.requestedDays,
+        approvedDays: nextForm.approvedDays,
+        programmingDays: timelineProgrammingDays,
+      }).authEndDate;
+
+      if (!calculatedEndDate) {
+        return nextForm;
+      }
+
+      return {
+        ...nextForm,
+        authEndDate: calculatedEndDate,
+        reviewDueDate: calculatedEndDate,
+      };
+    });
+  };
+
+  useEffect(() => {
+    if (timelineEventForm.eventType !== "Continued Stay") {
+      return;
+    }
+
+    const coveredDays =
+      timelineEventForm.approvedDays.trim() ||
+      timelineEventForm.requestedDays.trim();
+
+    if (!timelineEventForm.authStartDate || !coveredDays) {
+      return;
+    }
+
+    const calculatedEndDate = calculateContinuedStayDefaults({
+      previousEndDate: addDaysToDate(timelineEventForm.authStartDate, -1),
+      requestedDays: timelineEventForm.requestedDays,
+      approvedDays: timelineEventForm.approvedDays,
+      programmingDays: timelineProgrammingDays,
+    }).authEndDate;
+
+    if (!calculatedEndDate) {
+      return;
+    }
+
     setTimelineEventForm((currentForm) => ({
       ...currentForm,
-      [field]: value,
+      authEndDate: calculatedEndDate,
+      reviewDueDate: calculatedEndDate,
     }));
-  };
+  }, [
+    timelineEventForm.eventType,
+    timelineEventForm.authStartDate,
+    timelineEventForm.requestedDays,
+    timelineEventForm.approvedDays,
+    timelineProgrammingDays,
+  ]);
 
   const handleAddTimelineEvent = async (authId: string) => {
     setIsSavingAuthEvent(true);
@@ -89,6 +172,11 @@ export function useAuthorizationEvents() {
         event_type: timelineEventForm.eventType,
         outcome: timelineEventForm.outcome,
         notes: timelineEventForm.notes,
+        requested_days: Number(timelineEventForm.requestedDays) || 0,
+        approved_days: Number(timelineEventForm.approvedDays) || 0,
+        auth_start_date: timelineEventForm.authStartDate,
+        auth_end_date: timelineEventForm.authEndDate,
+        review_due_date: timelineEventForm.reviewDueDate,
       };
 
       const createdEvent = await createAuthEvent(authId, payload);
@@ -115,6 +203,11 @@ export function useAuthorizationEvents() {
       eventType: event.eventType,
       outcome: event.outcome ?? "",
       notes: event.notes ?? "",
+      requestedDays: String(event.requestedDays || ""),
+      approvedDays: String(event.approvedDays || ""),
+      authStartDate: event.authStartDate ?? "",
+      authEndDate: event.authEndDate ?? "",
+      reviewDueDate: event.reviewDueDate ?? "",
     });
   };
 
@@ -123,6 +216,7 @@ export function useAuthorizationEvents() {
   };
 
   const handleUpdateTimelineEvent = async (
+    authId: string,
     eventId: number,
     payload: UpdateAuthEventPayload
   ) => {
@@ -130,7 +224,7 @@ export function useAuthorizationEvents() {
     setAuthEventsError(null);
 
     try {
-      const updatedEvent = await updateAuthEvent(eventId, payload);
+      const updatedEvent = await updateAuthEvent(authId, eventId, payload);
 
       setAuthEvents((currentEvents) =>
         sortAuthEventsNewestFirst(
@@ -160,12 +254,15 @@ export function useAuthorizationEvents() {
     setConfirmingDeleteAuthEventId(null);
   };
 
-  const handleConfirmDeleteTimelineEvent = async (eventId: number) => {
+  const handleConfirmDeleteTimelineEvent = async (
+    authId: string,
+    eventId: number
+  ) => {
     setIsSavingAuthEvent(true);
     setAuthEventsError(null);
 
     try {
-      await deleteAuthEvent(eventId);
+      await deleteAuthEvent(authId, eventId);
       setAuthEvents((currentEvents) =>
         currentEvents.filter((event) => event.id !== eventId)
       );
@@ -180,19 +277,53 @@ export function useAuthorizationEvents() {
       setIsSavingAuthEvent(false);
     }
   };
+  const handleStartContinuedStay = (params: {
+    programmingDays: string;
+    authEndDate: string;
+    requestedDays: string;
+    approvedDays: string;
+  }) => {
+    setEditingAuthEventId(null);
+    setTimelineProgrammingDays(params.programmingDays || "7 days/week");
 
-  const handlePrefillTimelineFromLastEvent = () => {
-    const latestEvent = authEvents[0];
+    const latestReview = authEvents.find(
+      (event) =>
+        event.authStartDate ||
+        event.authEndDate ||
+        event.reviewDueDate ||
+        event.requestedDays > 0 ||
+        event.approvedDays > 0
+    );
 
-    if (!latestEvent) {
-      return;
-    }
+    const previousEndDate = latestReview?.authEndDate || params.authEndDate;
+    const requestedDays =
+      latestReview && latestReview.requestedDays > 0
+        ? String(latestReview.requestedDays)
+        : params.requestedDays;
+    const approvedDays =
+      latestReview && latestReview.approvedDays > 0
+        ? String(latestReview.approvedDays)
+        : params.approvedDays || requestedDays;
 
-    setTimelineEventForm((currentForm) => ({
-      ...currentForm,
-      eventDate: latestEvent.eventDate,
-      eventTime: latestEvent.eventTime ?? "",
-    }));
+    const defaults = calculateContinuedStayDefaults({
+      previousEndDate,
+      requestedDays,
+      approvedDays,
+      programmingDays: params.programmingDays || "7 days/week",
+    });
+
+    setTimelineEventForm({
+      eventDate: defaults.authDate,
+      eventTime: "",
+      eventType: "Continued Stay",
+      outcome: "Pending",
+      notes: "Continued stay review started.",
+      requestedDays: defaults.requestedDays,
+      approvedDays: defaults.approvedDays,
+      authStartDate: defaults.authStartDate,
+      authEndDate: defaults.authEndDate,
+      reviewDueDate: defaults.reviewDueDate,
+    });
   };
 
   return {
@@ -216,6 +347,6 @@ export function useAuthorizationEvents() {
     handleStartDeleteTimelineEvent,
     handleCancelDeleteTimelineEvent,
     handleConfirmDeleteTimelineEvent,
-    handlePrefillTimelineFromLastEvent,
+    handleStartContinuedStay,
   };
 }

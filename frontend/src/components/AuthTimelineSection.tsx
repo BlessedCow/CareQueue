@@ -1,5 +1,8 @@
 import type { AuthEvent, UpdateAuthEventPayload } from "../api/authEvents";
-import { formatEventTimestamp, sortAuthEventsNewestFirst } from '../utils/authEvents';
+import {
+  formatEventTimestamp,
+  sortAuthEventsNewestFirst,
+} from "../utils/authEvents";
 import { cn } from "../utils/cn";
 
 export interface TimelineEventFormState {
@@ -8,6 +11,11 @@ export interface TimelineEventFormState {
   eventType: string;
   outcome: string;
   notes: string;
+  requestedDays: string;
+  approvedDays: string;
+  authStartDate: string;
+  authEndDate: string;
+  reviewDueDate: string;
 }
 
 interface AuthTimelineSectionProps {
@@ -28,12 +36,12 @@ interface AuthTimelineSectionProps {
   onStartDeleteEvent: (eventId: number) => void;
   onCancelDeleteEvent: () => void;
   onConfirmDeleteEvent: (eventId: number) => void;
-  onPrefillFromLastEvent: () => void;
-  onStartConcurrentReview: () => void;
+  onStartContinuedStay: () => void;
 }
 
 const EVENT_TYPES = [
   "Initial Authorization",
+  "Continued Stay",
   "Request Submitted",
   "Payer Response",
   "Peer Review",
@@ -79,8 +87,7 @@ export function AuthTimelineSection({
   onStartDeleteEvent,
   onCancelDeleteEvent,
   onConfirmDeleteEvent,
-  onPrefillFromLastEvent,
-  onStartConcurrentReview,
+  onStartContinuedStay,
 }: AuthTimelineSectionProps) {
   const sortedEvents = sortAuthEventsNewestFirst(events);
   const handleSubmitEvent = () => {
@@ -94,6 +101,11 @@ export function AuthTimelineSection({
       event_time: eventForm.eventTime,
       outcome: eventForm.outcome,
       notes: eventForm.notes.trim(),
+      requested_days: Number(eventForm.requestedDays) || 0,
+      approved_days: Number(eventForm.approvedDays) || 0,
+      auth_start_date: eventForm.authStartDate,
+      auth_end_date: eventForm.authEndDate,
+      review_due_date: eventForm.reviewDueDate,
     };
 
     if (editingEventId) {
@@ -160,27 +172,14 @@ export function AuthTimelineSection({
               darkMode ? "text-gray-400" : "text-gray-600"
             )}
           >
-            Quick actions can reuse the latest timeline event date for
-            continued stays or payer responses.
+            Quick actions can reuse the latest timeline event date for continued
+            stays or payer responses.
           </p>
 
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={onPrefillFromLastEvent}
-              className={cn(
-                "rounded-lg border px-3 py-2 text-xs font-medium transition-colors",
-                darkMode
-                  ? "border-gray-700 text-gray-200 hover:bg-gray-800"
-                  : "border-gray-300 text-gray-700 hover:bg-gray-100"
-              )}
-            >
-              Use Last Event Date
-            </button>
-
-            <button
-              type="button"
-              onClick={onStartConcurrentReview}
+              onClick={onStartContinuedStay}
               className={cn(
                 "rounded-lg border px-3 py-2 text-xs font-medium transition-colors",
                 darkMode
@@ -299,6 +298,130 @@ export function AuthTimelineSection({
               </option>
             ))}
           </select>
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-3 md:grid-cols-5">
+        <div>
+          <label
+            className={cn(
+              "mb-1 block text-xs font-medium",
+              darkMode ? "text-gray-300" : "text-gray-600"
+            )}
+          >
+            Start Date
+          </label>
+          <input
+            type="date"
+            value={eventForm.authStartDate}
+            onChange={(event) =>
+              onEventFieldChange("authStartDate", event.target.value)
+            }
+            className={cn(
+              "w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors",
+              darkMode
+                ? "border-gray-700 bg-gray-950 text-gray-100 focus:border-blue-500"
+                : "border-gray-300 bg-white text-gray-900 focus:border-blue-500"
+            )}
+          />
+        </div>
+
+        <div>
+          <label
+            className={cn(
+              "mb-1 block text-xs font-medium",
+              darkMode ? "text-gray-300" : "text-gray-600"
+            )}
+          >
+            End Date
+          </label>
+          <input
+            type="date"
+            value={eventForm.authEndDate}
+            onChange={(event) =>
+              onEventFieldChange("authEndDate", event.target.value)
+            }
+            className={cn(
+              "w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors",
+              darkMode
+                ? "border-gray-700 bg-gray-950 text-gray-100 focus:border-blue-500"
+                : "border-gray-300 bg-white text-gray-900 focus:border-blue-500"
+            )}
+          />
+        </div>
+
+        <div>
+          <label
+            className={cn(
+              "mb-1 block text-xs font-medium",
+              darkMode ? "text-gray-300" : "text-gray-600"
+            )}
+          >
+            Next Review
+          </label>
+          <input
+            type="date"
+            value={eventForm.reviewDueDate}
+            onChange={(event) =>
+              onEventFieldChange("reviewDueDate", event.target.value)
+            }
+            className={cn(
+              "w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors",
+              darkMode
+                ? "border-gray-700 bg-gray-950 text-gray-100 focus:border-blue-500"
+                : "border-gray-300 bg-white text-gray-900 focus:border-blue-500"
+            )}
+          />
+        </div>
+
+        <div>
+          <label
+            className={cn(
+              "mb-1 block text-xs font-medium",
+              darkMode ? "text-gray-300" : "text-gray-600"
+            )}
+          >
+            Requested
+          </label>
+          <input
+            type="number"
+            min="0"
+            value={eventForm.requestedDays}
+            onChange={(event) =>
+              onEventFieldChange("requestedDays", event.target.value)
+            }
+            className={cn(
+              "w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors",
+              darkMode
+                ? "border-gray-700 bg-gray-950 text-gray-100 focus:border-blue-500"
+                : "border-gray-300 bg-white text-gray-900 focus:border-blue-500"
+            )}
+          />
+        </div>
+
+        <div>
+          <label
+            className={cn(
+              "mb-1 block text-xs font-medium",
+              darkMode ? "text-gray-300" : "text-gray-600"
+            )}
+          >
+            Approved
+          </label>
+          <input
+            type="number"
+            min="0"
+            value={eventForm.approvedDays}
+            onChange={(event) =>
+              onEventFieldChange("approvedDays", event.target.value)
+            }
+            className={cn(
+              "w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors",
+              darkMode
+                ? "border-gray-700 bg-gray-950 text-gray-100 focus:border-blue-500"
+                : "border-gray-300 bg-white text-gray-900 focus:border-blue-500"
+            )}
+          />
         </div>
       </div>
 
@@ -473,6 +596,42 @@ export function AuthTimelineSection({
                   )}
                 </div>
               </div>
+
+              {(event.authStartDate ||
+                event.authEndDate ||
+                event.reviewDueDate ||
+                event.requestedDays > 0 ||
+                event.approvedDays > 0) && (
+                <div
+                  className={cn(
+                    "mt-3 grid gap-2 rounded-lg border p-3 text-xs md:grid-cols-5",
+                    darkMode
+                      ? "border-gray-800 bg-gray-900 text-gray-300"
+                      : "border-gray-200 bg-gray-50 text-gray-700"
+                  )}
+                >
+                  <div>
+                    <span className="font-semibold">Start:</span>{" "}
+                    {event.authStartDate || "—"}
+                  </div>
+                  <div>
+                    <span className="font-semibold">End:</span>{" "}
+                    {event.authEndDate || "—"}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Next Review:</span>{" "}
+                    {event.reviewDueDate || "—"}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Requested:</span>{" "}
+                    {event.requestedDays || "—"}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Approved:</span>{" "}
+                    {event.approvedDays || "—"}
+                  </div>
+                </div>
+              )}
 
               {event.notes ? (
                 <p

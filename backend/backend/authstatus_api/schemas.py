@@ -100,6 +100,7 @@ class AuthEventBase(BaseModel):
     event_date: str
     event_time: str = ""
     outcome: str = ""
+    notes: str = ""
     requested_days: int = Field(default=0, ge=0)
     approved_days: int = Field(default=0, ge=0)
     auth_start_date: str = ""

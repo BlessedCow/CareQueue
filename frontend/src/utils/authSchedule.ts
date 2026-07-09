@@ -69,3 +69,51 @@ export function calculateAuthEndDate(
 
   return "";
 }
+
+export function addDaysToDate(dateValue: string, numberOfDays: number): string {
+  const date = parseDateOnly(dateValue);
+
+  if (!date) {
+    return "";
+  }
+
+  date.setDate(date.getDate() + numberOfDays);
+
+  return formatDateOnly(date);
+}
+
+export interface ContinuedStayDefaults {
+  authDate: string;
+  authStartDate: string;
+  authEndDate: string;
+  reviewDueDate: string;
+  requestedDays: string;
+  approvedDays: string;
+}
+
+export function calculateContinuedStayDefaults(params: {
+  previousEndDate: string;
+  requestedDays: string;
+  approvedDays: string;
+  programmingDays: string;
+}): ContinuedStayDefaults {
+  const authDate = formatDateOnly(new Date());
+
+  const authStartDate = addDaysToDate(params.previousEndDate, 1);
+
+  const coveredDays = params.approvedDays || params.requestedDays;
+
+  const authEndDate = calculateAuthEndDate(
+    authStartDate,
+    coveredDays,
+    params.programmingDays
+  );
+  return {
+    authDate,
+    authStartDate,
+    authEndDate,
+    reviewDueDate: authEndDate,
+    requestedDays: params.requestedDays,
+    approvedDays: params.approvedDays,
+  };
+}

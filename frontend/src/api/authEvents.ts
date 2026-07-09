@@ -8,6 +8,11 @@ export interface AuthEvent {
   eventTime: string;
   outcome: string;
   notes: string;
+  requestedDays: number;
+  approvedDays: number;
+  authStartDate: string;
+  authEndDate: string;
+  reviewDueDate: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -18,6 +23,11 @@ export interface CreateAuthEventPayload {
   event_time?: string;
   outcome?: string;
   notes?: string;
+  requested_days?: number;
+  approved_days?: number;
+  auth_start_date?: string;
+  auth_end_date?: string;
+  review_due_date?: string;
 }
 
 export type UpdateAuthEventPayload = Partial<CreateAuthEventPayload>;
@@ -31,6 +41,11 @@ function mapApiEventToAuthEvent(item: any): AuthEvent {
     eventTime: item.event_time ?? '',
     outcome: item.outcome ?? '',
     notes: item.notes ?? '',
+    requestedDays: Number(item.requested_days ?? 0),
+    approvedDays: Number(item.approved_days ?? 0),
+    authStartDate: item.auth_start_date ?? '',
+    authEndDate: item.auth_end_date ?? '',
+    reviewDueDate: item.review_due_date ?? '',
     createdAt: item.created_at ?? '',
     updatedAt: item.updated_at ?? '',
   };

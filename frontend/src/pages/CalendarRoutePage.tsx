@@ -3,7 +3,7 @@ import Filters, { type WorkQueueFilter } from "../components/Filters";
 import type { AuthRequest } from "../types/auth";
 import { cn } from "../utils/cn";
 
-type DateRange = "7d" | "30d" | "90d";
+type DateRange = "7d" | "30d" | "90d" | "all";
 
 interface CalendarRoutePageProps {
   darkMode: boolean;

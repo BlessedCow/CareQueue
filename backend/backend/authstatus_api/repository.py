@@ -39,6 +39,15 @@ BOOLEAN_FIELDS = {
     "facility_informed",
     "waiting_on_clinicals",
 }
+
+REVIEW_SYNC_FIELDS = {
+    "requested_days",
+    "approved_days",
+    "auth_start_date",
+    "auth_end_date",
+    "review_due_date",
+}
+
 def _sql_columns(
     payload: dict[str, Any],
     allowed_columns: set[str],
@@ -117,6 +126,14 @@ def _row_to_event_dict(row: Any) -> dict[str, Any]:
 
     if "notes" in record:
         record["notes"] = decrypt_text(record["notes"])
+
+    for field in {
+        "auth_start_date",
+        "auth_end_date",
+        "review_due_date",
+    }:
+        if record.get(field) is None:
+            record[field] = ""
 
     return record
 
@@ -217,6 +234,11 @@ def _initial_timeline_event_payload(auth_record: dict[str, Any]) -> dict[str, An
         "event_time": "",
         "outcome": str(auth_record.get("status") or "Pending"),
         "notes": "Initial authorization created from auth entry.",
+        "requested_days": int(auth_record.get("requested_days") or 0),
+        "approved_days": int(auth_record.get("approved_days") or 0),
+        "auth_start_date": str(auth_record.get("auth_start_date") or ""),
+        "auth_end_date": str(auth_record.get("auth_end_date") or ""),
+        "review_due_date": str(auth_record.get("review_due_date") or ""),
     }
 
 
@@ -246,14 +268,48 @@ def _sync_auth_timeline_fields(auth_id: int) -> None:
             (_event_datetime_value(event) for event in events if _is_terminal_event(event)),
             None,
         )
+        
+        latest_review_event = next(
+            (
+                event
+                for event in reversed(events)
+                if any(event.get(field) not in {None, "", 0} for field in REVIEW_SYNC_FIELDS)
+            ),
+            None,
+        )
+
+        review_values = {
+            field: latest_review_event.get(field) if latest_review_event else None
+            for field in REVIEW_SYNC_FIELDS
+        }
 
         conn.execute(
             """
             UPDATE auths
-            SET submitted_at = ?, decision_at = ?, status = ?, updated_at = ?
+            SET
+                submitted_at = ?,
+                decision_at = ?,
+                status = ?,
+                requested_days = COALESCE(?, requested_days),
+                approved_days = COALESCE(?, approved_days),
+                auth_start_date = COALESCE(?, auth_start_date),
+                auth_end_date = COALESCE(?, auth_end_date),
+                review_due_date = COALESCE(?, review_due_date),
+                updated_at = ?
             WHERE id = ?
             """,
-            (submitted_at, decision_at, _timeline_status(events), _now(), auth_id),
+            (
+                submitted_at,
+                decision_at,
+                _timeline_status(events),
+                review_values["requested_days"],
+                review_values["approved_days"],
+                review_values["auth_start_date"],
+                review_values["auth_end_date"],
+                review_values["review_due_date"],
+                _now(),
+                auth_id,
+            ),
         )
 
 def create_auth(payload: dict[str, Any]) -> dict[str, Any]:
