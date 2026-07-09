@@ -189,7 +189,7 @@ export function AuthorizationsPage({
                 ? editingAuthId
                   ? "Edit Authorization"
                   : newAuthForm.authType === "Concurrent"
-                  ? "Add Concurrent Authorization"
+                  ? "Add LOC Change"
                   : "Add Authorization"
                 : viewingAuth
                 ? "Authorization Details"
@@ -205,7 +205,7 @@ export function AuthorizationsPage({
                 ? editingAuthId
                   ? "Update authorization details and timeline events."
                   : newAuthForm.authType === "Concurrent"
-                  ? "Create a new concurrent authorization using copied client and payer details."
+                  ? "Create a new authorization record for a level of care change."
                   : "Create a new authorization record."
                 : viewingAuth
                 ? "Review authorization details and timeline history."
@@ -225,7 +225,7 @@ export function AuthorizationsPage({
                     : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                 )}
               >
-                Start Concurrent
+                Start LOC Change
               </button>
             )}
 
@@ -272,7 +272,7 @@ export function AuthorizationsPage({
                 editingAuthId
                   ? "Save Changes"
                   : newAuthForm.authType === "Concurrent"
-                  ? "Add Concurrent Authorization"
+                  ? "Add LOC Change"
                   : "Add Authorization"
               }
               registeredFacilities={registeredFacilities}
@@ -296,7 +296,7 @@ export function AuthorizationsPage({
                 >
                   <div className="mb-3">
                     <h4 className="text-sm font-semibold">
-                      Previous Authorization Timeline
+                      Previous LOC Timeline
                     </h4>
                     <p
                       className={cn(
@@ -305,7 +305,7 @@ export function AuthorizationsPage({
                       )}
                     >
                       Reference the prior authorization dates while creating
-                      this concurrent review.
+                      this LOC change.
                     </p>
                   </div>
 

@@ -4,7 +4,7 @@ import { subDays } from 'date-fns';
 import type { WorkQueueFilter } from '../components/Filters';
 import type { AuthRequest } from '../types/auth';
 
-export type DateRange = '7d' | '30d' | '90d';
+export type DateRange = '7d' | '30d' | '90d' | 'all';
 
 function matchesWorkQueueFilter(item: AuthRequest, workQueueFilter: WorkQueueFilter) {
   if (workQueueFilter === 'All') {
@@ -41,6 +41,10 @@ function getDateRangeDays(range: DateRange) {
 }
 
 function getComparisonPeriodLabel(range: DateRange) {
+  if (range === 'all') {
+    return 'Showing all authorization records';
+  }
+  
   if (range === '7d') {
     return 'Compared with the previous 7 days';
   }
@@ -70,11 +74,11 @@ export function useAuthorizationFilters({
 
   const filteredData = useMemo(() => {
     const today = new Date();
-    const daysToSubtract = getDateRangeDays(dateRange);
-    const startDate = subDays(today, daysToSubtract);
+    const daysToSubtract = dateRange === 'all' ? null : getDateRangeDays(dateRange);
+    const startDate = daysToSubtract === null ? null : subDays(today, daysToSubtract);
 
     return authRequests.filter((item) => {
-      const inDateRange = item.date >= startDate && item.date <= today;
+      const inDateRange = startDate === null || (item.date >= startDate && item.date <= today);
       const matchFacility = selectedFacility === 'All' || item.facility === selectedFacility;
       const matchInsurance = selectedInsurance === 'All' || item.payer === selectedInsurance;
       const matchWorkQueue = matchesWorkQueueFilter(item, selectedWorkQueue);
@@ -84,6 +88,9 @@ export function useAuthorizationFilters({
   }, [authRequests, dateRange, selectedFacility, selectedInsurance, selectedWorkQueue]);
 
   const comparisonFilteredData = useMemo(() => {
+    if (dateRange === 'all') {
+      return [];
+    }
     const today = new Date();
     const daysToSubtract = getDateRangeDays(dateRange);
     const currentStartDate = subDays(today, daysToSubtract);

@@ -1,8 +1,9 @@
-import os
 import json
+import os
 import shutil
-from dotenv import load_dotenv
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -21,7 +22,7 @@ if not FACILITIES_FILE.exists():
     if FACILITY_TEMPLATE_FILE.exists():
         shutil.copy(FACILITY_TEMPLATE_FILE, FACILITIES_FILE)
 
-with open(FACILITIES_FILE, "r", encoding="utf-8") as f:
+with open(FACILITIES_FILE, encoding="utf-8") as f:
     FACILITY_OPTIONS = json.load(f)
 
 DEFAULT_WEB_PORTALS = ["Advantek", "Cohere", "Lucet", "Other"]

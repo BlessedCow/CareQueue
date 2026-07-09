@@ -1,9 +1,10 @@
-import pandas as pd
 from datetime import date
 
-from app import bool_to_int, combine_date_time
+import pandas as pd
+
+from app import bool_to_int, combine_date_time, format_and_validate_phone
 from emailer import build_morning_report, format_date
-from app import format_and_validate_phone
+
 
 def test_format_date_mm_dd_yyyy():
     assert format_date("2026-06-19") == "06/19/2026"

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import calendar
+import re
 from datetime import date, datetime, time
 from typing import Any
 
-import re
 import pandas as pd
 import streamlit as st
 
@@ -14,9 +14,9 @@ from config import (
     JSON_BACKUP_PATH,
     LIVE_CALL_OPTIONS,
     LOC_OPTIONS,
+    MORNING_EMAIL_TO,
     STATUS_OPTIONS,
     SUBMISSION_OPTIONS,
-    MORNING_EMAIL_TO,
 )
 from emailer import build_morning_report, format_date, open_outlook_email, send_outlook_email
 from schema import init_db
@@ -53,7 +53,10 @@ def format_and_validate_phone(phone_input: str, field_name: str) -> str:
         return ""
         
     if len(digits) < 10 or len(digits) > 10:
-        st.error(f"Invalid {field_name}. Must be exactly 10 digits (excluding dashes/spaces). You provided {len(digits)} digits.")
+        st.error(
+            f"Invalid {field_name}. Must be exactly 10 digits "
+            f"excluding dashes/spaces). You provided {len(digits)} digits."
+        )
         return "INVALID"
         
     # Format to XXX-XXX-XXXX

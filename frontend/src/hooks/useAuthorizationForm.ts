@@ -37,7 +37,7 @@ export const DEFAULT_AUTH_FORM: NewAuthFormState = {
   status: "Pending",
   startDate: "",
   endDate: "",
-  programmingDays: "",
+  programmingDays: "7 days/week",
   reviewDueDate: "",
   requestedDays: "",
   approvedDays: "",
@@ -137,9 +137,8 @@ export function useAuthorizationForm() {
     const calculatedAuthEndDate = calculateAuthEndDate(
       newAuthForm.startDate,
       coveredDays,
-      newAuthForm.programmingDays
+      newAuthForm.programmingDays || "7 days/week"
     );
-
     if (!calculatedAuthEndDate) {
       return;
     }

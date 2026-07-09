@@ -116,11 +116,10 @@ export function AddAuthorizationForm({
               : "border-gray-300 bg-white text-gray-900"
           )}
         >
-          <option value="">Select schedule</option>
+          <option value="7 days/week">7 days/week</option>
           <option value="M-F">M-F</option>
           <option value="M-Sa">M-Sa</option>
           <option value="MWF">MWF</option>
-          <option value="7 days/week">7 days/week</option>
         </select>
       </label>
 
@@ -185,6 +184,8 @@ export function AddAuthorizationForm({
           <option value="Approved">Approved</option>
           <option value="Denied">Denied</option>
           <option value="Needs Review">Needs Review</option>
+          <option value="Completed">Completed</option>
+          <option value="Discharged">Discharged</option>
         </select>
       </label>
 
@@ -318,7 +319,7 @@ export function AddAuthorizationForm({
           )}
         >
           <option value="Initial">Initial</option>
-          <option value="Concurrent">Concurrent</option>
+          <option value="LOC Change">LOC Change</option>
           <option value="Retro">Retro</option>
         </select>
       </label>

@@ -8,6 +8,7 @@ from authstatus_api.database import AUTH_EVENT_TABLE_COLUMNS, AUTH_TABLE_COLUMNS
 
 REQUEST_SUBMITTED_EVENT_TYPES = {
     "request submitted",
+    "initial authorization",
 }
 
 TERMINAL_EVENT_TYPES = {
@@ -26,6 +27,8 @@ TERMINAL_OUTCOMES = {
     "appeal denied",
     "upheld",
     "overturned",
+    "completed",
+    "discharged",
 }
 
 BOOLEAN_FIELDS = {
@@ -179,6 +182,12 @@ def _status_from_timeline_event(event: dict[str, Any]) -> str | None:
 
     if outcome == "no pa required":
         return "No PA Required"
+    
+    if outcome == "completed":
+        return "Completed"
+
+    if outcome == "discharged":
+        return "Discharged"
 
     if outcome == "more information needed":
         return "Pending"
@@ -203,11 +212,11 @@ def _initial_timeline_event_payload(auth_record: dict[str, Any]) -> dict[str, An
         event_date = str(auth_record.get("created_at") or _now())[:10]
 
     return {
-        "event_type": "Request Submitted",
+        "event_type": "Initial Authorization",
         "event_date": event_date,
         "event_time": "",
-        "outcome": "Pending",
-        "notes": "Initial authorization entry created.",
+        "outcome": str(auth_record.get("status") or "Pending"),
+        "notes": "Initial authorization created from auth entry.",
     }
 
 
@@ -339,6 +348,23 @@ def update_auth(auth_id: int, payload: dict[str, Any]) -> dict[str, Any] | None:
         conn.execute(
             f"UPDATE auths SET {assignments} WHERE id = ?",    # nosec
             [*values, auth_id],
+        )
+
+    updated_auth = get_auth(auth_id)
+
+    old_status = str(existing_auth.get("status") or "").strip()
+    new_status = str(updated_auth.get("status") or "").strip() if updated_auth else ""
+
+    if old_status == "Pending" and new_status == "Approved":
+        create_auth_event(
+            auth_id,
+            {
+                "event_type": "Payer Response",
+                "event_date": str(updated_auth.get("decision_at") or _now())[:10],
+                "event_time": "",
+                "outcome": "Approved",
+                "notes": "Authorization marked approved.",
+            },
         )
 
     return get_auth(auth_id)

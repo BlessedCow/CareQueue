@@ -33,6 +33,7 @@ interface AuthTimelineSectionProps {
 }
 
 const EVENT_TYPES = [
+  "Initial Authorization",
   "Request Submitted",
   "Payer Response",
   "Peer Review",
@@ -160,7 +161,7 @@ export function AuthTimelineSection({
             )}
           >
             Quick actions can reuse the latest timeline event date for
-            concurrent reviews or payer responses.
+            continued stays or payer responses.
           </p>
 
           <div className="flex flex-wrap gap-2">
@@ -187,7 +188,7 @@ export function AuthTimelineSection({
                   : "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
               )}
             >
-              Start Concurrent Review
+              Start Continued Stay
             </button>
           </div>
         </div>

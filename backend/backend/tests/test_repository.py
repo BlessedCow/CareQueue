@@ -250,7 +250,10 @@ def test_list_auth_events_returns_events_for_auth_only():
     assert {event["id"] for event in events} == {1, first_event["id"]}
     assert all(event["auth_id"] == first_auth["id"] for event in events)
     assert any(event["notes"] == "First auth event." for event in events)
-    assert any(event["notes"] == "Initial authorization entry created." for event in events)
+    assert any(
+        event["notes"] == "Initial authorization created from auth entry."
+        for event in events
+    )
 
 
 def test_update_auth_event_updates_selected_fields():

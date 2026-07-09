@@ -53,6 +53,11 @@ AUTH_EVENT_TABLE_COLUMNS = {
     "notes",
     "created_at",
     "updated_at",
+    "requested_days",
+    "approved_days",
+    "auth_start_date",
+    "auth_end_date",
+    "review_due_date",
 }
 
 
@@ -131,6 +136,11 @@ def init_db() -> None:
                 event_time TEXT,
                 outcome TEXT,
                 notes TEXT,
+                requested_days INTEGER NOT NULL DEFAULT 0,
+                approved_days INTEGER NOT NULL DEFAULT 0,
+                auth_start_date TEXT,
+                auth_end_date TEXT,
+                review_due_date TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
                 FOREIGN KEY (auth_id) REFERENCES auths (id) ON DELETE CASCADE
@@ -147,3 +157,8 @@ def init_db() -> None:
         ensure_column(conn, "auths", "programming_days", "TEXT")
         ensure_column(conn, "auths", "submitted_at", "TEXT")
         ensure_column(conn, "auths", "decision_at", "TEXT")
+        ensure_column(conn, "auth_events", "requested_days", "INTEGER NOT NULL DEFAULT 0")
+        ensure_column(conn, "auth_events", "approved_days", "INTEGER NOT NULL DEFAULT 0")
+        ensure_column(conn, "auth_events", "auth_start_date", "TEXT")
+        ensure_column(conn, "auth_events", "auth_end_date", "TEXT")
+        ensure_column(conn, "auth_events", "review_due_date", "TEXT")

@@ -4,7 +4,9 @@ export type Status =
   | "Denied"
   | "P2P"
   | "Appealed"
-  | "No PA Required";
+  | "No PA Required"
+  | "Completed"
+  | "Discharged";
 
 export type LOC = "Detox" | "Residential" | "PHP" | "IOP" | "OP" | string;
 

@@ -100,7 +100,11 @@ class AuthEventBase(BaseModel):
     event_date: str
     event_time: str = ""
     outcome: str = ""
-    notes: str = ""
+    requested_days: int = Field(default=0, ge=0)
+    approved_days: int = Field(default=0, ge=0)
+    auth_start_date: str = ""
+    auth_end_date: str = ""
+    review_due_date: str = ""
 
 
 class AuthEventCreate(AuthEventBase):
@@ -113,6 +117,11 @@ class AuthEventUpdate(BaseModel):
     event_time: str | None = None
     outcome: str | None = None
     notes: str | None = None
+    requested_days: int | None = Field(default=None, ge=0)
+    approved_days: int | None = Field(default=None, ge=0)
+    auth_start_date: str | None = None
+    auth_end_date: str | None = None
+    review_due_date: str | None = None
 
     model_config = ConfigDict(extra="forbid")
 
