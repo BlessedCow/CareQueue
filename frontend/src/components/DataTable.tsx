@@ -130,7 +130,6 @@ function getDaysConfirmationCue(row: AuthRequest) {
   }
 
   return "No days recorded";
-  getScheduleCueColor(row, darkMode);
 }
 
 function getScheduleCueColor(row: AuthRequest, darkMode: boolean) {
@@ -138,7 +137,7 @@ function getScheduleCueColor(row: AuthRequest, darkMode: boolean) {
   const lcdDaysUntil = calculateDaysUntil(row.authEndDate);
 
   if (["Completed", "Discharged", "No PA Required"].includes(row.status)) {
-    return "Closed";
+    return darkMode ? "text-gray-500" : "text-gray-500";
   }
 
   if (
@@ -296,8 +295,11 @@ export function DataTable({
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(
     null
   );
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
   const handleSort = (field: SortField) => {
     setConfirmingDeleteId(null);
+    setCurrentPage(1);
 
     if (field === sortField) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
@@ -339,9 +341,17 @@ export function DataTable({
         if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
         if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
         return 0;
-      })
-      .slice(0, 10); // Show only top 10 recent/filtered for the dashboard
+      });
   }, [data, searchTerm, sortField, sortOrder]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredAndSortedData.length / pageSize)
+  );
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedData = filteredAndSortedData.slice(startIndex, endIndex);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -389,6 +399,7 @@ export function DataTable({
           value={searchTerm}
           onChange={(e) => {
             setSearchTerm(e.target.value);
+            setCurrentPage(1);
             setConfirmingDeleteId(null);
           }}
           className={cn(
@@ -449,7 +460,7 @@ export function DataTable({
             </tr>
           </thead>
           <tbody>
-            {filteredAndSortedData.map((row) => (
+            {paginatedData.map((row) => (
               <tr
                 key={row.id}
                 onClick={() => {
@@ -711,6 +722,73 @@ export function DataTable({
           </tbody>
         </table>
       </div>
+
+      {filteredAndSortedData.length > pageSize && (
+        <div
+          className={cn(
+            "mt-4 flex flex-col gap-3 border-t pt-4 text-sm sm:flex-row sm:items-center sm:justify-between",
+            darkMode
+              ? "border-gray-800 text-gray-300"
+              : "border-gray-200 text-gray-600"
+          )}
+        >
+          <div>
+            Showing{" "}
+            <span className="font-medium">
+              {startIndex + 1}-
+              {Math.min(endIndex, filteredAndSortedData.length)}
+            </span>{" "}
+            of{" "}
+            <span className="font-medium">{filteredAndSortedData.length}</span>{" "}
+            authorizations
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setCurrentPage((page) => Math.max(1, page - 1));
+                setConfirmingDeleteId(null);
+              }}
+              disabled={safeCurrentPage === 1}
+              className={cn(
+                "rounded-lg border px-3 py-1.5 font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+                darkMode
+                  ? "border-gray-700 bg-gray-900 text-gray-200 hover:bg-gray-800"
+                  : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+              )}
+            >
+              Previous
+            </button>
+
+            <span
+              className={cn(
+                "px-2",
+                darkMode ? "text-gray-400" : "text-gray-500"
+              )}
+            >
+              Page {safeCurrentPage} of {totalPages}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => {
+                setCurrentPage((page) => Math.min(totalPages, page + 1));
+                setConfirmingDeleteId(null);
+              }}
+              disabled={safeCurrentPage === totalPages}
+              className={cn(
+                "rounded-lg border px-3 py-1.5 font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+                darkMode
+                  ? "border-gray-700 bg-gray-900 text-gray-200 hover:bg-gray-800"
+                  : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+              )}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
