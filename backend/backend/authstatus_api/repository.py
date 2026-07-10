@@ -231,6 +231,49 @@ def _timeline_status(events: list[dict[str, Any]]) -> str:
 
     return "Pending"
 
+def _latest_review_event(events: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """
+    Returns the newest timeline event that contains review information.
+    """
+
+    for event in reversed(events):
+        if (
+            event.get("auth_start_date")
+            or event.get("auth_end_date")
+            or event.get("review_due_date")
+            or int(event.get("requested_days") or 0) > 0
+            or int(event.get("approved_days") or 0) > 0
+        ):
+            return event
+
+    return None
+
+def _current_auth_snapshot(events: list[dict[str, Any]]) -> dict[str, Any]:
+    latest_review = _latest_review_event(events)
+    status = _timeline_status(events)
+
+    return {
+        "status": status,
+        "requested_days": (
+            latest_review.get("requested_days") if latest_review else None
+        ),
+        "approved_days": (
+            latest_review.get("approved_days") if latest_review else None
+        ),
+        "auth_start_date": (
+            latest_review.get("auth_start_date") if latest_review else None
+        ),
+        "auth_end_date": (
+            latest_review.get("auth_end_date") if latest_review else None
+        ),
+        "review_due_date": (
+            None
+            if status in {"Completed", "Discharged", "No PA Required"}
+            else latest_review.get("review_due_date")
+            if latest_review
+            else None
+        ),
+    }
 
 def _initial_timeline_event_payload(auth_record: dict[str, Any]) -> dict[str, Any]:
     event_date = str(auth_record.get("auth_start_date") or "").strip()
@@ -279,19 +322,7 @@ def _sync_auth_timeline_fields(auth_id: int) -> None:
             None,
         )
         
-        latest_review_event = next(
-            (
-                event
-                for event in reversed(events)
-                if any(event.get(field) not in {None, "", 0} for field in REVIEW_SYNC_FIELDS)
-            ),
-            None,
-        )
-
-        review_values = {
-            field: latest_review_event.get(field) if latest_review_event else None
-            for field in REVIEW_SYNC_FIELDS
-        }
+        snapshot = _current_auth_snapshot(events)
 
         conn.execute(
             """
@@ -304,19 +335,19 @@ def _sync_auth_timeline_fields(auth_id: int) -> None:
                 approved_days = COALESCE(?, approved_days),
                 auth_start_date = COALESCE(?, auth_start_date),
                 auth_end_date = COALESCE(?, auth_end_date),
-                review_due_date = COALESCE(?, review_due_date),
+                review_due_date = ?,
                 updated_at = ?
             WHERE id = ?
             """,
             (
                 submitted_at,
                 decision_at,
-                _timeline_status(events),
-                review_values["requested_days"],
-                review_values["approved_days"],
-                review_values["auth_start_date"],
-                review_values["auth_end_date"],
-                review_values["review_due_date"],
+                snapshot["status"],
+                snapshot["requested_days"],
+                snapshot["approved_days"],
+                snapshot["auth_start_date"],
+                snapshot["auth_end_date"],
+                snapshot["review_due_date"],
                 _now(),
                 auth_id,
             ),

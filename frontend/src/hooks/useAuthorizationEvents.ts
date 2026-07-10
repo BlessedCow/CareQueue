@@ -90,6 +90,20 @@ export function useAuthorizationEvents() {
         [field]: value,
       };
 
+      if (
+        field === "outcome" &&
+        ["Completed", "Discharged", "No PA Required"].includes(value)
+      ) {
+        return {
+          ...nextForm,
+          requestedDays: "",
+          approvedDays: "",
+          authStartDate: "",
+          authEndDate: "",
+          reviewDueDate: "",
+        };
+      }
+
       const shouldRecalculate =
         nextForm.eventType === "Continued Stay" &&
         ["authStartDate", "requestedDays", "approvedDays"].includes(field);

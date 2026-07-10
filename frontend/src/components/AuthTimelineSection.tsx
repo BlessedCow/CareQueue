@@ -509,69 +509,103 @@ export function AuthTimelineSection({
             No timeline events added yet.
           </p>
         ) : (
-          sortedEvents.map((event) => (
-            <div
-              key={event.id}
-              className={cn(
-                "rounded-xl border p-3",
-                editingEventId === event.id
-                  ? darkMode
-                    ? "border-blue-800 bg-blue-950/30"
-                    : "border-blue-300 bg-blue-50"
-                  : darkMode
-                  ? "border-gray-700 bg-gray-950"
-                  : "border-gray-200 bg-white"
-              )}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div
-                    className={cn(
-                      "text-sm font-semibold",
-                      darkMode ? "text-gray-100" : "text-gray-900"
-                    )}
-                  >
-                    {event.eventType}
-                    {event.outcome ? ` - ${event.outcome}` : ""}
+          sortedEvents.map((event) => {
+            const eventIsTerminal = [
+              "Completed",
+              "Discharged",
+              "No PA Required",
+            ].includes(event.outcome);
+
+            return (
+              <div
+                key={event.id}
+                className={cn(
+                  "rounded-xl border p-3",
+                  editingEventId === event.id
+                    ? darkMode
+                      ? "border-blue-800 bg-blue-950/30"
+                      : "border-blue-300 bg-blue-50"
+                    : darkMode
+                    ? "border-gray-700 bg-gray-950"
+                    : "border-gray-200 bg-white"
+                )}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div
+                      className={cn(
+                        "text-sm font-semibold",
+                        darkMode ? "text-gray-100" : "text-gray-900"
+                      )}
+                    >
+                      {event.eventType}
+                      {event.outcome ? ` - ${event.outcome}` : ""}
+                    </div>
+                    <div
+                      className={cn(
+                        "mt-1 text-xs",
+                        darkMode ? "text-gray-400" : "text-gray-500"
+                      )}
+                    >
+                      {formatEventTimestamp(event.eventDate, event.eventTime)}
+                    </div>
                   </div>
-                  <div
-                    className={cn(
-                      "mt-1 text-xs",
-                      darkMode ? "text-gray-400" : "text-gray-500"
-                    )}
-                  >
-                    {formatEventTimestamp(event.eventDate, event.eventTime)}
-                  </div>
-                </div>
 
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => onStartEditEvent(event)}
-                    className={cn(
-                      "text-xs font-medium transition-colors",
-                      darkMode
-                        ? "text-blue-400 hover:text-blue-300"
-                        : "text-blue-600 hover:text-blue-700"
-                    )}
-                  >
-                    {editingEventId === event.id ? "Editing" : "Edit"}
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => onStartEditEvent(event)}
+                      className={cn(
+                        "text-xs font-medium transition-colors",
+                        darkMode
+                          ? "text-blue-400 hover:text-blue-300"
+                          : "text-blue-600 hover:text-blue-700"
+                      )}
+                    >
+                      {editingEventId === event.id ? "Editing" : "Edit"}
+                    </button>
 
-                  {confirmingDeleteEventId === event.id ? (
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={cn(
-                          "text-xs",
-                          darkMode ? "text-gray-400" : "text-gray-500"
-                        )}
-                      >
-                        Delete?
-                      </span>
+                    {confirmingDeleteEventId === event.id ? (
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={cn(
+                            "text-xs",
+                            darkMode ? "text-gray-400" : "text-gray-500"
+                          )}
+                        >
+                          Delete?
+                        </span>
 
+                        <button
+                          type="button"
+                          onClick={() => onConfirmDeleteEvent(event.id)}
+                          className={cn(
+                            "text-xs font-medium transition-colors",
+                            darkMode
+                              ? "text-red-400 hover:text-red-300"
+                              : "text-red-600 hover:text-red-700"
+                          )}
+                        >
+                          Yes
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={onCancelDeleteEvent}
+                          className={cn(
+                            "text-xs font-medium transition-colors",
+                            darkMode
+                              ? "text-gray-400 hover:text-gray-300"
+                              : "text-gray-600 hover:text-gray-800"
+                          )}
+                        >
+                          No
+                        </button>
+                      </div>
+                    ) : (
                       <button
                         type="button"
-                        onClick={() => onConfirmDeleteEvent(event.id)}
+                        onClick={() => onStartDeleteEvent(event.id)}
                         className={cn(
                           "text-xs font-medium transition-colors",
                           darkMode
@@ -579,87 +613,62 @@ export function AuthTimelineSection({
                             : "text-red-600 hover:text-red-700"
                         )}
                       >
-                        Yes
+                        Delete
                       </button>
+                    )}
+                  </div>
+                </div>
 
-                      <button
-                        type="button"
-                        onClick={onCancelDeleteEvent}
-                        className={cn(
-                          "text-xs font-medium transition-colors",
-                          darkMode
-                            ? "text-gray-400 hover:text-gray-300"
-                            : "text-gray-600 hover:text-gray-800"
-                        )}
-                      >
-                        No
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => onStartDeleteEvent(event.id)}
+                {!eventIsTerminal &&
+                  (event.authStartDate ||
+                    event.authEndDate ||
+                    event.reviewDueDate ||
+                    event.requestedDays > 0 ||
+                    event.approvedDays > 0) && (
+                    <div
                       className={cn(
-                        "text-xs font-medium transition-colors",
+                        "mt-3 grid gap-2 rounded-lg border p-3 text-xs md:grid-cols-5",
                         darkMode
-                          ? "text-red-400 hover:text-red-300"
-                          : "text-red-600 hover:text-red-700"
+                          ? "border-gray-800 bg-gray-900 text-gray-300"
+                          : "border-gray-200 bg-gray-50 text-gray-700"
                       )}
                     >
-                      Delete
-                    </button>
+                      <div>
+                        <span className="font-semibold">Start:</span>{" "}
+                        {event.authStartDate || "—"}
+                      </div>
+                      <div>
+                        <span className="font-semibold">End:</span>{" "}
+                        {event.authEndDate || "—"}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Next Review:</span>{" "}
+                        {event.reviewDueDate || "—"}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Requested:</span>{" "}
+                        {event.requestedDays || "—"}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Approved:</span>{" "}
+                        {event.approvedDays || "—"}
+                      </div>
+                    </div>
                   )}
-                </div>
+
+                {event.notes ? (
+                  <p
+                    className={cn(
+                      "mt-2 whitespace-pre-wrap text-sm",
+                      darkMode ? "text-gray-300" : "text-gray-700"
+                    )}
+                  >
+                    {event.notes}
+                  </p>
+                ) : null}
               </div>
-
-              {(event.authStartDate ||
-                event.authEndDate ||
-                event.reviewDueDate ||
-                event.requestedDays > 0 ||
-                event.approvedDays > 0) && (
-                <div
-                  className={cn(
-                    "mt-3 grid gap-2 rounded-lg border p-3 text-xs md:grid-cols-5",
-                    darkMode
-                      ? "border-gray-800 bg-gray-900 text-gray-300"
-                      : "border-gray-200 bg-gray-50 text-gray-700"
-                  )}
-                >
-                  <div>
-                    <span className="font-semibold">Start:</span>{" "}
-                    {event.authStartDate || "—"}
-                  </div>
-                  <div>
-                    <span className="font-semibold">End:</span>{" "}
-                    {event.authEndDate || "—"}
-                  </div>
-                  <div>
-                    <span className="font-semibold">Next Review:</span>{" "}
-                    {event.reviewDueDate || "—"}
-                  </div>
-                  <div>
-                    <span className="font-semibold">Requested:</span>{" "}
-                    {event.requestedDays || "—"}
-                  </div>
-                  <div>
-                    <span className="font-semibold">Approved:</span>{" "}
-                    {event.approvedDays || "—"}
-                  </div>
-                </div>
-              )}
-
-              {event.notes ? (
-                <p
-                  className={cn(
-                    "mt-2 whitespace-pre-wrap text-sm",
-                    darkMode ? "text-gray-300" : "text-gray-700"
-                  )}
-                >
-                  {event.notes}
-                </p>
-              ) : null}
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

@@ -200,6 +200,51 @@ def test_create_auth_event_returns_decrypted_record():
     assert event["notes"] == "Submitted concurrent review through portal."
 
 
+def test_terminal_timeline_event_clears_review_due_date():
+    created = create_auth(make_payload())
+
+    create_auth_event(
+        created["id"],
+        {
+            "event_type": "Continued Stay",
+            "event_date": "2026-06-25",
+            "event_time": "",
+            "outcome": "Approved",
+            "notes": "",
+            "requested_days": 7,
+            "approved_days": 4,
+            "auth_start_date": "2026-06-25",
+            "auth_end_date": "2026-06-28",
+            "review_due_date": "2026-06-28",
+        },
+    )
+
+    reviewed = get_auth(created["id"])
+    assert reviewed is not None
+    assert reviewed["status"] == "Approved"
+    assert reviewed["review_due_date"] == "2026-06-28"
+
+    create_auth_event(
+        created["id"],
+        {
+            "event_type": "Discharge",
+            "event_date": "2026-06-29",
+            "event_time": "",
+            "outcome": "Discharged",
+            "notes": "",
+            "requested_days": 0,
+            "approved_days": 0,
+            "auth_start_date": "",
+            "auth_end_date": "",
+            "review_due_date": "",
+        },
+    )
+
+    discharged = get_auth(created["id"])
+    assert discharged is not None
+    assert discharged["status"] == "Discharged"
+    assert discharged["review_due_date"] == ""
+
 def test_create_auth_event_returns_none_for_missing_auth():
     event = create_auth_event(
         999,
