@@ -65,9 +65,14 @@ interface AuthorizationsPageProps {
     value: string
   ) => void;
   onAddTimelineEvent: () => void;
+  onAddTimelineEventAndReturn: () => void;
   onStartEditTimelineEvent: (event: AuthEvent) => void;
   onCancelEditTimelineEvent: () => void;
   onUpdateTimelineEvent: (
+    eventId: number,
+    payload: UpdateAuthEventPayload
+  ) => void;
+  onUpdateTimelineEventAndReturn: (
     eventId: number,
     payload: UpdateAuthEventPayload
   ) => void;
@@ -121,9 +126,11 @@ export function AuthorizationsPage({
   onDeleteAuth,
   onTimelineEventFieldChange,
   onAddTimelineEvent,
+  onAddTimelineEventAndReturn,
   onStartEditTimelineEvent,
   onCancelEditTimelineEvent,
   onUpdateTimelineEvent,
+  onUpdateTimelineEventAndReturn,
   onStartDeleteTimelineEvent,
   onCancelDeleteTimelineEvent,
   onConfirmDeleteTimelineEvent,
@@ -386,9 +393,11 @@ export function AuthorizationsPage({
                     confirmingDeleteEventId={confirmingDeleteAuthEventId}
                     onEventFieldChange={onTimelineEventFieldChange}
                     onAddEvent={onAddTimelineEvent}
+                    onAddEventAndReturn={onAddTimelineEventAndReturn}
                     onStartEditEvent={onStartEditTimelineEvent}
                     onCancelEditEvent={onCancelEditTimelineEvent}
                     onUpdateEvent={onUpdateTimelineEvent}
+                    onUpdateEventAndReturn={onUpdateTimelineEventAndReturn}
                     onStartDeleteEvent={onStartDeleteTimelineEvent}
                     onCancelDeleteEvent={onCancelDeleteTimelineEvent}
                     onConfirmDeleteEvent={onConfirmDeleteTimelineEvent}

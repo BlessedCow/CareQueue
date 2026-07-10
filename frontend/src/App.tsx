@@ -416,6 +416,15 @@ function App() {
             await handleAddTimelineEvent(editingAuthId);
             await refreshAuthRequests();
           }}
+          onAddTimelineEventAndReturn={async () => {
+            if (!editingAuthId) {
+              return;
+            }
+          
+            await handleAddTimelineEvent(editingAuthId);
+            await refreshAuthRequests();
+            handleCancelAuthForm();
+          }}
           onStartEditTimelineEvent={handleStartEditTimelineEvent}
           onCancelEditTimelineEvent={handleCancelEditTimelineEvent}
           onUpdateTimelineEvent={async (eventId, payload) => {
@@ -425,6 +434,15 @@ function App() {
 
             await handleUpdateTimelineEvent(editingAuthId, eventId, payload);
             await refreshAuthRequests();
+          }}
+          onUpdateTimelineEventAndReturn={async (eventId, payload) => {
+            if (!editingAuthId) {
+              return;
+            }
+          
+            await handleUpdateTimelineEvent(editingAuthId, eventId, payload);
+            await refreshAuthRequests();
+            handleCancelAuthForm();
           }}
           onStartDeleteTimelineEvent={handleStartDeleteTimelineEvent}
           onCancelDeleteTimelineEvent={handleCancelDeleteTimelineEvent}

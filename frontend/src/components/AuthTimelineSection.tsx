@@ -30,9 +30,14 @@ interface AuthTimelineSectionProps {
     value: string
   ) => void;
   onAddEvent: () => void;
+  onAddEventAndReturn: () => void;
   onStartEditEvent: (event: AuthEvent) => void;
   onCancelEditEvent: () => void;
   onUpdateEvent: (eventId: number, payload: UpdateAuthEventPayload) => void;
+  onUpdateEventAndReturn: (
+    eventId: number,
+    payload: UpdateAuthEventPayload
+  ) => void;
   onStartDeleteEvent: (eventId: number) => void;
   onCancelDeleteEvent: () => void;
   onConfirmDeleteEvent: (eventId: number) => void;
@@ -84,9 +89,11 @@ export function AuthTimelineSection({
   confirmingDeleteEventId,
   onEventFieldChange,
   onAddEvent,
+  onAddEventAndReturn,
   onStartEditEvent,
   onCancelEditEvent,
   onUpdateEvent,
+  onUpdateEventAndReturn,
   onStartDeleteEvent,
   onCancelDeleteEvent,
   onConfirmDeleteEvent,
@@ -100,11 +107,11 @@ export function AuthTimelineSection({
     "discharged",
     "no pa required",
   ].includes(normalizedOutcome);
-  const handleSubmitEvent = () => {
+  const handleSubmitEvent = (returnToList = false) => {
     if (!eventForm.eventDate.trim()) {
       return;
     }
-
+  
     const payload = {
       event_type: eventForm.eventType,
       event_date: eventForm.eventDate,
@@ -117,15 +124,25 @@ export function AuthTimelineSection({
       auth_end_date: eventForm.authEndDate,
       review_due_date: eventForm.reviewDueDate,
     };
-
+  
     if (editingEventId) {
+      if (returnToList) {
+        onUpdateEventAndReturn(editingEventId, payload);
+        return;
+      }
+  
       onUpdateEvent(editingEventId, payload);
       return;
     }
-
+  
+    if (returnToList) {
+      onAddEventAndReturn();
+      return;
+    }
+  
     onAddEvent();
   };
-
+  
   return (
     <div
       className={cn(
@@ -466,7 +483,7 @@ export function AuthTimelineSection({
       <div className="mt-3 flex justify-end">
         <button
           type="button"
-          onClick={handleSubmitEvent}
+          onClick={() => handleSubmitEvent()}
           disabled={isSavingEvent || !eventForm.eventDate.trim()}
           className={cn(
             "inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed",
@@ -480,6 +497,20 @@ export function AuthTimelineSection({
             : editingEventId
             ? "Save Timeline Event"
             : "+ Add Timeline Event"}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleSubmitEvent(true)}
+          disabled={isSavingEvent || !eventForm.eventDate.trim()}
+          className={cn(
+            "ml-3 inline-flex items-center rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+            darkMode
+              ? "border-blue-800 bg-blue-950/40 text-blue-200 hover:bg-blue-900/50"
+              : "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+          )}
+        >
+          {isSavingEvent ? "Saving Event..." : "Save Event & Return"}
         </button>
 
         {editingEventId && (
