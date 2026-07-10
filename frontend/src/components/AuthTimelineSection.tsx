@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { AuthEvent, UpdateAuthEventPayload } from "../api/authEvents";
 import {
   formatEventTimestamp,
@@ -100,6 +101,8 @@ export function AuthTimelineSection({
   onStartContinuedStay,
 }: AuthTimelineSectionProps) {
   const sortedEvents = sortAuthEventsNewestFirst(events);
+  const [showTimelineNotes, setShowTimelineNotes] = useState(true);
+  const hasTimelineNotes = sortedEvents.some((event) => event.notes?.trim());
   const normalizedOutcome = eventForm.outcome.trim().toLowerCase();
 
   const isTerminalOutcome = [
@@ -111,7 +114,7 @@ export function AuthTimelineSection({
     if (!eventForm.eventDate.trim()) {
       return;
     }
-  
+
     const payload = {
       event_type: eventForm.eventType,
       event_date: eventForm.eventDate,
@@ -124,25 +127,25 @@ export function AuthTimelineSection({
       auth_end_date: eventForm.authEndDate,
       review_due_date: eventForm.reviewDueDate,
     };
-  
+
     if (editingEventId) {
       if (returnToList) {
         onUpdateEventAndReturn(editingEventId, payload);
         return;
       }
-  
+
       onUpdateEvent(editingEventId, payload);
       return;
     }
-  
+
     if (returnToList) {
       onAddEventAndReturn();
       return;
     }
-  
+
     onAddEvent();
   };
-  
+
   return (
     <div
       className={cn(
@@ -171,6 +174,23 @@ export function AuthTimelineSection({
             Track request dates, payer outcomes, peer reviews, appeals, and
             follow-up notes.
           </p>
+
+          {hasTimelineNotes && (
+            <button
+              type="button"
+              onClick={() =>
+                setShowTimelineNotes((currentValue) => !currentValue)
+              }
+              className={cn(
+                "rounded-lg border px-3 py-2 text-xs font-medium transition-colors",
+                darkMode
+                  ? "border-gray-700 bg-gray-950 text-gray-200 hover:bg-gray-800"
+                  : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+              )}
+            >
+              {showTimelineNotes ? "Hide Notes" : "Show Notes"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -687,7 +707,7 @@ export function AuthTimelineSection({
                     </div>
                   )}
 
-                {event.notes ? (
+                {showTimelineNotes && event.notes ? (
                   <p
                     className={cn(
                       "mt-2 whitespace-pre-wrap text-sm",

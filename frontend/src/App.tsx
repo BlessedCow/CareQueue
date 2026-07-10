@@ -142,7 +142,7 @@ function App() {
     resetNewAuthForm,
     handleNewAuthFieldChange,
     loadAuthIntoForm,
-    loadConcurrentAuthForm,
+    loadLocChangeAuthForm,
   } = useAuthorizationForm();
 
   useEffect(() => {
@@ -189,13 +189,13 @@ function App() {
     handleStartViewAuth,
     handleCloseViewAuth,
     handleStartEditAuth,
-    handleStartConcurrentAuthorization,
+    handleStartLocChangeAuthorization,
     handleAuthSaved,
     handleAuthDeleted,
   } = useAuthorizationSelection({
     resetNewAuthForm,
     loadAuthIntoForm,
-    loadConcurrentAuthForm,
+    loadLocChangeAuthForm,
     resetTimelineEventForm,
     clearAuthEvents,
     loadAuthEvents,
@@ -233,23 +233,6 @@ function App() {
     }
   };
 
-  const getLatestTimelineEvent = () => {
-    if (authEvents.length === 0) {
-      return null;
-    }
-
-    return [...authEvents].sort((firstEvent, secondEvent) => {
-      const firstDate = `${firstEvent.eventDate || ""}T${
-        firstEvent.eventTime || "00:00"
-      }`;
-      const secondDate = `${secondEvent.eventDate || ""}T${
-        secondEvent.eventTime || "00:00"
-      }`;
-
-      return secondDate.localeCompare(firstDate);
-    })[0];
-  };
-
   useEffect(() => {
     if (!registeredFacilities.includes(newAuthForm.facility)) {
       handleNewAuthFieldChange("facility", registeredFacilities[0] ?? "");
@@ -270,11 +253,6 @@ function App() {
     newAuthForm.insurance,
     newAuthForm.webPortal,
   ]);
-
-  const handleStartConcurrentReview = () => {
-    handleTimelineEventFieldChange("eventType", "Continued Stay");
-    handleTimelineEventFieldChange("outcome", "Pending");
-  };
 
   const handleOpenAuthDetails = async (auth: AuthRequest) => {
     setActivePage("authorizations");
@@ -401,7 +379,7 @@ function App() {
           onShowAddAuthForm={handleShowAddAuthForm}
           onCancelAuthForm={handleCancelAuthForm}
           onCloseViewAuth={handleCloseViewAuth}
-          onStartConcurrentAuthorization={handleStartConcurrentAuthorization}
+          onStartLocChangeAuthorization={handleStartLocChangeAuthorization}
           onFieldChange={handleNewAuthFieldChange}
           onSubmitAuth={handleCreateAuth}
           onViewAuth={handleStartViewAuth}

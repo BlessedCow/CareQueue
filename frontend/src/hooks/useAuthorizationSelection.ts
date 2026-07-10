@@ -7,7 +7,7 @@ import type { NewAuthFormState } from './useAuthorizationForm';
 interface UseAuthorizationSelectionArgs {
   resetNewAuthForm: () => void;
   loadAuthIntoForm: (auth: AuthRequest) => void;
-  loadConcurrentAuthForm: () => void;
+  loadLocChangeAuthForm: () => void;
   resetTimelineEventForm: () => void;
   clearAuthEvents: () => void;
   loadAuthEvents: (authId: string) => Promise<void>;
@@ -16,7 +16,7 @@ interface UseAuthorizationSelectionArgs {
 export function useAuthorizationSelection({
   resetNewAuthForm,
   loadAuthIntoForm,
-  loadConcurrentAuthForm,
+  loadLocChangeAuthForm,
   resetTimelineEventForm,
   clearAuthEvents,
   loadAuthEvents,
@@ -61,8 +61,8 @@ export function useAuthorizationSelection({
     await loadAuthEvents(auth.id);
   };
 
-  const handleStartConcurrentAuthorization = () => {
-    loadConcurrentAuthForm();
+  const handleStartLocChangeAuthorization = () => {
+    loadLocChangeAuthForm();
     resetTimelineEventForm();
     setEditingAuthId(null);
     setViewingAuth(null);
@@ -102,7 +102,7 @@ export function useAuthorizationSelection({
     handleStartViewAuth,
     handleCloseViewAuth,
     handleStartEditAuth,
-    handleStartConcurrentAuthorization,
+    handleStartLocChangeAuthorization,
     handleAuthSaved,
     handleAuthDeleted,
   };

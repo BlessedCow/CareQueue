@@ -86,7 +86,7 @@ export function getAuthFormFromAuth(auth: AuthRequest): NewAuthFormState {
   };
 }
 
-export function getConcurrentAuthFormFromCurrentForm(
+export function getLocChangeAuthFormFromCurrentForm(
   currentForm: NewAuthFormState
 ): NewAuthFormState {
   return {
@@ -169,10 +169,10 @@ export function useAuthorizationForm() {
     setNewAuthForm(getAuthFormFromAuth(auth));
   };
 
-  const loadConcurrentAuthForm = () => {
+  const loadLocChangeAuthForm = () => {
     setReviewDueDateWasEdited(false);
     setNewAuthForm((currentForm) =>
-      getConcurrentAuthFormFromCurrentForm(currentForm)
+      getLocChangeAuthFormFromCurrentForm(currentForm)
     );
   };
 
@@ -182,6 +182,6 @@ export function useAuthorizationForm() {
     resetNewAuthForm,
     handleNewAuthFieldChange,
     loadAuthIntoForm,
-    loadConcurrentAuthForm,
+    loadLocChangeAuthForm
   };
 }

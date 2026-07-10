@@ -51,7 +51,7 @@ interface AuthorizationsPageProps {
   onShowAddAuthForm: () => void;
   onCancelAuthForm: () => void;
   onCloseViewAuth: () => void;
-  onStartConcurrentAuthorization: () => void;
+  onStartLocChangeAuthorization: () => void;
   onFieldChange: (
     field: keyof NewAuthFormState,
     value: string | boolean
@@ -118,7 +118,7 @@ export function AuthorizationsPage({
   onShowAddAuthForm,
   onCancelAuthForm,
   onCloseViewAuth,
-  onStartConcurrentAuthorization,
+  onStartLocChangeAuthorization,
   onFieldChange,
   onSubmitAuth,
   onViewAuth,
@@ -222,7 +222,7 @@ export function AuthorizationsPage({
             {showAddAuthForm && editingAuthId && (
               <button
                 type="button"
-                onClick={onStartConcurrentAuthorization}
+                onClick={onStartLocChangeAuthorization}
                 className={cn(
                   "rounded-lg border px-4 py-2 text-sm font-medium transition-colors",
                   darkMode

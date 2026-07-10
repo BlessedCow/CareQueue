@@ -1,4 +1,4 @@
-import type { FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { cn } from "../utils/cn";
 
 function formatPhoneNumber(value: string) {
@@ -73,6 +73,8 @@ export function AddAuthorizationForm({
   onSubmit,
   onCancel,
 }: AddAuthorizationFormProps) {
+  const [showAuthNotes, setShowAuthNotes] = useState(true);
+  const hasAuthNotes = form.careManagerNotes.trim().length > 0;
   return (
     <form
       onSubmit={onSubmit}
@@ -591,25 +593,49 @@ export function AddAuthorizationForm({
               </label>
             )}
 
-            <label className="space-y-1 text-sm md:col-span-2">
-              <span className={darkMode ? "text-gray-300" : "text-gray-700"}>
-                Care Manager Notes
-              </span>
-              <textarea
-                value={form.careManagerNotes}
-                onChange={(event) =>
-                  onFieldChange("careManagerNotes", event.target.value)
-                }
-                placeholder="Example: Leave clinicals as voicemail, fax concurrent review, ask for reviewer extension..."
-                rows={3}
-                className={cn(
-                  "w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500",
-                  darkMode
-                    ? "border-gray-700 bg-gray-900 text-gray-100 placeholder-gray-500"
-                    : "border-gray-300 bg-white text-gray-900 placeholder-gray-400"
-                )}
-              />
-            </label>
+            <div className="space-y-2 text-sm md:col-span-2">
+              <div className="flex items-center justify-between gap-3">
+                <span className={darkMode ? "text-gray-300" : "text-gray-700"}>
+                  Care Manager Notes
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowAuthNotes((currentValue) => !currentValue)
+                  }
+                  className={cn(
+                    "rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
+                    darkMode
+                      ? "border-gray-700 bg-gray-900 text-gray-200 hover:bg-gray-800"
+                      : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                  )}
+                >
+                  {showAuthNotes
+                    ? "Hide Notes"
+                    : hasAuthNotes
+                    ? "Show Notes"
+                    : "Add Notes"}
+                </button>
+              </div>
+
+              {showAuthNotes && (
+                <textarea
+                  value={form.careManagerNotes}
+                  onChange={(event) =>
+                    onFieldChange("careManagerNotes", event.target.value)
+                  }
+                  placeholder="Example: Leave clinicals as voicemail, fax continued stay review, ask for reviewer extension..."
+                  rows={3}
+                  className={cn(
+                    "w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500",
+                    darkMode
+                      ? "border-gray-700 bg-gray-900 text-gray-100 placeholder-gray-500"
+                      : "border-gray-300 bg-white text-gray-900 placeholder-gray-400"
+                  )}
+                />
+              )}
+            </div>
           </div>
         )}
       </div>
