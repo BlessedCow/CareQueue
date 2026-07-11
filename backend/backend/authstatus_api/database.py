@@ -62,6 +62,32 @@ AUTH_EVENT_TABLE_COLUMNS = {
     "review_due_date",
 }
 
+USER_TABLE_COLUMNS = {
+    "id",
+    "username",
+    "password_hash",
+    "role",
+    "is_active",
+    "failed_login_count",
+    "locked_until",
+    "last_login_at",
+    "password_changed_at",
+    "created_at",
+    "updated_at",
+}
+
+SESSION_TABLE_COLUMNS = {
+    "id",
+    "user_id",
+    "token_hash",
+    "created_at",
+    "last_seen_at",
+    "expires_at",
+    "revoked_at",
+    "ip_address",
+    "user_agent",
+}
+
 
 def get_database_path() -> Path:
     return get_settings().database_path
@@ -151,6 +177,44 @@ def init_db() -> None:
             )
             """
         )
+        
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'UR',
+                is_active INTEGER NOT NULL DEFAULT 1,
+                failed_login_count INTEGER NOT NULL DEFAULT 0,
+                locked_until TEXT,
+                last_login_at TEXT,
+                password_changed_at TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                CHECK (role IN ('Admin', 'UR', 'Read Only')),
+                CHECK (is_active IN (0, 1)),
+                CHECK (failed_login_count >= 0)
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                token_hash TEXT NOT NULL UNIQUE,
+                created_at TEXT NOT NULL,
+                last_seen_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                revoked_at TEXT,
+                ip_address TEXT,
+                user_agent TEXT,
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+            )
+            """
+        )
 
         ensure_column(conn, "auths", "member_id", "TEXT")
         ensure_column(conn, "auths", "group_number", "TEXT")
@@ -168,3 +232,9 @@ def init_db() -> None:
         ensure_column(conn, "auth_events", "auth_start_date", "TEXT")
         ensure_column(conn, "auth_events", "auth_end_date", "TEXT")
         ensure_column(conn, "auth_events", "review_due_date", "TEXT")
+        ensure_column(conn, "users", "failed_login_count", "INTEGER NOT NULL DEFAULT 0")
+        ensure_column(conn, "users", "locked_until", "TEXT")
+        ensure_column(conn, "users", "last_login_at", "TEXT")
+        ensure_column(conn, "users", "password_changed_at", "TEXT")
+        ensure_column(conn, "sessions", "ip_address", "TEXT")
+        ensure_column(conn, "sessions", "user_agent", "TEXT")

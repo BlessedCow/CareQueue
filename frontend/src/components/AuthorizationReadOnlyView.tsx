@@ -150,6 +150,21 @@ export function AuthorizationReadOnlyView({
         </div>
 
         <div>
+          <div className={labelClass}>Member ID</div>
+          <div className={valueClass}>{formatValue(auth.memberId)}</div>
+        </div>
+
+        <div>
+          <div className={labelClass}>Group Number</div>
+          <div className={valueClass}>{formatValue(auth.groupNumber)}</div>
+        </div>
+
+        <div>
+          <div className={labelClass}>Date of Birth</div>
+          <div className={valueClass}>{formatDateOnly(auth.dateOfBirth)}</div>
+        </div>
+
+        <div>
           <div className={labelClass}>Facility</div>
           <div className={valueClass}>{auth.facility}</div>
         </div>

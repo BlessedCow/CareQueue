@@ -26,6 +26,9 @@ function buildAuthorizationPayload(
 
   return {
     client_name: form.clientName,
+    member_id: form.memberId,
+    group_number: form.groupNumber,
+    date_of_birth: form.dateOfBirth,
     facility: form.facility,
     loc: form.loc,
     status: form.status,

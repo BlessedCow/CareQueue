@@ -5,6 +5,7 @@ import sqlite3
 import pytest
 from authstatus_api.crypto import ENCRYPTED_TEXT_PREFIX, generate_encryption_key
 from authstatus_api.main import create_app
+from authstatus_api.security.repository import create_user
 from authstatus_api.settings import get_settings
 from fastapi.testclient import TestClient
 
@@ -19,6 +20,23 @@ def configure_test_settings(tmp_path, monkeypatch):
 
     get_settings.cache_clear()
 
+@pytest.fixture
+def auth_headers(client):
+    create_user("ur@example.com", "correct horse battery staple", role="UR")
+
+    response = client.post(
+        "/api/security/login",
+        json={
+            "username": "ur@example.com",
+            "password": "correct horse battery staple",
+        },
+    )
+
+    assert response.status_code == 200
+
+    token = response.json()["access_token"]
+
+    return {"Authorization": f"Bearer {token}"}
 
 @pytest.fixture
 def client():
@@ -70,8 +88,8 @@ def test_health_endpoint(client):
     }
 
 
-def test_create_auth_endpoint_returns_decrypted_record(client):
-    response = client.post("/api/auths", json=make_payload())
+def test_create_auth_endpoint_returns_decrypted_record(client, auth_headers):
+    response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
 
     assert response.status_code == 201
 
@@ -88,8 +106,8 @@ def test_create_auth_endpoint_returns_decrypted_record(client):
     assert data["waiting_on_clinicals"] is True
 
 
-def test_create_auth_endpoint_stores_selected_fields_encrypted(client):
-    response = client.post("/api/auths", json=make_payload())
+def test_create_auth_endpoint_stores_selected_fields_encrypted(client, auth_headers):
+    response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
 
     assert response.status_code == 201
 
@@ -111,12 +129,12 @@ def test_create_auth_endpoint_stores_selected_fields_encrypted(client):
     assert row["loc"] == "RTC"
 
 
-def test_list_auths_endpoint_returns_decrypted_records(client):
-    create_response = client.post("/api/auths", json=make_payload())
+def test_list_auths_endpoint_returns_decrypted_records(client, auth_headers):
+    create_response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
 
     assert create_response.status_code == 201
 
-    response = client.get("/api/auths")
+    response = client.get("/api/auths", headers=auth_headers)
 
     assert response.status_code == 200
 
@@ -129,12 +147,12 @@ def test_list_auths_endpoint_returns_decrypted_records(client):
     assert data["auths"][0]["date_of_birth"] == "1990-01-15"
 
 
-def test_get_auth_endpoint_returns_decrypted_record(client):
-    create_response = client.post("/api/auths", json=make_payload())
+def test_get_auth_endpoint_returns_decrypted_record(client, auth_headers):
+    create_response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
 
     assert create_response.status_code == 201
 
-    response = client.get("/api/auths/1")
+    response = client.get("/api/auths/1", headers=auth_headers)
 
     assert response.status_code == 200
 
@@ -145,45 +163,45 @@ def test_get_auth_endpoint_returns_decrypted_record(client):
     assert data["member_id"] == "ABC123"
 
 
-def test_get_auth_endpoint_returns_404_for_missing_record(client):
-    response = client.get("/api/auths/999")
+def test_get_auth_endpoint_returns_404_for_missing_record(client, auth_headers):
+    response = client.get("/api/auths/999", headers=auth_headers)
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Auth record not found."}
 
 
-def test_delete_auth_endpoint_removes_record(client):
-    create_response = client.post("/api/auths", json=make_payload())
+def test_delete_auth_endpoint_removes_record(client, auth_headers):
+    create_response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
 
     assert create_response.status_code == 201
 
-    delete_response = client.delete("/api/auths/1")
+    delete_response = client.delete("/api/auths/1", headers=auth_headers)
 
     assert delete_response.status_code == 200
     assert delete_response.json() == {"deleted": True, "id": 1}
 
-    get_response = client.get("/api/auths/1")
+    get_response = client.get("/api/auths/1", headers=auth_headers)
 
     assert get_response.status_code == 404
 
 
-def test_delete_auth_endpoint_returns_404_for_missing_record(client):
-    response = client.delete("/api/auths/999")
+def test_delete_auth_endpoint_returns_404_for_missing_record(client, auth_headers):
+    response = client.delete("/api/auths/999", headers=auth_headers)
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Auth record not found."}
 
 
-def test_create_auth_endpoint_rejects_unknown_fields(client):
+def test_create_auth_endpoint_rejects_unknown_fields(client, auth_headers):
     payload = make_payload()
     payload["unexpected_field"] = "not allowed"
 
-    response = client.post("/api/auths", json=payload)
+    response = client.post("/api/auths", json=payload, headers=auth_headers)
 
     assert response.status_code == 422
     
-def test_patch_auth_endpoint_updates_selected_fields(client):
-    create_response = client.post("/api/auths", json=make_payload())
+def test_patch_auth_endpoint_updates_selected_fields(client, auth_headers):
+    create_response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
 
     assert create_response.status_code == 201
 
@@ -194,6 +212,7 @@ def test_patch_auth_endpoint_updates_selected_fields(client):
             "days_approved": "4",
             "facility_informed": True,
         },
+        headers=auth_headers,
     )
 
     assert response.status_code == 200
@@ -207,8 +226,8 @@ def test_patch_auth_endpoint_updates_selected_fields(client):
     assert data["client_name"] == "John Smith"
 
 
-def test_patch_auth_endpoint_encrypts_updated_sensitive_fields(client):
-    create_response = client.post("/api/auths", json=make_payload())
+def test_patch_auth_endpoint_encrypts_updated_sensitive_fields(client, auth_headers):
+    create_response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
 
     assert create_response.status_code == 201
 
@@ -218,6 +237,7 @@ def test_patch_auth_endpoint_encrypts_updated_sensitive_fields(client):
             "client_name": "Jane Smith",
             "member_id": "XYZ789",
         },
+        headers=auth_headers,
     )
 
     assert response.status_code == 200
@@ -240,24 +260,82 @@ def test_patch_auth_endpoint_encrypts_updated_sensitive_fields(client):
     assert "XYZ789" not in row["member_id"]
 
 
-def test_patch_auth_endpoint_returns_404_for_missing_record(client):
-    response = client.patch("/api/auths/999", json={"status": "Submitted"})
+def test_patch_auth_endpoint_returns_404_for_missing_record(client, auth_headers):
+    response = client.patch(
+        "/api/auths/999",
+        json={"status": "Submitted"},
+        headers=auth_headers,
+    )
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Auth record not found."}
 
 
-def test_patch_auth_endpoint_rejects_unknown_fields(client):
-    create_response = client.post("/api/auths", json=make_payload())
+def test_patch_auth_endpoint_rejects_unknown_fields(client, auth_headers):
+    create_response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
 
     assert create_response.status_code == 201
 
-    response = client.patch("/api/auths/1", json={"unexpected_field": "not allowed"})
+    response = client.patch(
+        "/api/auths/1",
+        json={"unexpected_field": "not allowed"},
+        headers=auth_headers,
+    )
 
     assert response.status_code == 422
     
 
-def test_analytics_summary_endpoint_counts_records(client):
+def test_auth_routes_require_authentication(client):
+    response = client.get("/api/auths")
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Authentication required."}
+
+
+def test_read_only_user_can_view_auths(client):
+    create_user("readonly@example.com", "correct horse battery staple", role="Read Only")
+
+    login_response = client.post(
+        "/api/security/login",
+        json={
+            "username": "readonly@example.com",
+            "password": "correct horse battery staple",
+        },
+    )
+
+    token = login_response.json()["access_token"]
+
+    response = client.get(
+        "/api/auths",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+
+
+def test_read_only_user_cannot_create_auth(client):
+    create_user("readonly@example.com", "correct horse battery staple", role="Read Only")
+
+    login_response = client.post(
+        "/api/security/login",
+        json={
+            "username": "readonly@example.com",
+            "password": "correct horse battery staple",
+        },
+    )
+
+    token = login_response.json()["access_token"]
+
+    response = client.post(
+        "/api/auths",
+        json=make_payload(),
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Operation not permitted for this role."}
+
+def test_analytics_summary_endpoint_counts_records(client, auth_headers):
     first_payload = make_payload()
     second_payload = make_payload()
     second_payload["client_name"] = "Jane Smith"
@@ -268,10 +346,16 @@ def test_analytics_summary_endpoint_counts_records(client):
     second_payload["no_pa_required"] = True
     second_payload["waiting_on_clinicals"] = False
 
-    assert client.post("/api/auths", json=first_payload).status_code == 201
-    assert client.post("/api/auths", json=second_payload).status_code == 201
+    assert (
+        client.post("/api/auths", json=first_payload, headers=auth_headers).status_code
+        == 201
+    )
+    assert (
+        client.post("/api/auths", json=second_payload, headers=auth_headers).status_code
+        == 201
+    )
 
-    response = client.get("/api/analytics/summary")
+    response = client.get("/api/analytics/summary", headers=auth_headers)
 
     assert response.status_code == 200
     assert response.json() == {

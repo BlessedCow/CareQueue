@@ -1,0 +1,300 @@
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from typing import Any
+
+from authstatus_api.database import get_conn, init_db
+from authstatus_api.security.password_hashing import hash_password, verify_password
+from authstatus_api.security.sessions import (
+    DEFAULT_SESSION_MINUTES,
+    generate_session_token,
+    hash_session_token,
+    is_session_expired,
+    session_expiration,
+    utc_now,
+)
+
+
+def _format_datetime(value: datetime) -> str:
+    return value.astimezone(UTC).isoformat(timespec="seconds")
+
+
+def _parse_datetime(value: str) -> datetime:
+    return datetime.fromisoformat(value).astimezone(UTC)
+
+
+def _row_to_user(row: Any) -> dict[str, Any] | None:
+    if row is None:
+        return None
+
+    user = dict(row)
+    user["is_active"] = bool(user["is_active"])
+
+    return user
+
+
+def _row_to_session(row: Any) -> dict[str, Any] | None:
+    if row is None:
+        return None
+
+    return dict(row)
+
+
+def create_user(username: str, password: str, role: str = "UR") -> dict[str, Any]:
+    init_db()
+
+    normalized_username = username.strip().lower()
+    now = _format_datetime(utc_now())
+    password_hash = hash_password(password)
+
+    with get_conn() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO users (
+                username,
+                password_hash,
+                role,
+                password_changed_at,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                normalized_username,
+                password_hash,
+                role,
+                now,
+                now,
+                now,
+            ),
+        )
+
+        user_id = cursor.lastrowid
+
+    user = get_user_by_id(int(user_id))
+    if user is None:
+        raise RuntimeError("Unable to create user.")
+
+    return user
+
+
+def get_user_by_id(user_id: int) -> dict[str, Any] | None:
+    init_db()
+
+    with get_conn() as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM users
+            WHERE id = ?
+            """,
+            (user_id,),
+        ).fetchone()
+
+    return _row_to_user(row)
+
+
+def get_user_by_username(username: str) -> dict[str, Any] | None:
+    init_db()
+
+    normalized_username = username.strip().lower()
+
+    with get_conn() as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM users
+            WHERE username = ?
+            """,
+            (normalized_username,),
+        ).fetchone()
+
+    return _row_to_user(row)
+
+
+def create_user_session(
+    user_id: int,
+    *,
+    minutes: int = DEFAULT_SESSION_MINUTES,
+    ip_address: str = "",
+    user_agent: str = "",
+) -> dict[str, Any]:
+    init_db()
+
+    token = generate_session_token()
+    token_hash = hash_session_token(token)
+    now = _format_datetime(utc_now())
+    expires_at = _format_datetime(session_expiration(minutes=minutes))
+
+    with get_conn() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO sessions (
+                user_id,
+                token_hash,
+                created_at,
+                last_seen_at,
+                expires_at,
+                ip_address,
+                user_agent
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                user_id,
+                token_hash,
+                now,
+                now,
+                expires_at,
+                ip_address,
+                user_agent,
+            ),
+        )
+
+        session_id = cursor.lastrowid
+
+    session = get_session_by_id(int(session_id))
+    if session is None:
+        raise RuntimeError("Unable to create session.")
+
+    return {
+        "token": token,
+        "session": session,
+    }
+
+
+def get_session_by_id(session_id: int) -> dict[str, Any] | None:
+    init_db()
+
+    with get_conn() as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM sessions
+            WHERE id = ?
+            """,
+            (session_id,),
+        ).fetchone()
+
+    return _row_to_session(row)
+
+
+def get_active_session_by_token(token: str) -> dict[str, Any] | None:
+    init_db()
+
+    token_hash = hash_session_token(token)
+
+    with get_conn() as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM sessions
+            WHERE token_hash = ?
+              AND revoked_at IS NULL
+            """,
+            (token_hash,),
+        ).fetchone()
+
+    session = _row_to_session(row)
+
+    if session is None:
+        return None
+
+    if is_session_expired(_parse_datetime(session["expires_at"])):
+        return None
+
+    return session
+
+
+def touch_session(token: str) -> None:
+    init_db()
+
+    token_hash = hash_session_token(token)
+    now = _format_datetime(utc_now())
+
+    with get_conn() as conn:
+        conn.execute(
+            """
+            UPDATE sessions
+            SET last_seen_at = ?
+            WHERE token_hash = ?
+              AND revoked_at IS NULL
+            """,
+            (now, token_hash),
+        )
+
+
+def revoke_session(token: str) -> bool:
+    init_db()
+
+    token_hash = hash_session_token(token)
+    now = _format_datetime(utc_now())
+
+    with get_conn() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE sessions
+            SET revoked_at = ?
+            WHERE token_hash = ?
+              AND revoked_at IS NULL
+            """,
+            (now, token_hash),
+        )
+
+    return cursor.rowcount > 0
+
+def record_successful_login(user_id: int) -> None:
+    init_db()
+
+    now = _format_datetime(utc_now())
+
+    with get_conn() as conn:
+        conn.execute(
+            """
+            UPDATE users
+            SET
+                failed_login_count = 0,
+                last_login_at = ?,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (now, now, user_id),
+        )
+
+
+def authenticate_user(username: str, password: str) -> dict[str, Any] | None:
+    user = get_user_by_username(username)
+
+    if user is None:
+        return None
+
+    if not user["is_active"]:
+        return None
+
+    if not verify_password(user["password_hash"], password):
+        return None
+
+    record_successful_login(user["id"])
+
+    refreshed_user = get_user_by_id(user["id"])
+    if refreshed_user is None:
+        return None
+
+    return refreshed_user
+
+
+def get_user_for_session_token(token: str) -> dict[str, Any] | None:
+    session = get_active_session_by_token(token)
+
+    if session is None:
+        return None
+
+    user = get_user_by_id(session["user_id"])
+
+    if user is None or not user["is_active"]:
+        return None
+
+    touch_session(token)
+
+    return user

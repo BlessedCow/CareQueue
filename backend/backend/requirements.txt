@@ -7,3 +7,4 @@ python-dotenv
 httpx2
 pytest
 ruff
+argon2-cffi

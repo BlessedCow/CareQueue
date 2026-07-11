@@ -10,6 +10,7 @@ from authstatus_api.crypto import generate_encryption_key
 from authstatus_api.database import init_db
 from authstatus_api.routers.analytics import router as analytics_router
 from authstatus_api.routers.auths import router as auths_router
+from authstatus_api.routers.security import router as security_router
 from authstatus_api.settings import get_settings
 
 
@@ -50,6 +51,7 @@ def create_app() -> FastAPI:
             "AUTHSTATUS_ENCRYPTION_KEY": generate_encryption_key(),
         }
 
+    api.include_router(security_router)
     api.include_router(auths_router)
     api.include_router(analytics_router)
 
