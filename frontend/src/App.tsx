@@ -2,6 +2,15 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 // API
 import { fetchAuthRequests } from "./api/authStatus";
+import { clearAccessToken } from "./api/client";
+import {
+  fetchCurrentUser,
+  logoutUser,
+  type CurrentUser,
+} from "./api/security";
+
+// Components
+import { LoginPage } from "./components/LoginPage";
 
 // Pages
 import { DashboardPage } from "./pages/DashboardPage";
@@ -35,6 +44,8 @@ const SETTINGS_STORAGE_KEYS = {
 function App() {
   const [darkMode, setDarkMode] = useState(true);
   const [activePage, setActivePage] = useState<AppPage>("dashboard");
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
   const {
     dashboardCardSettings,
     handleToggleDashboardCard,
@@ -116,6 +127,32 @@ function App() {
   } = useAuthorizationEvents();
 
   useEffect(() => {
+    let isMounted = true;
+
+    async function restoreSession() {
+      try {
+        const user = await fetchCurrentUser();
+
+        if (isMounted) {
+          setCurrentUser(user);
+        }
+      } catch {
+        clearAccessToken();
+      } finally {
+        if (isMounted) {
+          setIsCheckingSession(false);
+        }
+      }
+    }
+
+    void restoreSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser]);
+
+  useEffect(() => {
     window.localStorage.setItem(
       SETTINGS_STORAGE_KEYS.facilities,
       JSON.stringify(registeredFacilities)
@@ -147,6 +184,13 @@ function App() {
 
   useEffect(() => {
     let isMounted = true;
+
+    if (!currentUser) {
+      setIsLoadingAuths(false);
+      return () => {
+        isMounted = false;
+      };
+    }
 
     async function loadAuthRequests() {
       try {
@@ -289,12 +333,42 @@ function App() {
     }
   };
 
+  const handleLogin = (user: CurrentUser) => {
+    setCurrentUser(user);
+    setActivePage("dashboard");
+  };
+
+  const handleLogout = async () => {
+    await logoutUser();
+    setCurrentUser(null);
+    setAuthRequests([]);
+    clearAuthEvents();
+    handleCancelAuthForm();
+    setActivePage("dashboard");
+  };
+
+  if (isCheckingSession) {
+    return (
+      <div
+        className={
+          darkMode ? "min-h-screen bg-gray-950" : "min-h-screen bg-gray-50"
+        }
+      />
+    );
+  }
+
+  if (!currentUser) {
+    return <LoginPage darkMode={darkMode} onLogin={handleLogin} />;
+  }
+
   return (
     <AppShell
       activePage={activePage}
       darkMode={darkMode}
+      currentUser={currentUser}
       onPageChange={setActivePage}
       onToggleDarkMode={() => setDarkMode((currentValue) => !currentValue)}
+      onLogout={handleLogout}
     >
       {activePage === "dashboard" && (
         <DashboardPage
@@ -398,7 +472,7 @@ function App() {
             if (!editingAuthId) {
               return;
             }
-          
+
             await handleAddTimelineEvent(editingAuthId);
             await refreshAuthRequests();
             handleCancelAuthForm();
@@ -417,7 +491,7 @@ function App() {
             if (!editingAuthId) {
               return;
             }
-          
+
             await handleUpdateTimelineEvent(editingAuthId, eventId, payload);
             await refreshAuthRequests();
             handleCancelAuthForm();

@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000';
+import { API_BASE_URL, authenticatedFetch } from "./client";
 
 export interface AuthEvent {
   id: number;
@@ -52,7 +52,7 @@ function mapApiEventToAuthEvent(item: any): AuthEvent {
 }
 
 export async function fetchAuthEvents(authId: string): Promise<AuthEvent[]> {
-  const response = await fetch(`${API_BASE_URL}/api/auths/${authId}/events`);
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/auths/${authId}/events`);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch authorization events: ${response.status}`);
@@ -87,7 +87,7 @@ export async function updateAuthEvent(
   eventId: number,
   payload: UpdateAuthEventPayload,
 ): Promise<AuthEvent> {
-  const response = await fetch(`${API_BASE_URL}/api/auths/${authId}/events/${eventId}`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/auths/${authId}/events/${eventId}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
@@ -104,7 +104,7 @@ export async function updateAuthEvent(
 }
 
 export async function deleteAuthEvent(authId: string, eventId: number): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/auths/${authId}/events/${eventId}`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/auths/${authId}/events/${eventId}`, {
     method: 'DELETE',
   });
 

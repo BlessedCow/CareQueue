@@ -1,4 +1,5 @@
 import { format, parseISO } from "date-fns";
+import { API_BASE_URL, authenticatedFetch } from "./client";
 
 import {
   AuthRequest,
@@ -9,8 +10,6 @@ import {
   Status,
 } from "../types/auth";
 
-const API_BASE_URL =
-  import.meta.env.VITE_AUTHSTATUS_API_BASE_URL ?? "http://127.0.0.1:8000";
 
 interface BackendAuthRecord {
   id: number;
@@ -191,7 +190,7 @@ function mapApiAuthToAuthRequest(item: any): AuthRequest {
 }
 
 export async function fetchAuthRequests(): Promise<AuthRequest[]> {
-  const response = await fetch(`${API_BASE_URL}/api/auths`);
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/auths`);
 
   if (!response.ok) {
     throw new Error(
@@ -204,7 +203,7 @@ export async function fetchAuthRequests(): Promise<AuthRequest[]> {
 }
 
 export async function deleteAuthRequest(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/auths/${id}`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/auths/${id}`, {
     method: "DELETE",
   });
 
@@ -247,7 +246,7 @@ export type UpdateAuthRequestPayload = Partial<CreateAuthRequestPayload>;
 export async function createAuthRequest(
   payload: CreateAuthRequestPayload
 ): Promise<AuthRequest> {
-  const response = await fetch(`${API_BASE_URL}/api/auths`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/auths`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -269,7 +268,7 @@ export async function updateAuthRequest(
   id: string,
   payload: UpdateAuthRequestPayload
 ): Promise<AuthRequest> {
-  const response = await fetch(`${API_BASE_URL}/api/auths/${id}`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/auths/${id}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",

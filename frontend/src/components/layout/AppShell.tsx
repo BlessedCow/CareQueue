@@ -12,13 +12,16 @@ import {
 import type { ReactNode } from "react";
 import type { AppPage } from "../../types/navigation";
 import { cn } from "../../utils/cn";
+import type { CurrentUser } from "../../api/security";
 
 interface AppShellProps {
   activePage: AppPage;
   darkMode: boolean;
+  currentUser: CurrentUser;
   children: ReactNode;
   onPageChange: (page: AppPage) => void;
   onToggleDarkMode: () => void;
+  onLogout: () => void;
 }
 
 const navigationItems: {
@@ -65,10 +68,13 @@ const PAGE_DESCRIPTIONS: Record<AppPage, string> = {
 export function AppShell({
   activePage,
   darkMode,
+  currentUser,
   children,
   onPageChange,
   onToggleDarkMode,
+  onLogout,
 }: AppShellProps) {
+  const userInitials = currentUser.username.slice(0, 2).toUpperCase();
   return (
     <div
       className={cn(
@@ -116,10 +122,11 @@ export function AppShell({
         </nav>
 
         <div className="border-t border-inherit p-4">
-          <a
-            href="#"
+          <button
+            type="button"
+            onClick={onLogout}
             className={cn(
-              "flex items-center rounded-lg px-3 py-2 transition-colors",
+              "flex w-full items-center rounded-lg px-3 py-2 text-left transition-colors",
               darkMode
                 ? "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
                 : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
@@ -127,7 +134,7 @@ export function AppShell({
           >
             <LogOut className="mr-3 h-5 w-5" />
             Logout
-          </a>
+          </button>
         </div>
       </aside>
 
@@ -189,8 +196,11 @@ export function AppShell({
               )}
             </button>
 
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500 text-sm font-semibold text-white">
-              JS
+            <div
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500 text-sm font-semibold text-white"
+              title={`${currentUser.username} (${currentUser.role})`}
+            >
+              {userInitials}
             </div>
           </div>
         </header>

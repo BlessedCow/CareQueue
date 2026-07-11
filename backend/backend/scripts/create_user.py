@@ -1,0 +1,58 @@
+from __future__ import annotations
+
+import argparse
+import getpass
+import os
+import sqlite3
+import sys
+from pathlib import Path
+
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(BACKEND_ROOT))
+
+os.environ.setdefault(
+    "AUTHSTATUS_DATABASE_PATH",
+    str(BACKEND_ROOT.parent / "data" / "auth_tracker.db"),
+)
+
+from authstatus_api.security.repository import create_user  # noqa: E402
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Create a CareQueue user.")
+    parser.add_argument("--username", required=True)
+    parser.add_argument(
+        "--role",
+        choices=["Admin", "UR", "Read Only"],
+        default="UR",
+    )
+
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+
+    password = getpass.getpass("Password: ")
+    confirm_password = getpass.getpass("Confirm password: ")
+
+    if password != confirm_password:
+        print("Passwords do not match.", file=sys.stderr)
+        return 1
+
+    if len(password) < 12:
+        print("Password must be at least 12 characters.", file=sys.stderr)
+        return 1
+
+    try:
+        user = create_user(args.username, password, role=args.role)
+    except sqlite3.IntegrityError:
+        print("A user with that username already exists.", file=sys.stderr)
+        return 1
+
+    print(f"Created user {user['username']} with role {user['role']}.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
