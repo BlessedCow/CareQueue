@@ -31,6 +31,9 @@ export type DenialReason =
 export interface AuthRequest {
   id: string;
   patientId: string;
+  memberId: string;
+  groupNumber: string;
+  dateOfBirth: string;
   date: Date;
   dateStr: string;
   facility: Facility;

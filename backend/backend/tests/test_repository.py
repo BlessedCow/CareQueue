@@ -36,6 +36,8 @@ def make_payload() -> dict:
         "facility": "Facility A",
         "client_name": "John Smith",
         "member_id": "ABC123",
+        "group_number": "GRP456",
+        "date_of_birth": "1990-01-15",
         "loc": "RTC",
         "insurance": "Test Plan",
         "insurance_phone": "555-123-4567",
@@ -68,6 +70,8 @@ def test_create_auth_returns_decrypted_record():
     assert created["id"] == 1
     assert created["client_name"] == "John Smith"
     assert created["member_id"] == "ABC123"
+    assert created["group_number"] == "GRP456"
+    assert created["date_of_birth"] == "1990-01-15"
     assert created["facility"] == "Facility A"
     assert created["care_manager_enabled"] is True
     assert created["progress_made"] is True
@@ -86,6 +90,8 @@ def test_create_auth_stores_selected_fields_encrypted():
     assert row is not None
     assert row["client_name"].startswith(crypto.ENCRYPTED_TEXT_PREFIX)
     assert row["member_id"].startswith(crypto.ENCRYPTED_TEXT_PREFIX)
+    assert row["group_number"].startswith(crypto.ENCRYPTED_TEXT_PREFIX)
+    assert row["date_of_birth"].startswith(crypto.ENCRYPTED_TEXT_PREFIX)
     assert row["insurance_phone"].startswith(crypto.ENCRYPTED_TEXT_PREFIX)
     assert row["facility"] == "Facility A"
     assert row["loc"] == "RTC"
@@ -99,6 +105,8 @@ def test_list_auths_returns_decrypted_records():
     assert len(records) == 1
     assert records[0]["client_name"] == "John Smith"
     assert records[0]["member_id"] == "ABC123"
+    assert records[0]["group_number"] == "GRP456"
+    assert records[0]["date_of_birth"] == "1990-01-15"
 
 
 def test_get_auth_returns_none_for_missing_record():

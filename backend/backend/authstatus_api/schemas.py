@@ -7,6 +7,8 @@ class AuthBase(BaseModel):
     facility: str
     client_name: str
     member_id: str = ""
+    group_number: str = ""
+    date_of_birth: str = ""
     loc: str
     insurance: str = ""
     insurance_phone: str = ""
@@ -46,6 +48,8 @@ class AuthUpdate(BaseModel):
     facility: str | None = None
     client_name: str | None = None
     member_id: str | None = None
+    group_number: str | None = None
+    date_of_birth: str | None = None
     loc: str | None = None
     insurance: str | None = None
     insurance_phone: str | None = None

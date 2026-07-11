@@ -31,6 +31,8 @@ def make_payload() -> dict:
         "facility": "Facility A",
         "client_name": "John Smith",
         "member_id": "ABC123",
+        "group_number": "GRP456",
+        "date_of_birth": "1990-01-15",
         "loc": "RTC",
         "insurance": "Test Plan",
         "insurance_phone": "555-123-4567",
@@ -78,6 +80,8 @@ def test_create_auth_endpoint_returns_decrypted_record(client):
     assert data["id"] == 1
     assert data["client_name"] == "John Smith"
     assert data["member_id"] == "ABC123"
+    assert data["group_number"] == "GRP456"
+    assert data["date_of_birth"] == "1990-01-15"
     assert data["facility"] == "Facility A"
     assert data["care_manager_enabled"] is True
     assert data["progress_made"] is True
@@ -98,6 +102,8 @@ def test_create_auth_endpoint_stores_selected_fields_encrypted(client):
     assert row is not None
     assert row["client_name"].startswith(ENCRYPTED_TEXT_PREFIX)
     assert row["member_id"].startswith(ENCRYPTED_TEXT_PREFIX)
+    assert row["group_number"].startswith(ENCRYPTED_TEXT_PREFIX)
+    assert row["date_of_birth"].startswith(ENCRYPTED_TEXT_PREFIX)
     assert row["insurance_phone"].startswith(ENCRYPTED_TEXT_PREFIX)
     assert row["insurance_fax"].startswith(ENCRYPTED_TEXT_PREFIX)
     assert row["fax_numbers"].startswith(ENCRYPTED_TEXT_PREFIX)
@@ -119,6 +125,8 @@ def test_list_auths_endpoint_returns_decrypted_records(client):
     assert len(data["auths"]) == 1
     assert data["auths"][0]["client_name"] == "John Smith"
     assert data["auths"][0]["member_id"] == "ABC123"
+    assert data["auths"][0]["group_number"] == "GRP456"
+    assert data["auths"][0]["date_of_birth"] == "1990-01-15"
 
 
 def test_get_auth_endpoint_returns_decrypted_record(client):

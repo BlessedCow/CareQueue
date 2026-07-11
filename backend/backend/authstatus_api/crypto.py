@@ -18,6 +18,8 @@ class DecryptionError(RuntimeError):
 ENCRYPTED_AUTH_FIELDS = {
     "client_name",
     "member_id",
+    "group_number",
+    "date_of_birth",
     "insurance_phone",
     "insurance_fax",
     "fax_numbers",

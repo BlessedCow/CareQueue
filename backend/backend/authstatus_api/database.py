@@ -10,6 +10,8 @@ AUTH_TABLE_COLUMNS = {
     "facility",
     "client_name",
     "member_id",
+    "group_number",
+    "date_of_birth",
     "loc",
     "insurance",
     "insurance_phone",
@@ -91,6 +93,8 @@ def init_db() -> None:
                 facility TEXT NOT NULL,
                 client_name TEXT NOT NULL,
                 member_id TEXT,
+                group_number TEXT,
+                date_of_birth TEXT,                
                 loc TEXT NOT NULL,
                 insurance TEXT,
                 insurance_phone TEXT,
@@ -149,6 +153,8 @@ def init_db() -> None:
         )
 
         ensure_column(conn, "auths", "member_id", "TEXT")
+        ensure_column(conn, "auths", "group_number", "TEXT")
+        ensure_column(conn, "auths", "date_of_birth", "TEXT")
         ensure_column(conn, "auths", "insurance", "TEXT")
         ensure_column(conn, "auths", "insurance_fax", "TEXT")
         ensure_column(conn, "auths", "requested_days", "INTEGER NOT NULL DEFAULT 0")

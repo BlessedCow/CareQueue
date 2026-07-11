@@ -20,6 +20,9 @@ function formatPhoneNumber(value: string) {
 
 interface NewAuthFormState {
   clientName: string;
+  memberId: string;
+  groupNumber: string;
+  dateOfBirth: string;
   facility: string;
   loc: string;
   status: string;
@@ -93,6 +96,57 @@ export function AddAuthorizationForm({
           type="text"
           value={form.clientName}
           onChange={(event) => onFieldChange("clientName", event.target.value)}
+          className={cn(
+            "w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500",
+            darkMode
+              ? "border-gray-700 bg-gray-900 text-gray-100"
+              : "border-gray-300 bg-white text-gray-900"
+          )}
+        />
+      </label>
+
+      <label className="space-y-1 text-sm">
+        <span className={darkMode ? "text-gray-300" : "text-gray-700"}>
+          Member ID
+        </span>
+        <input
+          type="text"
+          value={form.memberId}
+          onChange={(event) => onFieldChange("memberId", event.target.value)}
+          className={cn(
+            "w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500",
+            darkMode
+              ? "border-gray-700 bg-gray-900 text-gray-100"
+              : "border-gray-300 bg-white text-gray-900"
+          )}
+        />
+      </label>
+
+      <label className="space-y-1 text-sm">
+        <span className={darkMode ? "text-gray-300" : "text-gray-700"}>
+          Group Number
+        </span>
+        <input
+          type="text"
+          value={form.groupNumber}
+          onChange={(event) => onFieldChange("groupNumber", event.target.value)}
+          className={cn(
+            "w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500",
+            darkMode
+              ? "border-gray-700 bg-gray-900 text-gray-100"
+              : "border-gray-300 bg-white text-gray-900"
+          )}
+        />
+      </label>
+
+      <label className="space-y-1 text-sm">
+        <span className={darkMode ? "text-gray-300" : "text-gray-700"}>
+          Date of Birth
+        </span>
+        <input
+          type="date"
+          value={form.dateOfBirth}
+          onChange={(event) => onFieldChange("dateOfBirth", event.target.value)}
           className={cn(
             "w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500",
             darkMode

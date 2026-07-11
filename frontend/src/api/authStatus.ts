@@ -17,6 +17,8 @@ interface BackendAuthRecord {
   facility: string;
   client_name: string;
   member_id: string;
+  group_number: string;
+  date_of_birth: string;
   loc: string;
   insurance: string;
   insurance_phone: string;
@@ -135,6 +137,9 @@ function toAuthRequest(record: BackendAuthRecord): AuthRequest {
   return {
     id: String(record.id),
     patientId: record.client_name || record.member_id || `Auth ${record.id}`,
+    memberId: record.member_id ?? "",
+    groupNumber: record.group_number ?? "",
+    dateOfBirth: record.date_of_birth ?? "",
     date: parseISO(dateStr),
     dateStr,
     facility: normalizeFacility(record.facility),
@@ -157,6 +162,9 @@ function mapApiAuthToAuthRequest(item: any): AuthRequest {
   return {
     id: String(item.id),
     patientId: item.client_name ?? "Unknown Client",
+    memberId: item.member_id ?? "",
+    groupNumber: item.group_number ?? "",
+    dateOfBirth: item.date_of_birth ?? "",
     facility: item.facility ?? "Unknown Facility",
     status: item.status ?? "Pending",
     payer: item.insurance ?? "Unknown Insurance",
@@ -209,6 +217,9 @@ export async function deleteAuthRequest(id: string): Promise<void> {
 
 export interface CreateAuthRequestPayload {
   client_name: string;
+  member_id?: string;
+  group_number?: string;
+  date_of_birth?: string;
   facility: string;
   loc: string;
   status: string;
