@@ -66,7 +66,7 @@ export async function createAuthEvent(
   authId: string,
   payload: CreateAuthEventPayload,
 ): Promise<AuthEvent> {
-  const response = await fetch(`${API_BASE_URL}/api/auths/${authId}/events`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/auths/${authId}/events`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

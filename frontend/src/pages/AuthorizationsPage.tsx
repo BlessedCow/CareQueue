@@ -31,6 +31,7 @@ interface AuthorizationsPageProps {
   setSelectedWorkQueue: (value: WorkQueueFilter) => void;
   onClearFilters: () => void;
   workflowViewMode: WorkflowViewMode;
+  canManageAuthorizations: boolean;
   filteredData: AuthRequest[];
   showAddAuthForm: boolean;
   viewingAuth: AuthRequest | null;
@@ -97,6 +98,7 @@ export function AuthorizationsPage({
   selectedWorkQueue,
   setSelectedWorkQueue,
   onClearFilters,
+  canManageAuthorizations,
   filteredData,
   showAddAuthForm,
   viewingAuth,
@@ -219,7 +221,7 @@ export function AuthorizationsPage({
           </div>
 
           <div className="flex flex-wrap justify-end gap-2">
-            {showAddAuthForm && editingAuthId && (
+            {canManageAuthorizations && showAddAuthForm && editingAuthId && (
               <button
                 type="button"
                 onClick={onStartLocChangeAuthorization}
@@ -234,40 +236,44 @@ export function AuthorizationsPage({
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={() => {
-                if (viewingAuth) {
-                  onCloseViewAuth();
-                  return;
-                }
+            {(canManageAuthorizations || showAddAuthForm || viewingAuth) && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (viewingAuth) {
+                    onCloseViewAuth();
+                    return;
+                  }
 
-                if (showAddAuthForm) {
-                  onCancelAuthForm();
-                  return;
-                }
+                  if (showAddAuthForm) {
+                    onCancelAuthForm();
+                    return;
+                  }
 
-                onShowAddAuthForm();
-              }}
-              className={cn(
-                "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
-                darkMode
-                  ? "bg-blue-600 text-white hover:bg-blue-500"
-                  : "bg-blue-600 text-white hover:bg-blue-700"
-              )}
-            >
-              {showAddAuthForm
-                ? editingAuthId
-                  ? "Close Edit"
-                  : "Close Form"
-                : viewingAuth
-                ? "Back to List"
-                : "Add Authorization"}
-            </button>
+                  if (canManageAuthorizations) {
+                    onShowAddAuthForm();
+                  }
+                }}
+                className={cn(
+                  "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+                  darkMode
+                    ? "bg-blue-600 text-white hover:bg-blue-500"
+                    : "bg-blue-600 text-white hover:bg-blue-700"
+                )}
+              >
+                {showAddAuthForm
+                  ? editingAuthId
+                    ? "Close Edit"
+                    : "Close Form"
+                  : viewingAuth
+                  ? "Back to List"
+                  : "Add Authorization"}
+              </button>
+            )}
           </div>
         </div>
 
-        {showAddAuthForm && (
+        {canManageAuthorizations && showAddAuthForm && (
           <>
             <AddAuthorizationForm
               form={newAuthForm}
@@ -417,6 +423,7 @@ export function AuthorizationsPage({
               events={authEvents}
               isLoadingEvents={isLoadingAuthEvents}
               eventsError={authEventsError}
+              canEdit={canManageAuthorizations}
               onClose={onCloseViewAuth}
               onEdit={onEditAuth}
             />
@@ -428,8 +435,8 @@ export function AuthorizationsPage({
             data={filteredData}
             darkMode={darkMode}
             onView={onViewAuth}
-            onEdit={onEditAuth}
-            onDelete={onDeleteAuth}
+            onEdit={canManageAuthorizations ? onEditAuth : undefined}
+            onDelete={canManageAuthorizations ? onDeleteAuth : undefined}
             deletingId={deletingAuthId}
             workflowViewMode={workflowViewMode}
           />

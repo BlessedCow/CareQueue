@@ -12,6 +12,7 @@ interface AuthorizationReadOnlyViewProps {
   events: AuthEvent[];
   isLoadingEvents: boolean;
   eventsError: string | null;
+  canEdit: boolean;
   onClose: () => void;
   onEdit: (auth: AuthRequest) => void;
 }
@@ -74,6 +75,7 @@ export function AuthorizationReadOnlyView({
   events,
   isLoadingEvents,
   eventsError,
+  canEdit,
   onClose,
   onEdit,
 }: AuthorizationReadOnlyViewProps) {
@@ -115,18 +117,20 @@ export function AuthorizationReadOnlyView({
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => onEdit(auth)}
-            className={cn(
-              "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-              darkMode
-                ? "bg-blue-600 text-white hover:bg-blue-500"
-                : "bg-blue-600 text-white hover:bg-blue-700"
-            )}
-          >
-            Edit Auth
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => onEdit(auth)}
+              className={cn(
+                "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                darkMode
+                  ? "bg-blue-600 text-white hover:bg-blue-500"
+                  : "bg-blue-600 text-white hover:bg-blue-700"
+              )}
+            >
+              Edit Auth
+            </button>
+          )}
 
           <button
             type="button"

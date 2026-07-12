@@ -3,11 +3,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 // API
 import { fetchAuthRequests } from "./api/authStatus";
 import { clearAccessToken } from "./api/client";
-import {
-  fetchCurrentUser,
-  logoutUser,
-  type CurrentUser,
-} from "./api/security";
+import { fetchCurrentUser, logoutUser, type CurrentUser } from "./api/security";
 
 // Components
 import { LoginPage } from "./components/LoginPage";
@@ -150,7 +146,7 @@ function App() {
     return () => {
       isMounted = false;
     };
-  }, [currentUser]);
+  }, []);
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -222,7 +218,7 @@ function App() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [currentUser]);
 
   const {
     showAddAuthForm,
@@ -361,6 +357,9 @@ function App() {
     return <LoginPage darkMode={darkMode} onLogin={handleLogin} />;
   }
 
+  const canManageAuthorizations =
+    currentUser.role === "Admin" || currentUser.role === "UR";
+
   return (
     <AppShell
       activePage={activePage}
@@ -443,6 +442,7 @@ function App() {
           registeredWebPortals={registeredWebPortals}
           authEvents={authEvents}
           workflowViewMode={workflowViewMode}
+          canManageAuthorizations={canManageAuthorizations}
           authEventsError={authEventsError}
           isLoadingAuthEvents={isLoadingAuthEvents}
           isSavingAuthEvent={isSavingAuthEvent}
