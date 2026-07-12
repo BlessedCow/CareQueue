@@ -88,6 +88,19 @@ SESSION_TABLE_COLUMNS = {
     "user_agent",
 }
 
+AUDIT_EVENT_TABLE_COLUMNS = {
+    "id",
+    "user_id",
+    "username",
+    "action",
+    "resource_type",
+    "resource_id",
+    "metadata",
+    "ip_address",
+    "user_agent",
+    "created_at",
+}
+
 
 def get_database_path() -> Path:
     return get_settings().database_path
@@ -215,6 +228,24 @@ def init_db() -> None:
             )
             """
         )
+        
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS audit_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                username TEXT,
+                action TEXT NOT NULL,
+                resource_type TEXT NOT NULL,
+                resource_id INTEGER,
+                metadata TEXT NOT NULL DEFAULT '{}',
+                ip_address TEXT,
+                user_agent TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
+            )
+            """
+        )
 
         ensure_column(conn, "auths", "member_id", "TEXT")
         ensure_column(conn, "auths", "group_number", "TEXT")
@@ -238,3 +269,8 @@ def init_db() -> None:
         ensure_column(conn, "users", "password_changed_at", "TEXT")
         ensure_column(conn, "sessions", "ip_address", "TEXT")
         ensure_column(conn, "sessions", "user_agent", "TEXT")
+        ensure_column(conn, "audit_events", "user_id", "INTEGER")
+        ensure_column(conn, "audit_events", "username", "TEXT")
+        ensure_column(conn, "audit_events", "metadata", "TEXT NOT NULL DEFAULT '{}'")
+        ensure_column(conn, "audit_events", "ip_address", "TEXT")
+        ensure_column(conn, "audit_events", "user_agent", "TEXT")

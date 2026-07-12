@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 from authstatus_api.crypto import generate_encryption_key
+from authstatus_api.database import get_conn
 from authstatus_api.main import create_app
 from authstatus_api.security.repository import create_user
 from authstatus_api.settings import get_settings
@@ -61,6 +62,31 @@ def test_login_rejects_wrong_password(client):
 
     assert response.status_code == 401
     assert response.json() == {"detail": "Invalid username or password."}
+    
+    
+def test_failed_login_writes_audit_event(client):
+    create_user("user@example.com", "correct horse battery staple", role="UR")
+
+    response = client.post(
+        "/api/security/login",
+        json={
+            "username": "user@example.com",
+            "password": "wrong password",
+        },
+    )
+
+    assert response.status_code == 401
+
+    with get_conn() as conn:
+        row = conn.execute(
+            """
+            SELECT action, username, metadata
+            FROM audit_events
+            """
+        ).fetchone()
+
+    assert row["action"] == "security.login_failed"
+    assert row["username"] == "user@example.com"
 
 
 def test_login_rejects_unknown_user(client):
@@ -146,3 +172,40 @@ def test_logout_revokes_session(client):
     )
 
     assert me_response.status_code == 401
+
+
+def test_login_and_logout_write_audit_events(client):
+    create_user("user@example.com", "correct horse battery staple", role="UR")
+
+    login_response = client.post(
+        "/api/security/login",
+        json={
+            "username": "user@example.com",
+            "password": "correct horse battery staple",
+        },
+    )
+
+    assert login_response.status_code == 200
+
+    token = login_response.json()["access_token"]
+
+    logout_response = client.post(
+        "/api/security/logout",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert logout_response.status_code == 200
+
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT action, username
+            FROM audit_events
+            ORDER BY id
+            """
+        ).fetchall()
+
+    assert [(row["action"], row["username"]) for row in rows] == [
+        ("security.login", "user@example.com"),
+        ("security.logout", "user@example.com"),
+    ]

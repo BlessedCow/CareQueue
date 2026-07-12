@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Header, HTTPException, Request, status
 
+from authstatus_api.audit.service import record_audit_event
 from authstatus_api.security.dependencies import (
     CurrentUserDependency,
     extract_bearer_token,
@@ -9,6 +10,7 @@ from authstatus_api.security.dependencies import (
 from authstatus_api.security.repository import (
     authenticate_user,
     create_user_session,
+    get_user_for_session_token,
     revoke_session,
 )
 from authstatus_api.security.schemas import (
@@ -45,6 +47,14 @@ def login(payload: LoginRequest, request: Request) -> LoginResponse:
     user = authenticate_user(payload.username, payload.password)
 
     if user is None:
+        record_audit_event(
+            action="security.login_failed",
+            resource_type="security",
+            metadata={"username": payload.username.strip().lower()},
+            request=request,
+            username=payload.username.strip().lower(),
+        )
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password.",
@@ -57,6 +67,14 @@ def login(payload: LoginRequest, request: Request) -> LoginResponse:
     )
 
     session = created_session["session"]
+    
+    record_audit_event(
+        action="security.login",
+        resource_type="session",
+        resource_id=session["id"],
+        user=user,
+        request=request,
+    )
 
     return LoginResponse(
         access_token=created_session["token"],
@@ -66,10 +84,23 @@ def login(payload: LoginRequest, request: Request) -> LoginResponse:
 
 
 @router.post("/logout", response_model=LogoutResponse)
-def logout(authorization: str | None = Header(default=None)) -> LogoutResponse:
+def logout(
+    request: Request,
+    authorization: str | None = Header(default=None),
+) -> LogoutResponse:
     token = extract_bearer_token(authorization)
+    user = get_user_for_session_token(token)
+    logged_out = revoke_session(token)
 
-    return LogoutResponse(logged_out=revoke_session(token))
+    if logged_out:
+        record_audit_event(
+            action="security.logout",
+            resource_type="session",
+            user=user,
+            request=request,
+        )
+
+    return LogoutResponse(logged_out=logged_out)
 
 
 @router.get("/me", response_model=CurrentUserResponse)

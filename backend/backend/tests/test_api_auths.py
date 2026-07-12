@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 
 import pytest
 from authstatus_api.crypto import ENCRYPTED_TEXT_PREFIX, generate_encryption_key
+from authstatus_api.database import get_conn
 from authstatus_api.main import create_app
 from authstatus_api.security.repository import create_user
 from authstatus_api.settings import get_settings
@@ -285,6 +287,88 @@ def test_patch_auth_endpoint_rejects_unknown_fields(client, auth_headers):
     assert response.status_code == 422
     
 
+def audit_rows() -> list[dict]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT action, resource_type, resource_id, username, metadata
+            FROM audit_events
+            ORDER BY id
+            """
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def test_create_auth_writes_audit_event(client, auth_headers):
+    response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
+
+    assert response.status_code == 201
+
+    created = response.json()
+    rows = audit_rows()
+
+    assert rows[-1]["action"] == "auth.create"
+    assert rows[-1]["resource_type"] == "auth"
+    assert rows[-1]["resource_id"] == created["id"]
+    assert rows[-1]["username"] == "ur@example.com"
+
+    metadata = json.loads(rows[-1]["metadata"])
+
+    assert "fields" in metadata
+    assert "client_name" in metadata["fields"]
+    assert "member_id" in metadata["fields"]
+    assert "John Smith" not in rows[-1]["metadata"]
+    assert "ABC123" not in rows[-1]["metadata"]
+
+
+def test_update_auth_writes_audit_event_without_phi_values(client, auth_headers):
+    create_response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
+
+    assert create_response.status_code == 201
+
+    response = client.patch(
+        "/api/auths/1",
+        json={
+            "client_name": "Jane Smith",
+            "member_id": "XYZ789",
+            "status": "Submitted",
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+
+    rows = audit_rows()
+
+    assert rows[-1]["action"] == "auth.update"
+    assert rows[-1]["resource_type"] == "auth"
+    assert rows[-1]["resource_id"] == 1
+    assert rows[-1]["username"] == "ur@example.com"
+
+    metadata = json.loads(rows[-1]["metadata"])
+
+    assert metadata == {"fields": ["client_name", "member_id", "status"]}
+    assert "Jane Smith" not in rows[-1]["metadata"]
+    assert "XYZ789" not in rows[-1]["metadata"]
+
+
+def test_delete_auth_writes_audit_event(client, auth_headers):
+    create_response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
+
+    assert create_response.status_code == 201
+
+    response = client.delete("/api/auths/1", headers=auth_headers)
+
+    assert response.status_code == 200
+
+    rows = audit_rows()
+
+    assert rows[-1]["action"] == "auth.delete"
+    assert rows[-1]["resource_type"] == "auth"
+    assert rows[-1]["resource_id"] == 1
+    assert rows[-1]["username"] == "ur@example.com"
+
 def test_auth_routes_require_authentication(client):
     response = client.get("/api/auths")
 
@@ -334,6 +418,113 @@ def test_read_only_user_cannot_create_auth(client):
 
     assert response.status_code == 403
     assert response.json() == {"detail": "Operation not permitted for this role."}
+
+def make_event_payload() -> dict:
+    return {
+        "event_type": "Initial Review",
+        "event_date": "2026-01-02",
+        "event_time": "",
+        "outcome": "Approved",
+        "auth_start_date": "2026-01-02",
+        "auth_end_date": "2026-01-05",
+        "review_due_date": "2026-01-06",
+        "requested_days": 4,
+        "approved_days": 4,
+        "notes": "Do not store this note in audit metadata.",
+    }
+
+
+def test_create_auth_event_writes_audit_event_without_note_value(client, auth_headers):
+    create_response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
+
+    assert create_response.status_code == 201
+
+    response = client.post(
+        "/api/auths/1/events",
+        json=make_event_payload(),
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 201
+
+    event = response.json()
+    rows = audit_rows()
+
+    assert rows[-1]["action"] == "auth_event.create"
+    assert rows[-1]["resource_type"] == "auth_event"
+    assert rows[-1]["resource_id"] == event["id"]
+    assert rows[-1]["username"] == "ur@example.com"
+
+    metadata = json.loads(rows[-1]["metadata"])
+
+    assert metadata["auth_id"] == 1
+    assert "fields" in metadata
+    assert "notes" in metadata["fields"]
+    assert "Do not store this note" not in rows[-1]["metadata"]
+
+
+def test_update_auth_event_writes_audit_event_without_note_value(client, auth_headers):
+    create_response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
+
+    assert create_response.status_code == 201
+
+    event_response = client.post(
+        "/api/auths/1/events",
+        json=make_event_payload(),
+        headers=auth_headers,
+    )
+
+    assert event_response.status_code == 201
+
+    response = client.patch(
+        "/api/auths/1/events/1",
+        json={
+            "outcome": "Denied",
+            "notes": "Sensitive update note should not be in audit metadata.",
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+
+    rows = audit_rows()
+
+    assert rows[-1]["action"] == "auth_event.update"
+    assert rows[-1]["resource_type"] == "auth_event"
+    assert rows[-1]["resource_id"] == 1
+    assert rows[-1]["username"] == "ur@example.com"
+
+    metadata = json.loads(rows[-1]["metadata"])
+
+    assert metadata == {"auth_id": 1, "fields": ["notes", "outcome"]}
+    assert "Sensitive update note" not in rows[-1]["metadata"]
+
+
+def test_delete_auth_event_writes_audit_event(client, auth_headers):
+    create_response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
+
+    assert create_response.status_code == 201
+
+    event_response = client.post(
+        "/api/auths/1/events",
+        json=make_event_payload(),
+        headers=auth_headers,
+    )
+
+    assert event_response.status_code == 201
+
+    response = client.delete("/api/auths/1/events/1", headers=auth_headers)
+
+    assert response.status_code == 200
+
+    rows = audit_rows()
+
+    assert rows[-1]["action"] == "auth_event.delete"
+    assert rows[-1]["resource_type"] == "auth_event"
+    assert rows[-1]["resource_id"] == 1
+    assert rows[-1]["username"] == "ur@example.com"
+    assert json.loads(rows[-1]["metadata"]) == {"auth_id": 1}
+    
 
 def test_analytics_summary_endpoint_counts_records(client, auth_headers):
     first_payload = make_payload()
