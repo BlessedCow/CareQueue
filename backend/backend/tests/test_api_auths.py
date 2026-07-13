@@ -7,6 +7,7 @@ import pytest
 from authstatus_api.crypto import ENCRYPTED_TEXT_PREFIX, generate_encryption_key
 from authstatus_api.database import get_conn
 from authstatus_api.main import create_app
+from authstatus_api.routers import auths as auths_router
 from authstatus_api.security.repository import create_user
 from authstatus_api.settings import get_settings
 from fastapi.testclient import TestClient
@@ -202,6 +203,39 @@ def test_create_auth_endpoint_rejects_unknown_fields(client, auth_headers):
 
     assert response.status_code == 422
     
+def test_validation_error_response_does_not_echo_request_payload(
+    client,
+    auth_headers,
+):
+    payload = make_payload()
+    payload["unexpected_field"] = "John Smith ABC123 should not be echoed"
+
+    response = client.post("/api/auths", json=payload, headers=auth_headers)
+
+    assert response.status_code == 422
+    assert response.json() == {"detail": "Invalid request."}
+    assert "John Smith" not in response.text
+    assert "ABC123" not in response.text
+
+
+def test_internal_error_response_does_not_expose_exception_message(
+    auth_headers,
+    monkeypatch,
+):
+    def fail_list_auths() -> list[dict]:
+        raise RuntimeError("John Smith ABC123 internal failure")
+
+    monkeypatch.setattr(auths_router, "list_auths", fail_list_auths)
+
+    with TestClient(create_app(), raise_server_exceptions=False) as safe_client:
+        response = safe_client.get("/api/auths", headers=auth_headers)
+
+    assert response.status_code == 500
+    assert response.json() == {"detail": "An unexpected error occurred."}
+    assert "John Smith" not in response.text
+    assert "ABC123" not in response.text
+    assert "internal failure" not in response.text
+
 def test_patch_auth_endpoint_updates_selected_fields(client, auth_headers):
     create_response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
 

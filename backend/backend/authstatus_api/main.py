@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from authstatus_api.crypto import generate_encryption_key
 from authstatus_api.database import init_db
+from authstatus_api.errors import register_exception_handlers
 from authstatus_api.routers.analytics import router as analytics_router
 from authstatus_api.routers.auths import router as auths_router
 from authstatus_api.routers.security import router as security_router
@@ -36,6 +37,8 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    register_exception_handlers(api)
 
     @api.get("/api/health")
     def health_check() -> dict[str, str]:

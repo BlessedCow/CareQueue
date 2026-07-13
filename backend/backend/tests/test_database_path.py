@@ -2,7 +2,6 @@ from pathlib import Path
 
 import pytest
 from authstatus_api.database import (
-    BACKEND_ROOT,
     EXPECTED_DATABASE_DIRECTORY,
     DatabaseEncryptionError,
     DatabasePathError,
@@ -14,9 +13,7 @@ from authstatus_api.database import (
 from authstatus_api.database_encryption.sqlcipher_probe import (
     plaintext_sqlite_can_read_database,
 )
-from authstatus_api.settings import get_settings
-
-PROJECT_ROOT = BACKEND_ROOT.parents[1]
+from authstatus_api.settings import PROJECT_ROOT, get_settings
 
 
 @pytest.fixture(autouse=True)
