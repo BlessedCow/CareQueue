@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 from datetime import UTC, datetime
 from typing import Any
 
@@ -111,6 +112,66 @@ def get_user_by_username(username: str) -> dict[str, Any] | None:
         ).fetchone()
 
     return _row_to_user(row)
+
+
+def list_users() -> list[dict[str, Any]]:
+    init_db()
+
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT *
+            FROM users
+            ORDER BY username
+            """
+        ).fetchall()
+
+    return [_row_to_user(row) for row in rows if row is not None]
+
+
+def update_user(
+    user_id: int,
+    *,
+    role: str | None = None,
+    is_active: bool | None = None,
+) -> dict[str, Any] | None:
+    init_db()
+
+    updates: list[str] = []
+    values: list[Any] = []
+
+    if role is not None:
+        updates.append("role = ?")
+        values.append(role)
+
+    if is_active is not None:
+        updates.append("is_active = ?")
+        values.append(1 if is_active else 0)
+
+    if not updates:
+        return get_user_by_id(user_id)
+
+    updates.append("updated_at = ?")
+    values.append(_format_datetime(utc_now()))
+    values.append(user_id)
+
+    try:
+        with get_conn() as conn:
+            cursor = conn.execute(
+                f"""
+                UPDATE users
+                SET {", ".join(updates)}
+                WHERE id = ?
+                """,
+                values,
+            )
+    except sqlite3.IntegrityError:
+        raise
+
+    if cursor.rowcount == 0:
+        return None
+
+    return get_user_by_id(user_id)
 
 
 def create_user_session(

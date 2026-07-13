@@ -12,8 +12,10 @@ from authstatus_api.security.repository import (
     get_active_session_by_token,
     get_user_by_id,
     get_user_by_username,
+    list_users,
     revoke_session,
     touch_session,
+    update_user,
 )
 from authstatus_api.security.sessions import hash_session_token
 from authstatus_api.settings import get_settings
@@ -57,6 +59,46 @@ def test_get_user_by_username_is_case_insensitive():
     assert found is not None
     assert found["id"] == created["id"]
 
+
+def test_list_users_returns_users_ordered_by_username():
+    create_user("z-user@example.com", "password value", role="UR")
+    create_user("a-user@example.com", "password value", role="Admin")
+
+    users = list_users()
+
+    assert [user["username"] for user in users] == [
+        "a-user@example.com",
+        "z-user@example.com",
+    ]
+
+
+def test_update_user_updates_role_and_active_status():
+    user = create_user("update@example.com", "password value", role="UR")
+
+    updated = update_user(
+        user["id"],
+        role="Read Only",
+        is_active=False,
+    )
+
+    assert updated is not None
+    assert updated["role"] == "Read Only"
+    assert updated["is_active"] is False
+
+
+def test_update_user_returns_existing_user_for_empty_update():
+    user = create_user("empty-update@example.com", "password value", role="UR")
+
+    updated = update_user(user["id"])
+
+    assert updated is not None
+    assert updated["id"] == user["id"]
+    assert updated["role"] == "UR"
+
+
+def test_update_user_returns_none_for_missing_user():
+    assert update_user(999, role="UR") is None
+    
 
 def test_create_user_rejects_duplicate_username():
     create_user("duplicate@example.com", "password value", role="UR")

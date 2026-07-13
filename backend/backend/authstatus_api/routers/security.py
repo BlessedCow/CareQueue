@@ -1,27 +1,36 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 
 from authstatus_api.audit.service import record_audit_event
 from authstatus_api.security.dependencies import (
     CurrentUserDependency,
     extract_bearer_token,
+    require_role,
 )
 from authstatus_api.security.repository import (
     authenticate_user,
+    create_user,
     create_user_session,
     get_user_for_session_token,
+    list_users,
     revoke_session,
+    update_user,
 )
 from authstatus_api.security.schemas import (
     CurrentUserResponse,
     LoginRequest,
     LoginResponse,
     LogoutResponse,
+    UserCreateRequest,
+    UserListResponse,
     UserResponse,
+    UserUpdateRequest,
 )
 
 router = APIRouter(prefix="/api/security", tags=["security"])
+
+AdminUserDependency = Depends(require_role("Admin"))
 
 
 def _client_ip(request: Request) -> str:
@@ -40,6 +49,81 @@ def _user_response(user: dict) -> UserResponse:
         last_login_at=user["last_login_at"],
         password_changed_at=user["password_changed_at"],
     )
+
+
+@router.get("/users", response_model=UserListResponse)
+def read_users(current_user: dict = AdminUserDependency) -> UserListResponse:
+    return UserListResponse(
+        users=[_user_response(user) for user in list_users()],
+    )
+
+
+@router.post(
+    "/users",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_managed_user(
+    payload: UserCreateRequest,
+    request: Request,
+    current_user: dict = AdminUserDependency,
+) -> UserResponse:
+    user = create_user(payload.username, payload.password, role=payload.role)
+
+    record_audit_event(
+        action="user.create",
+        resource_type="user",
+        resource_id=user["id"],
+        user=current_user,
+        metadata={"role": payload.role},
+        request=request,
+    )
+
+    return _user_response(user)
+
+
+@router.patch("/users/{user_id}", response_model=UserResponse)
+def update_managed_user(
+    user_id: int,
+    payload: UserUpdateRequest,
+    request: Request,
+    current_user: dict = AdminUserDependency,
+) -> UserResponse:
+    payload_data = payload.model_dump(exclude_unset=True)
+
+    if not payload_data:
+        user = update_user(user_id)
+    else:
+        if user_id == current_user["id"] and (
+            "role" in payload_data or payload_data.get("is_active") is False
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Admins cannot remove their own admin access.",
+            )
+
+        user = update_user(
+            user_id,
+            role=payload_data.get("role"),
+            is_active=payload_data.get("is_active"),
+        )
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        )
+
+    record_audit_event(
+        action="user.update",
+        resource_type="user",
+        resource_id=user_id,
+        user=current_user,
+        metadata={"fields": sorted(payload_data.keys())},
+        request=request,
+    )
+
+    return _user_response(user)
 
 
 @router.post("/login", response_model=LoginResponse)

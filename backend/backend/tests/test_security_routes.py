@@ -26,6 +26,22 @@ def client():
         yield test_client
 
 
+def auth_headers_for(client: TestClient, username: str, password: str) -> dict[str, str]:
+    response = client.post(
+        "/api/security/login",
+        json={
+            "username": username,
+            "password": password,
+        },
+    )
+
+    assert response.status_code == 200
+
+    token = response.json()["access_token"]
+
+    return {"Authorization": f"Bearer {token}"}
+
+
 def test_login_returns_bearer_token_and_user(client):
     create_user("user@example.com", "correct horse battery staple", role="Admin")
 
@@ -128,6 +144,198 @@ def test_me_returns_current_user(client):
     assert data["user"]["role"] == "UR"
 
 
+def test_admin_can_list_users(client):
+    create_user("admin@example.com", "correct horse battery staple", role="Admin")
+    create_user("ur@example.com", "correct horse battery staple", role="UR")
+
+    response = client.get(
+        "/api/security/users",
+        headers=auth_headers_for(
+            client,
+            "admin@example.com",
+            "correct horse battery staple",
+        ),
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert [user["username"] for user in data["users"]] == [
+        "admin@example.com",
+        "ur@example.com",
+    ]
+    assert "password_hash" not in data["users"][0]
+
+
+def test_ur_user_cannot_list_users(client):
+    create_user("ur@example.com", "correct horse battery staple", role="UR")
+
+    response = client.get(
+        "/api/security/users",
+        headers=auth_headers_for(
+            client,
+            "ur@example.com",
+            "correct horse battery staple",
+        ),
+    )
+
+    assert response.status_code == 403
+
+
+def test_admin_can_create_user(client):
+    create_user("admin@example.com", "correct horse battery staple", role="Admin")
+
+    response = client.post(
+        "/api/security/users",
+        json={
+            "username": "new-user@example.com",
+            "password": "correct horse battery staple",
+            "role": "Read Only",
+        },
+        headers=auth_headers_for(
+            client,
+            "admin@example.com",
+            "correct horse battery staple",
+        ),
+    )
+
+    assert response.status_code == 201
+
+    data = response.json()
+
+    assert data["username"] == "new-user@example.com"
+    assert data["role"] == "Read Only"
+    assert data["is_active"] is True
+    assert "password_hash" not in data
+
+
+def test_create_user_writes_audit_event(client):
+    create_user("admin@example.com", "correct horse battery staple", role="Admin")
+
+    response = client.post(
+        "/api/security/users",
+        json={
+            "username": "new-user@example.com",
+            "password": "correct horse battery staple",
+            "role": "UR",
+        },
+        headers=auth_headers_for(
+            client,
+            "admin@example.com",
+            "correct horse battery staple",
+        ),
+    )
+
+    assert response.status_code == 201
+
+    with get_conn() as conn:
+        row = conn.execute(
+            """
+            SELECT action, resource_type, resource_id, metadata
+            FROM audit_events
+            WHERE action = 'user.create'
+            """
+        ).fetchone()
+
+    assert row["action"] == "user.create"
+    assert row["resource_type"] == "user"
+    assert row["resource_id"] == response.json()["id"]
+    assert "correct horse battery staple" not in row["metadata"]
+    assert "new-user@example.com" not in row["metadata"]
+
+
+def test_admin_can_update_user_role_and_active_status(client):
+    admin = create_user("admin@example.com", "correct horse battery staple", role="Admin")
+    user = create_user("user@example.com", "correct horse battery staple", role="UR")
+
+    response = client.patch(
+        f"/api/security/users/{user['id']}",
+        json={
+            "role": "Read Only",
+            "is_active": False,
+        },
+        headers=auth_headers_for(
+            client,
+            admin["username"],
+            "correct horse battery staple",
+        ),
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["role"] == "Read Only"
+    assert data["is_active"] is False
+
+
+def test_update_user_writes_audit_event_without_sensitive_values(client):
+    admin = create_user("admin@example.com", "correct horse battery staple", role="Admin")
+    user = create_user("user@example.com", "correct horse battery staple", role="UR")
+
+    response = client.patch(
+        f"/api/security/users/{user['id']}",
+        json={"role": "Read Only"},
+        headers=auth_headers_for(
+            client,
+            admin["username"],
+            "correct horse battery staple",
+        ),
+    )
+
+    assert response.status_code == 200
+
+    with get_conn() as conn:
+        row = conn.execute(
+            """
+            SELECT action, metadata
+            FROM audit_events
+            WHERE action = 'user.update'
+            """
+        ).fetchone()
+
+    assert row["action"] == "user.update"
+    assert "role" in row["metadata"]
+    assert "user@example.com" not in row["metadata"]
+    assert "correct horse battery staple" not in row["metadata"]
+
+
+def test_admin_cannot_remove_own_admin_access(client):
+    admin = create_user("admin@example.com", "correct horse battery staple", role="Admin")
+
+    response = client.patch(
+        f"/api/security/users/{admin['id']}",
+        json={"role": "UR"},
+        headers=auth_headers_for(
+            client,
+            admin["username"],
+            "correct horse battery staple",
+        ),
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "detail": "Admins cannot remove their own admin access.",
+    }
+
+
+def test_update_user_returns_404_for_missing_user(client):
+    create_user("admin@example.com", "correct horse battery staple", role="Admin")
+
+    response = client.patch(
+        "/api/security/users/999",
+        json={"role": "UR"},
+        headers=auth_headers_for(
+            client,
+            "admin@example.com",
+            "correct horse battery staple",
+        ),
+    )
+
+    assert response.status_code == 404
+    
+    
 def test_me_rejects_missing_token(client):
     response = client.get("/api/security/me")
 
