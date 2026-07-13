@@ -25,6 +25,11 @@ class Settings(BaseSettings):
         validation_alias="AUTHSTATUS_CORS_ORIGINS",
     )
     
+    sqlcipher_key: str = Field(
+        default="",
+        validation_alias="AUTHSTATUS_SQLCIPHER_KEY",
+    )
+    
     backup_encryption_key: str = Field(
         default="",
         validation_alias="AUTHSTATUS_BACKUP_ENCRYPTION_KEY",
