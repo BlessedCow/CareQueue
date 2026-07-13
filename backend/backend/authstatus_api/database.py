@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import sqlite3
 from pathlib import Path
+from typing import Any
 
+from authstatus_api.database_encryption.sqlcipher_probe import (
+    apply_sqlcipher_key,
+    import_sqlcipher,
+)
 from authstatus_api.settings import get_settings
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -11,6 +16,8 @@ DATABASE_FILE_SUFFIXES = {".db", ".sqlite", ".sqlite3"}
 
 
 class DatabasePathError(RuntimeError):
+    pass
+class DatabaseEncryptionError(RuntimeError):
     pass
 
 AUTH_TABLE_COLUMNS = {
@@ -163,14 +170,44 @@ def get_database_path() -> Path:
     )
 
 
-def get_conn() -> sqlite3.Connection:
-    database_path = get_database_path()
-    database_path.parent.mkdir(parents=True, exist_ok=True)
-
+def _get_plaintext_conn(database_path: Path) -> sqlite3.Connection:
     conn = sqlite3.connect(database_path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+
     return conn
+
+
+def _get_sqlcipher_conn(database_path: Path, sqlcipher_key: str) -> Any:
+    if not sqlcipher_key:
+        raise DatabaseEncryptionError(
+            "AUTHSTATUS_SQLCIPHER_KEY is required when "
+            "AUTHSTATUS_DATABASE_ENCRYPTION=sqlcipher."
+        )
+
+    sqlcipher3 = import_sqlcipher()
+    conn = sqlcipher3.connect(str(database_path))
+    apply_sqlcipher_key(conn, sqlcipher_key)
+    conn.row_factory = sqlcipher3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+
+    return conn
+
+
+def get_conn() -> Any:
+    settings = get_settings()
+    database_path = get_database_path()
+    database_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if settings.database_encryption == "plaintext":
+        return _get_plaintext_conn(database_path)
+
+    if settings.database_encryption == "sqlcipher":
+        return _get_sqlcipher_conn(database_path, settings.sqlcipher_key.strip())
+
+    raise DatabaseEncryptionError(
+        f"Unsupported database encryption mode: {settings.database_encryption}"
+    )
 
 
 def ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:

@@ -15,6 +15,10 @@ class Settings(BaseSettings):
         default=Path("../data/auth_tracker.db"),
         validation_alias="AUTHSTATUS_DATABASE_PATH",
     )
+    database_encryption: str = Field(
+        default="plaintext",
+        validation_alias="AUTHSTATUS_DATABASE_ENCRYPTION",
+    )
     allow_unsafe_database_path: bool = Field(
         default=False,
         validation_alias="AUTHSTATUS_ALLOW_UNSAFE_DATABASE_PATH",
@@ -49,6 +53,16 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+    
+    @field_validator("database_encryption")
+    @classmethod
+    def validate_database_encryption(cls, value: str) -> str:
+        normalized_value = value.strip().lower()
+
+        if normalized_value not in {"plaintext", "sqlcipher"}:
+            raise ValueError("database_encryption must be plaintext or sqlcipher.")
+
+        return normalized_value
 
     @field_validator("cors_origins", mode="before")
     @classmethod
