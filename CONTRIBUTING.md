@@ -29,7 +29,7 @@ Before opening a pull request, please:
 1. Check the existing issues and pull requests.
 2. Keep the change focused on one clear improvement.
 3. Avoid including real patient, client, facility, payer, or employer data.
-4. Avoid committing secrets, credentials, `.env` files, database files, exports, logs, screenshots with private information, or other sensitive material.
+4. Avoid committing secrets, credentials, `.env` files, database files, encrypted backups, restore files, exports, logs, screenshots with private information, or other sensitive material.
 
 ## Privacy and data safety
 
@@ -47,8 +47,38 @@ Do not submit:
 - API keys
 - Internal employer documents
 - Screenshots containing private or sensitive information
+- Real group numbers
+- SQLCipher databases
+- Encrypted backup files
+- Restored database files
 
 Use fake or clearly anonymized test data when examples are needed.
+
+## Local files and generated artifacts
+
+Do not commit local runtime files, generated files, or sensitive configuration.
+
+Examples include:
+
+```text
+backend/backend/.env
+backend/data/
+backend/backups/
+backend/restores/
+*.db
+*.sqlite
+*.sqlite3
+*.db.enc
+*.restored.db
+frontend/node_modules/
+backend/backend/.venv/
+```
+
+Before committing, check the staged and unstaged files:
+
+```bash
+git status --short
+```
 
 ## Development setup
 
@@ -89,21 +119,21 @@ General expectations:
 
 Before opening a pull request, run the relevant checks for the files you changed.
 
-Frontend checks may include:
+Backend checks from the repository root:
 
 ```bash
-npm run lint
-npm run build
-```
-
-Backend checks may include:
-
-```bash
-python -m pytest
+pytest backend/backend/tests -q
 python -m ruff check . --fix
 ```
 
-Some commands may change as the project evolves. Check the README and package configuration for the current commands.
+Frontend build check:
+
+```bash
+cd frontend
+npm run build
+```
+
+If a change affects both the backend and frontend, run all of the above.
 
 ## Pull request guidelines
 

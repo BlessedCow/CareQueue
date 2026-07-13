@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from pathlib import Path
 
 import pytest
@@ -17,6 +15,8 @@ from authstatus_api.database_encryption.sqlcipher_probe import (
     plaintext_sqlite_can_read_database,
 )
 from authstatus_api.settings import get_settings
+
+PROJECT_ROOT = BACKEND_ROOT.parents[1]
 
 
 @pytest.fixture(autouse=True)
@@ -57,7 +57,7 @@ def test_relative_database_path_outside_backend_data_can_be_explicitly_allowed()
         allow_unsafe_database_path=True,
     )
 
-    assert database_path == (BACKEND_ROOT / "auth_tracker.db").resolve()
+    assert database_path == (PROJECT_ROOT / "auth_tracker.db").resolve()
 
 
 def test_database_path_rejects_backup_directory():

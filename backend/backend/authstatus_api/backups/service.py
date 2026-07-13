@@ -6,7 +6,7 @@ from pathlib import Path
 from cryptography.fernet import Fernet, InvalidToken
 
 from authstatus_api.database import get_database_path
-from authstatus_api.settings import get_settings
+from authstatus_api.settings import get_settings, resolve_project_path
 
 
 class BackupConfigError(RuntimeError):
@@ -51,7 +51,9 @@ def create_encrypted_database_backup(
 ) -> Path:
     settings = get_settings()
     source_path = database_path or get_database_path()
-    destination_directory = backup_directory or settings.backup_directory
+    destination_directory = resolve_project_path(
+        backup_directory or settings.backup_directory
+    )
 
     if not source_path.exists():
         raise BackupError(f"Database file does not exist: {source_path}")
@@ -83,7 +85,9 @@ def restore_encrypted_database_backup(
     restore_directory: Path | None = None,
 ) -> Path:
     settings = get_settings()
-    destination_directory = restore_directory or settings.restore_directory
+    destination_directory = resolve_project_path(
+        restore_directory or settings.restore_directory
+    )
 
     if backup_path.suffix != ".enc":
         raise BackupError(f"Backup file must end with .enc: {backup_path}")

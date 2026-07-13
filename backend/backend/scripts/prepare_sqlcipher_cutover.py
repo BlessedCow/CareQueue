@@ -8,17 +8,18 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
-load_dotenv(BACKEND_ROOT / ".env")
+PROJECT_ROOT = BACKEND_ROOT.parents[1]
+load_dotenv(PROJECT_ROOT / ".env")
 
 sys.path.insert(0, str(BACKEND_ROOT))
 
 os.environ.setdefault(
     "AUTHSTATUS_DATABASE_PATH",
-    str(BACKEND_ROOT.parent / "data" / "auth_tracker.db"),
+    str(PROJECT_ROOT / "backend" / "data" / "auth_tracker.db")
 )
 os.environ.setdefault(
     "AUTHSTATUS_BACKUP_DIRECTORY",
-    str(BACKEND_ROOT.parent / "backups"),
+    str(PROJECT_ROOT / "backend" / "backups")
 )
 
 from authstatus_api.database_encryption.cutover import (  # noqa: E402
@@ -63,14 +64,16 @@ def main() -> int:
     args = parse_args()
     settings = get_settings()
 
-    source_path = args.source_path or (BACKEND_ROOT.parent / "data" / "auth_tracker.db")
+    source_path = args.source_path or (
+        PROJECT_ROOT / "backend" / "data" / "auth_tracker.db"
+    )
 
     try:
         result = prepare_sqlcipher_cutover(
             source_path=source_path,
             destination_path=args.destination_path,
             sqlcipher_key=settings.sqlcipher_key,
-            backend_root=BACKEND_ROOT,
+            backend_root=PROJECT_ROOT,
             backup_directory=args.backup_directory,
             force=args.force,
         )

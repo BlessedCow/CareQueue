@@ -8,13 +8,14 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
-load_dotenv(BACKEND_ROOT / ".env")
+PROJECT_ROOT = BACKEND_ROOT.parents[1]
+load_dotenv(PROJECT_ROOT / ".env")
 
 sys.path.insert(0, str(BACKEND_ROOT))
 
 os.environ.setdefault(
     "AUTHSTATUS_RESTORE_DIRECTORY",
-    str(BACKEND_ROOT.parent / "restores"),
+    str(PROJECT_ROOT / "backend" / "restores")
 )
 
 from authstatus_api.backups.service import (  # noqa: E402

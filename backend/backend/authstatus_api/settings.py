@@ -6,13 +6,25 @@ from pathlib import Path
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+PACKAGE_ROOT = Path(__file__).resolve().parents[0]
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+ROOT_ENV_FILE = PROJECT_ROOT / ".env"
+
+
+def resolve_project_path(path: Path) -> Path:
+    if path.is_absolute():
+        return path.resolve()
+
+    return (PROJECT_ROOT / path).resolve()
+
 
 class Settings(BaseSettings):
     app_name: str = "AuthStatus API"
     app_version: str = "0.1.0"
 
     database_path: Path = Field(
-        default=Path("../data/auth_tracker.db"),
+        default=Path("backend/data/auth_tracker.db"),
         validation_alias="AUTHSTATUS_DATABASE_PATH",
     )
     database_encryption: str = Field(
@@ -39,17 +51,16 @@ class Settings(BaseSettings):
         validation_alias="AUTHSTATUS_BACKUP_ENCRYPTION_KEY",
     )
     backup_directory: Path = Field(
-        default=Path("../backups"),
+        default=Path("backend/backups"),
         validation_alias="AUTHSTATUS_BACKUP_DIRECTORY",
     )
     
     restore_directory: Path = Field(
-        default=Path("../restores"),
+        default=Path("backend/restores"),
         validation_alias="AUTHSTATUS_RESTORE_DIRECTORY",
     )
 
     model_config = SettingsConfigDict(
-        env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -75,4 +86,4 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    return Settings(_env_file=ROOT_ENV_FILE)

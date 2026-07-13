@@ -8,10 +8,13 @@ from authstatus_api.database_encryption.sqlcipher_probe import (
     apply_sqlcipher_key,
     import_sqlcipher,
 )
-from authstatus_api.settings import get_settings
+from authstatus_api.settings import (
+    PROJECT_ROOT,
+    get_settings,
+    resolve_project_path,
+)
 
-BACKEND_ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_DATABASE_DIRECTORY = (BACKEND_ROOT.parent / "data").resolve()
+EXPECTED_DATABASE_DIRECTORY = (PROJECT_ROOT / "backend" / "data").resolve()
 DATABASE_FILE_SUFFIXES = {".db", ".sqlite", ".sqlite3"}
 
 
@@ -131,10 +134,7 @@ def resolve_database_path(
     *,
     allow_unsafe_database_path: bool = False,
 ) -> Path:
-    if database_path.is_absolute():
-        resolved_path = database_path.resolve()
-    else:
-        resolved_path = (BACKEND_ROOT / database_path).resolve()
+    resolved_path = resolve_project_path(database_path)
 
     if resolved_path.suffix.lower() not in DATABASE_FILE_SUFFIXES:
         raise DatabasePathError(

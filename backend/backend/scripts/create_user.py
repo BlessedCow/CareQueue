@@ -7,12 +7,16 @@ import sqlite3
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = BACKEND_ROOT.parents[1]
+load_dotenv(PROJECT_ROOT / ".env")
 sys.path.insert(0, str(BACKEND_ROOT))
 
 os.environ.setdefault(
     "AUTHSTATUS_DATABASE_PATH",
-    str(BACKEND_ROOT.parent / "data" / "auth_tracker.db"),
+    str(PROJECT_ROOT / "backend" / "data" / "auth_tracker.db"),
 )
 
 from authstatus_api.security.repository import create_user  # noqa: E402
