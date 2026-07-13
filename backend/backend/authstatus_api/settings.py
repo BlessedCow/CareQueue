@@ -20,6 +20,20 @@ class Settings(BaseSettings):
         default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"],
         validation_alias="AUTHSTATUS_CORS_ORIGINS",
     )
+    
+    backup_encryption_key: str = Field(
+        default="",
+        validation_alias="AUTHSTATUS_BACKUP_ENCRYPTION_KEY",
+    )
+    backup_directory: Path = Field(
+        default=Path("../backups"),
+        validation_alias="AUTHSTATUS_BACKUP_DIRECTORY",
+    )
+    
+    restore_directory: Path = Field(
+        default=Path("../restores"),
+        validation_alias="AUTHSTATUS_RESTORE_DIRECTORY",
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -19,6 +19,10 @@ frontend/data/
 auth_tracker_backup.json
 *.backup.json
 *.bak
+backend/backups/
+*.db.enc
+backend/restores/
+*.restored.db
 
 # Python virtual environments
 .venv/
