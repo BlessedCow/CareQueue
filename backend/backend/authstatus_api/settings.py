@@ -15,6 +15,10 @@ class Settings(BaseSettings):
         default=Path("../data/auth_tracker.db"),
         validation_alias="AUTHSTATUS_DATABASE_PATH",
     )
+    allow_unsafe_database_path: bool = Field(
+        default=False,
+        validation_alias="AUTHSTATUS_ALLOW_UNSAFE_DATABASE_PATH",
+    )
     encryption_key: str = Field(default="", validation_alias="AUTHSTATUS_ENCRYPTION_KEY")
     cors_origins: list[str] = Field(
         default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"],

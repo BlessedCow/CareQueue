@@ -5,6 +5,7 @@ from pathlib import Path
 
 from cryptography.fernet import Fernet, InvalidToken
 
+from authstatus_api.database import get_database_path
 from authstatus_api.settings import get_settings
 
 
@@ -49,7 +50,7 @@ def create_encrypted_database_backup(
     backup_directory: Path | None = None,
 ) -> Path:
     settings = get_settings()
-    source_path = database_path or settings.database_path
+    source_path = database_path or get_database_path()
     destination_directory = backup_directory or settings.backup_directory
 
     if not source_path.exists():
