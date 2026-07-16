@@ -1,1 +1,6 @@
-export type AppPage = 'dashboard' | 'authorizations' | 'calendar' | 'settings';
+export type AppPage =
+  | "dashboard"
+  | "authorizations"
+  | "calendar"
+  | "settings"
+  | "adminUsers";

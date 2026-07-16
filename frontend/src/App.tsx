@@ -13,6 +13,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { AuthorizationsPage } from "./pages/AuthorizationsPage";
 import { CalendarRoutePage } from "./pages/CalendarRoutePage";
+import { AdminUsersPage } from "./pages/AdminUsersPage";
 
 // Hooks
 import { useDashboardCardSettings } from "./hooks/useDashboardCardSettings";
@@ -360,11 +361,14 @@ function App() {
   const canManageAuthorizations =
     currentUser.role === "Admin" || currentUser.role === "UR";
 
+  const canManageUsers = currentUser.role === "Admin";
+
   return (
     <AppShell
       activePage={activePage}
       darkMode={darkMode}
       currentUser={currentUser}
+      canManageUsers={canManageUsers}
       onPageChange={setActivePage}
       onToggleDarkMode={() => setDarkMode((currentValue) => !currentValue)}
       onLogout={handleLogout}
@@ -541,6 +545,10 @@ function App() {
           workflowViewMode={workflowViewMode}
           onWorkflowViewModeChange={setWorkflowViewMode}
         />
+      )}
+
+      {activePage === "adminUsers" && canManageUsers && (
+        <AdminUsersPage darkMode={darkMode} currentUser={currentUser} />
       )}
     </AppShell>
   );

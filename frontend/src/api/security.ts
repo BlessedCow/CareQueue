@@ -25,6 +25,21 @@ interface CurrentUserResponse {
   user: CurrentUser;
 }
 
+interface UserListResponse {
+  users: CurrentUser[];
+}
+
+interface CreateUserPayload {
+  username: string;
+  password: string;
+  role: string;
+}
+
+interface UpdateUserPayload {
+  role?: string;
+  is_active?: boolean;
+}
+
 export async function loginUser(
   username: string,
   password: string
@@ -57,6 +72,63 @@ export async function fetchCurrentUser(): Promise<CurrentUser> {
 
   const data = (await response.json()) as CurrentUserResponse;
   return data.user;
+}
+
+export async function fetchUsers(): Promise<CurrentUser[]> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/api/security/users`
+  );
+
+  if (!response.ok) {
+    throw new Error("Unable to load users.");
+  }
+
+  const data = (await response.json()) as UserListResponse;
+
+  return data.users;
+}
+
+export async function createUser(
+  payload: CreateUserPayload
+): Promise<CurrentUser> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/api/security/users`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Unable to create user.");
+  }
+
+  return (await response.json()) as CurrentUser;
+}
+
+export async function updateUser(
+  userId: number,
+  payload: UpdateUserPayload
+): Promise<CurrentUser> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/api/security/users/${userId}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Unable to update user.");
+  }
+
+  return (await response.json()) as CurrentUser;
 }
 
 export async function logoutUser(): Promise<void> {

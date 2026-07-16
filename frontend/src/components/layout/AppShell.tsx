@@ -8,6 +8,7 @@ import {
   Moon,
   Settings,
   Sun,
+  Users,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { AppPage } from "../../types/navigation";
@@ -18,6 +19,7 @@ interface AppShellProps {
   activePage: AppPage;
   darkMode: boolean;
   currentUser: CurrentUser;
+  canManageUsers: boolean;
   children: ReactNode;
   onPageChange: (page: AppPage) => void;
   onToggleDarkMode: () => void;
@@ -51,11 +53,24 @@ const navigationItems: {
   },
 ];
 
+const adminNavigationItems: {
+  page: AppPage;
+  label: string;
+  icon: typeof LayoutDashboard;
+}[] = [
+  {
+    page: "adminUsers",
+    label: "Users",
+    icon: Users,
+  },
+];
+
 const PAGE_TITLES: Record<AppPage, string> = {
   dashboard: "Dashboard",
   authorizations: "Authorizations",
   calendar: "Calendar",
   settings: "Settings",
+  adminUsers: "Users",
 };
 
 const PAGE_DESCRIPTIONS: Record<AppPage, string> = {
@@ -63,12 +78,14 @@ const PAGE_DESCRIPTIONS: Record<AppPage, string> = {
   authorizations: "View and manage authorization records",
   calendar: "Track review dates and LCDs",
   settings: "Configure CareQueue preferences",
+  adminUsers: "Manage local CareQueue users and roles",
 };
 
 export function AppShell({
   activePage,
   darkMode,
   currentUser,
+  canManageUsers,
   children,
   onPageChange,
   onToggleDarkMode,
@@ -94,7 +111,10 @@ export function AppShell({
         </div>
 
         <nav className="flex-1 space-y-2 px-4 py-6">
-          {navigationItems.map((item) => {
+          {[
+            ...navigationItems,
+            ...(canManageUsers ? adminNavigationItems : []),
+          ].map((item) => {
             const Icon = item.icon;
             const isActive = activePage === item.page;
 
