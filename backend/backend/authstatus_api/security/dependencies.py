@@ -25,7 +25,7 @@ def extract_bearer_token(authorization: str | None) -> str:
     return token.strip()
 
 
-def get_current_user(
+def get_authenticated_user(
     authorization: str | None = Header(default=None),
 ) -> dict:
     token = extract_bearer_token(authorization)
@@ -38,6 +38,22 @@ def get_current_user(
         )
 
     return user
+
+
+AuthenticatedUserDependency = Depends(get_authenticated_user)
+
+
+def get_current_user(
+    authenticated_user: dict = AuthenticatedUserDependency,
+) -> dict:
+    if authenticated_user["must_change_password"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Password change required.",
+        )
+
+    return authenticated_user
+
 
 CurrentUserDependency = Depends(get_current_user)
 

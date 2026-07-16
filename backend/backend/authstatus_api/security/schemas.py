@@ -29,6 +29,25 @@ class UserUpdateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class PasswordUpdateResponse(BaseModel):
+    password_changed: bool
+    sessions_revoked: int
+
+
+class AdminPasswordResetResponse(BaseModel):
+    password_reset: bool
+    temporary_password: str
+    sessions_revoked: int
+    must_change_password: bool
+
+
 class UserResponse(BaseModel):
     id: int
     username: str
@@ -36,6 +55,7 @@ class UserResponse(BaseModel):
     is_active: bool
     last_login_at: str | None = None
     password_changed_at: str
+    must_change_password: bool
 
 
 class UserListResponse(BaseModel):

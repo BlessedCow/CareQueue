@@ -4,30 +4,40 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, s
 
 from authstatus_api.audit.service import list_audit_events, record_audit_event
 from authstatus_api.security.dependencies import (
-    CurrentUserDependency,
+    AuthenticatedUserDependency,
     extract_bearer_token,
     require_role,
 )
+from authstatus_api.security.password_hashing import verify_password
 from authstatus_api.security.repository import (
     authenticate_user,
     create_user,
     create_user_session,
+    get_user_by_id,
     get_user_for_session_token,
     list_users,
     revoke_session,
+    revoke_user_sessions,
     update_user,
+    update_user_password,
 )
 from authstatus_api.security.schemas import (
+    AdminPasswordResetResponse,
     AuditEventListResponse,
     AuditEventResponse,
+    ChangePasswordRequest,
     CurrentUserResponse,
     LoginRequest,
     LoginResponse,
     LogoutResponse,
+    PasswordUpdateResponse,
     UserCreateRequest,
     UserListResponse,
     UserResponse,
     UserUpdateRequest,
+)
+from authstatus_api.security.temporary_passwords import (
+    generate_temporary_password,
 )
 
 router = APIRouter(prefix="/api/security", tags=["security"])
@@ -50,6 +60,7 @@ def _user_response(user: dict) -> UserResponse:
         is_active=user["is_active"],
         last_login_at=user["last_login_at"],
         password_changed_at=user["password_changed_at"],
+        must_change_password=user["must_change_password"],
     )
 
 
@@ -154,6 +165,118 @@ def update_managed_user(
     return _user_response(user)
 
 
+@router.post(
+    "/change-password",
+    response_model=PasswordUpdateResponse,
+)
+def change_password(
+    payload: ChangePasswordRequest,
+    request: Request,
+    current_user: dict = AuthenticatedUserDependency,
+) -> PasswordUpdateResponse:
+    if not verify_password(
+        current_user["password_hash"],
+        payload.current_password,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect.",
+        )
+
+    if payload.current_password == payload.new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be different from the current password.",
+        )
+
+    updated_user = update_user_password(
+        current_user["id"],
+        new_password=payload.new_password,
+        must_change_password=False,
+    )
+
+    if updated_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        )
+
+    sessions_revoked = revoke_user_sessions(current_user["id"])
+
+    record_audit_event(
+        action="security.password_change",
+        resource_type="user",
+        resource_id=current_user["id"],
+        user=current_user,
+        metadata={"sessions_revoked": sessions_revoked},
+        request=request,
+    )
+
+    return PasswordUpdateResponse(
+        password_changed=True,
+        sessions_revoked=sessions_revoked,
+    )
+
+
+@router.post(
+    "/users/{user_id}/reset-password",
+    response_model=AdminPasswordResetResponse,
+)
+def reset_managed_user_password(
+    user_id: int,
+    request: Request,
+    current_user: dict = AdminUserDependency,
+) -> AdminPasswordResetResponse:
+    if user_id == current_user["id"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Use change password to update your own password.",
+        )
+
+    target_user = get_user_by_id(user_id)
+
+    if target_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        )
+
+    temporary_password = generate_temporary_password()
+
+    updated_user = update_user_password(
+        user_id,
+        new_password=temporary_password,
+        must_change_password=True,
+    )
+
+    if updated_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        )
+
+    sessions_revoked = revoke_user_sessions(user_id)
+
+    record_audit_event(
+        action="user.password_reset",
+        resource_type="user",
+        resource_id=user_id,
+        user=current_user,
+        metadata={
+            "sessions_revoked": sessions_revoked,
+            "must_change_password": True,
+        },
+        request=request,
+    )
+
+    return AdminPasswordResetResponse(
+        password_reset=True,
+        temporary_password=temporary_password,
+        sessions_revoked=sessions_revoked,
+        must_change_password=True,
+    )
+
+
 @router.post("/login", response_model=LoginResponse)
 def login(payload: LoginRequest, request: Request) -> LoginResponse:
     user = authenticate_user(payload.username, payload.password)
@@ -216,5 +339,7 @@ def logout(
 
 
 @router.get("/me", response_model=CurrentUserResponse)
-def read_current_user(user: dict = CurrentUserDependency) -> CurrentUserResponse:
+def read_current_user(
+    user: dict = AuthenticatedUserDependency,
+) -> CurrentUserResponse:
     return CurrentUserResponse(user=_user_response(user))

@@ -483,6 +483,337 @@ def test_logout_revokes_session(client):
     assert me_response.status_code == 401
 
 
+def test_user_can_change_own_password(client):
+    create_user(
+        "user@example.com",
+        "old password value",
+        role="UR",
+    )
+
+    headers = auth_headers_for(
+        client,
+        "user@example.com",
+        "old password value",
+    )
+
+    response = client.post(
+        "/api/security/change-password",
+        json={
+            "current_password": "old password value",
+            "new_password": "new password value",
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["password_changed"] is True
+    assert response.json()["sessions_revoked"] >= 1
+
+    old_login = client.post(
+        "/api/security/login",
+        json={
+            "username": "user@example.com",
+            "password": "old password value",
+        },
+    )
+    new_login = client.post(
+        "/api/security/login",
+        json={
+            "username": "user@example.com",
+            "password": "new password value",
+        },
+    )
+
+    assert old_login.status_code == 401
+    assert new_login.status_code == 200
+    assert new_login.json()["user"]["must_change_password"] is False
+
+
+def test_change_password_rejects_incorrect_current_password(client):
+    create_user(
+        "user@example.com",
+        "old password value",
+        role="UR",
+    )
+
+    response = client.post(
+        "/api/security/change-password",
+        json={
+            "current_password": "wrong password",
+            "new_password": "new password value",
+        },
+        headers=auth_headers_for(
+            client,
+            "user@example.com",
+            "old password value",
+        ),
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "detail": "Current password is incorrect.",
+    }
+
+
+def test_change_password_clears_forced_change_state(client):
+    create_user(
+        "temporary@example.com",
+        "temporary password value",
+        role="UR",
+        must_change_password=True,
+    )
+
+    response = client.post(
+        "/api/security/change-password",
+        json={
+            "current_password": "temporary password value",
+            "new_password": "permanent password value",
+        },
+        headers=auth_headers_for(
+            client,
+            "temporary@example.com",
+            "temporary password value",
+        ),
+    )
+
+    assert response.status_code == 200
+
+    login_response = client.post(
+        "/api/security/login",
+        json={
+            "username": "temporary@example.com",
+            "password": "permanent password value",
+        },
+    )
+
+    assert login_response.status_code == 200
+    assert login_response.json()["user"]["must_change_password"] is False
+
+
+def test_change_password_revokes_all_existing_sessions(client):
+    user = create_user(
+        "user@example.com",
+        "old password value",
+        role="UR",
+    )
+
+    first_login = client.post(
+        "/api/security/login",
+        json={
+            "username": user["username"],
+            "password": "old password value",
+        },
+    )
+    second_login = client.post(
+        "/api/security/login",
+        json={
+            "username": user["username"],
+            "password": "old password value",
+        },
+    )
+
+    first_token = first_login.json()["access_token"]
+    second_token = second_login.json()["access_token"]
+
+    response = client.post(
+        "/api/security/change-password",
+        json={
+            "current_password": "old password value",
+            "new_password": "new password value",
+        },
+        headers={"Authorization": f"Bearer {first_token}"},
+    )
+
+    assert response.status_code == 200
+
+    first_me = client.get(
+        "/api/security/me",
+        headers={"Authorization": f"Bearer {first_token}"},
+    )
+    second_me = client.get(
+        "/api/security/me",
+        headers={"Authorization": f"Bearer {second_token}"},
+    )
+
+    assert first_me.status_code == 401
+    assert second_me.status_code == 401
+
+
+def test_admin_reset_returns_temporary_password_once(client):
+    admin = create_user(
+        "admin@example.com",
+        "admin password value",
+        role="Admin",
+    )
+    user = create_user(
+        "user@example.com",
+        "old password value",
+        role="UR",
+    )
+
+    response = client.post(
+        f"/api/security/users/{user['id']}/reset-password",
+        headers=auth_headers_for(
+            client,
+            admin["username"],
+            "admin password value",
+        ),
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["password_reset"] is True
+    assert data["must_change_password"] is True
+    assert data["sessions_revoked"] >= 0
+    assert len(data["temporary_password"]) == 24
+
+    old_login = client.post(
+        "/api/security/login",
+        json={
+            "username": user["username"],
+            "password": "old password value",
+        },
+    )
+    temporary_login = client.post(
+        "/api/security/login",
+        json={
+            "username": user["username"],
+            "password": data["temporary_password"],
+        },
+    )
+
+    assert old_login.status_code == 401
+    assert temporary_login.status_code == 200
+    assert temporary_login.json()["user"]["must_change_password"] is True
+
+
+def test_admin_reset_revokes_existing_user_sessions(client):
+    admin = create_user(
+        "admin@example.com",
+        "admin password value",
+        role="Admin",
+    )
+    user = create_user(
+        "user@example.com",
+        "old password value",
+        role="UR",
+    )
+
+    user_login = client.post(
+        "/api/security/login",
+        json={
+            "username": user["username"],
+            "password": "old password value",
+        },
+    )
+    user_token = user_login.json()["access_token"]
+
+    response = client.post(
+        f"/api/security/users/{user['id']}/reset-password",
+        headers=auth_headers_for(
+            client,
+            admin["username"],
+            "admin password value",
+        ),
+    )
+
+    assert response.status_code == 200
+
+    previous_session = client.get(
+        "/api/security/me",
+        headers={"Authorization": f"Bearer {user_token}"},
+    )
+
+    assert previous_session.status_code == 401
+
+
+def test_ur_user_cannot_reset_passwords(client):
+    first_user = create_user(
+        "first@example.com",
+        "password value",
+        role="UR",
+    )
+    second_user = create_user(
+        "second@example.com",
+        "password value",
+        role="UR",
+    )
+
+    response = client.post(
+        f"/api/security/users/{second_user['id']}/reset-password",
+        headers=auth_headers_for(
+            client,
+            first_user["username"],
+            "password value",
+        ),
+    )
+
+    assert response.status_code == 403
+
+
+def test_admin_cannot_use_reset_endpoint_for_self(client):
+    admin = create_user(
+        "admin@example.com",
+        "password value",
+        role="Admin",
+    )
+
+    response = client.post(
+        f"/api/security/users/{admin['id']}/reset-password",
+        headers=auth_headers_for(
+            client,
+            admin["username"],
+            "password value",
+        ),
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "detail": "Use change password to update your own password.",
+    }
+
+
+def test_password_reset_audit_event_does_not_store_temporary_password(client):
+    admin = create_user(
+        "admin@example.com",
+        "admin password value",
+        role="Admin",
+    )
+    user = create_user(
+        "user@example.com",
+        "old password value",
+        role="UR",
+    )
+
+    response = client.post(
+        f"/api/security/users/{user['id']}/reset-password",
+        headers=auth_headers_for(
+            client,
+            admin["username"],
+            "admin password value",
+        ),
+    )
+
+    assert response.status_code == 200
+
+    temporary_password = response.json()["temporary_password"]
+
+    with get_conn() as conn:
+        row = conn.execute(
+            """
+            SELECT action, resource_id, metadata
+            FROM audit_events
+            WHERE action = 'user.password_reset'
+            """
+        ).fetchone()
+
+    assert row is not None
+    assert row["resource_id"] == user["id"]
+    assert temporary_password not in row["metadata"]
+
+
 def test_login_and_logout_write_audit_events(client):
     create_user("user@example.com", "correct horse battery staple", role="UR")
 
@@ -518,3 +849,178 @@ def test_login_and_logout_write_audit_events(client):
         ("security.login", "user@example.com"),
         ("security.logout", "user@example.com"),
     ]
+
+
+def test_forced_change_user_can_access_me(client):
+    user = create_user(
+        "temporary@example.com",
+        "temporary password value",
+        role="UR",
+        must_change_password=True,
+    )
+
+    headers = auth_headers_for(
+        client,
+        user["username"],
+        "temporary password value",
+    )
+
+    response = client.get(
+        "/api/security/me",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["user"]["must_change_password"] is True
+
+
+def test_forced_change_user_can_log_out(client):
+    user = create_user(
+        "temporary@example.com",
+        "temporary password value",
+        role="UR",
+        must_change_password=True,
+    )
+
+    headers = auth_headers_for(
+        client,
+        user["username"],
+        "temporary password value",
+    )
+
+    response = client.post(
+        "/api/security/logout",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"logged_out": True}
+
+    me_response = client.get(
+        "/api/security/me",
+        headers=headers,
+    )
+
+    assert me_response.status_code == 401
+
+
+def test_forced_change_admin_cannot_access_admin_routes(client):
+    admin = create_user(
+        "temporary-admin@example.com",
+        "temporary password value",
+        role="Admin",
+        must_change_password=True,
+    )
+
+    response = client.get(
+        "/api/security/users",
+        headers=auth_headers_for(
+            client,
+            admin["username"],
+            "temporary password value",
+        ),
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {
+        "detail": "Password change required.",
+    }
+
+
+def test_forced_change_admin_cannot_access_audit_events(client):
+    admin = create_user(
+        "temporary-admin@example.com",
+        "temporary password value",
+        role="Admin",
+        must_change_password=True,
+    )
+
+    response = client.get(
+        "/api/security/audit-events",
+        headers=auth_headers_for(
+            client,
+            admin["username"],
+            "temporary password value",
+        ),
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {
+        "detail": "Password change required.",
+    }
+
+
+def test_forced_change_user_can_change_password(client):
+    user = create_user(
+        "temporary@example.com",
+        "temporary password value",
+        role="UR",
+        must_change_password=True,
+    )
+
+    response = client.post(
+        "/api/security/change-password",
+        json={
+            "current_password": "temporary password value",
+            "new_password": "permanent password value",
+        },
+        headers=auth_headers_for(
+            client,
+            user["username"],
+            "temporary password value",
+        ),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["password_changed"] is True
+
+
+def test_user_regains_protected_access_after_required_password_change(client):
+    admin = create_user(
+        "temporary-admin@example.com",
+        "temporary password value",
+        role="Admin",
+        must_change_password=True,
+    )
+
+    temporary_headers = auth_headers_for(
+        client,
+        admin["username"],
+        "temporary password value",
+    )
+
+    blocked_response = client.get(
+        "/api/security/users",
+        headers=temporary_headers,
+    )
+
+    assert blocked_response.status_code == 403
+    assert blocked_response.json() == {
+        "detail": "Password change required.",
+    }
+
+    change_response = client.post(
+        "/api/security/change-password",
+        json={
+            "current_password": "temporary password value",
+            "new_password": "permanent password value",
+        },
+        headers=temporary_headers,
+    )
+
+    assert change_response.status_code == 200
+
+    permanent_headers = auth_headers_for(
+        client,
+        admin["username"],
+        "permanent password value",
+    )
+
+    allowed_response = client.get(
+        "/api/security/users",
+        headers=permanent_headers,
+    )
+
+    assert allowed_response.status_code == 200
+    assert allowed_response.json()["users"][0]["must_change_password"] is False
+    

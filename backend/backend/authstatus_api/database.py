@@ -90,6 +90,7 @@ USER_TABLE_COLUMNS = {
     "locked_until",
     "last_login_at",
     "password_changed_at",
+    "must_change_password",
     "created_at",
     "updated_at",
 }
@@ -297,10 +298,12 @@ def init_db() -> None:
                 locked_until TEXT,
                 last_login_at TEXT,
                 password_changed_at TEXT NOT NULL,
+                must_change_password INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
                 CHECK (role IN ('Admin', 'UR', 'Read Only')),
                 CHECK (is_active IN (0, 1)),
+                CHECK (must_change_password IN (0, 1)),
                 CHECK (failed_login_count >= 0)
             )
             """
@@ -361,6 +364,12 @@ def init_db() -> None:
         ensure_column(conn, "users", "locked_until", "TEXT")
         ensure_column(conn, "users", "last_login_at", "TEXT")
         ensure_column(conn, "users", "password_changed_at", "TEXT")
+        ensure_column(
+            conn,
+            "users",
+            "must_change_password",
+            "INTEGER NOT NULL DEFAULT 0",
+        )
         ensure_column(conn, "sessions", "ip_address", "TEXT")
         ensure_column(conn, "sessions", "user_agent", "TEXT")
         ensure_column(conn, "audit_events", "user_id", "INTEGER")

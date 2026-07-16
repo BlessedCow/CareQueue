@@ -30,6 +30,7 @@ def _row_to_user(row: Any) -> dict[str, Any] | None:
 
     user = dict(row)
     user["is_active"] = bool(user["is_active"])
+    user["must_change_password"] = bool(user["must_change_password"])
 
     return user
 
@@ -41,7 +42,13 @@ def _row_to_session(row: Any) -> dict[str, Any] | None:
     return dict(row)
 
 
-def create_user(username: str, password: str, role: str = "UR") -> dict[str, Any]:
+def create_user(
+    username: str,
+    password: str,
+    role: str = "UR",
+    *,
+    must_change_password: bool = False,
+) -> dict[str, Any]:
     init_db()
 
     normalized_username = username.strip().lower()
@@ -56,16 +63,18 @@ def create_user(username: str, password: str, role: str = "UR") -> dict[str, Any
                 password_hash,
                 role,
                 password_changed_at,
+                must_change_password,
                 created_at,
                 updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 normalized_username,
                 password_hash,
                 role,
                 now,
+                1 if must_change_password else 0,
                 now,
                 now,
             ),
@@ -172,6 +181,65 @@ def update_user(
         return None
 
     return get_user_by_id(user_id)
+
+
+def update_user_password(
+    user_id: int,
+    *,
+    new_password: str,
+    must_change_password: bool,
+) -> dict[str, Any] | None:
+    init_db()
+
+    now = _format_datetime(utc_now())
+    password_hash = hash_password(new_password)
+
+    with get_conn() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE users
+            SET
+                password_hash = ?,
+                password_changed_at = ?,
+                must_change_password = ?,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                password_hash,
+                now,
+                1 if must_change_password else 0,
+                now,
+                user_id,
+            ),
+        )
+
+    if cursor.rowcount == 0:
+        return None
+
+    return get_user_by_id(user_id)
+
+
+def revoke_user_sessions(user_id: int) -> int:
+    init_db()
+
+    now = _format_datetime(utc_now())
+
+    with get_conn() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE sessions
+            SET revoked_at = ?
+            WHERE user_id = ?
+              AND revoked_at IS NULL
+            """,
+            (
+                now,
+                user_id,
+            ),
+        )
+
+    return cursor.rowcount
 
 
 def create_user_session(

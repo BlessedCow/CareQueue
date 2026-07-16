@@ -14,8 +14,10 @@ from authstatus_api.security.repository import (
     get_user_by_username,
     list_users,
     revoke_session,
+    revoke_user_sessions,
     touch_session,
     update_user,
+    update_user_password,
 )
 from authstatus_api.security.sessions import hash_session_token
 from authstatus_api.settings import get_settings
@@ -98,7 +100,92 @@ def test_update_user_returns_existing_user_for_empty_update():
 
 def test_update_user_returns_none_for_missing_user():
     assert update_user(999, role="UR") is None
-    
+
+
+def test_create_user_can_require_password_change():
+    user = create_user(
+        "temporary@example.com",
+        "temporary password value",
+        role="UR",
+        must_change_password=True,
+    )
+
+    assert user["must_change_password"] is True
+
+
+def test_update_user_password_sets_forced_change_state():
+    user = create_user(
+        "reset@example.com",
+        "old password value",
+        role="UR",
+    )
+
+    updated = update_user_password(
+        user["id"],
+        new_password="temporary password value",
+        must_change_password=True,
+    )
+
+    assert updated is not None
+    assert updated["must_change_password"] is True
+    assert verify_password(
+        updated["password_hash"],
+        "temporary password value",
+    ) is True
+    assert verify_password(
+        updated["password_hash"],
+        "old password value",
+    ) is False
+
+
+def test_update_user_password_clears_forced_change_state():
+    user = create_user(
+        "change@example.com",
+        "temporary password value",
+        role="UR",
+        must_change_password=True,
+    )
+
+    updated = update_user_password(
+        user["id"],
+        new_password="permanent password value",
+        must_change_password=False,
+    )
+
+    assert updated is not None
+    assert updated["must_change_password"] is False
+    assert verify_password(
+        updated["password_hash"],
+        "permanent password value",
+    ) is True
+
+
+def test_update_user_password_returns_none_for_missing_user():
+    assert (
+        update_user_password(
+            999,
+            new_password="temporary password value",
+            must_change_password=True,
+        )
+        is None
+    )
+
+
+def test_revoke_user_sessions_revokes_all_active_sessions():
+    user = create_user(
+        "revoke-all@example.com",
+        "password value",
+        role="UR",
+    )
+    first_session = create_user_session(user["id"])
+    second_session = create_user_session(user["id"])
+
+    revoked_count = revoke_user_sessions(user["id"])
+
+    assert revoked_count == 2
+    assert get_active_session_by_token(first_session["token"]) is None
+    assert get_active_session_by_token(second_session["token"]) is None
+
 
 def test_create_user_rejects_duplicate_username():
     create_user("duplicate@example.com", "password value", role="UR")
