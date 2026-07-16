@@ -1,11 +1,19 @@
 from __future__ import annotations
 
+import os
+import sqlite3
+import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from cryptography.fernet import Fernet, InvalidToken
 
 from authstatus_api.database import get_database_path
+from authstatus_api.database_encryption.sqlcipher_probe import (
+    apply_sqlcipher_key,
+    import_sqlcipher,
+)
 from authstatus_api.settings import get_settings, resolve_project_path
 
 
@@ -15,6 +23,15 @@ class BackupConfigError(RuntimeError):
 
 class BackupError(RuntimeError):
     pass
+
+
+REQUIRED_DATABASE_TABLES = {
+    "audit_events",
+    "auth_events",
+    "auths",
+    "sessions",
+    "users",
+}
 
 
 def _backup_timestamp() -> str:
@@ -31,6 +48,130 @@ def _get_backup_fernet() -> Fernet:
         return Fernet(key.encode("utf-8"))
     except ValueError as exc:
         raise BackupConfigError("Invalid AUTHSTATUS_BACKUP_ENCRYPTION_KEY.") from exc
+
+
+def _atomic_write_bytes(destination_path: Path, data: bytes) -> None:
+    destination_path.parent.mkdir(parents=True, exist_ok=True)
+
+    temporary_path: Path | None = None
+
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            dir=destination_path.parent,
+            prefix=f".{destination_path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as temporary_file:
+            temporary_file.write(data)
+            temporary_file.flush()
+            os.fsync(temporary_file.fileno())
+            temporary_path = Path(temporary_file.name)
+
+        temporary_path.replace(destination_path)
+    finally:
+        if temporary_path is not None and temporary_path.exists():
+            temporary_path.unlink()
+
+
+def _read_integrity_result(conn: Any) -> str:
+    row = conn.execute("PRAGMA quick_check").fetchone()
+
+    if row is None:
+        raise BackupError("Restored database integrity check returned no result.")
+
+    return str(row[0])
+
+
+def _read_table_names(conn: Any) -> set[str]:
+    rows = conn.execute(
+        """
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table'
+        """
+    ).fetchall()
+
+    return {str(row[0]) for row in rows}
+
+
+def _validate_database_connection(conn: Any) -> None:
+    integrity_result = _read_integrity_result(conn)
+
+    if integrity_result.lower() != "ok":
+        raise BackupError(
+            f"Restored database failed its integrity check: {integrity_result}"
+        )
+
+    table_names = _read_table_names(conn)
+    missing_tables = sorted(REQUIRED_DATABASE_TABLES - table_names)
+
+    if missing_tables:
+        raise BackupError(
+            "Restored database is missing required CareQueue tables: "
+            f"{missing_tables}"
+        )
+
+
+def _validate_plaintext_database(database_path: Path) -> None:
+    try:
+        conn = sqlite3.connect(database_path)
+        try:
+            _validate_database_connection(conn)
+        finally:
+            conn.close()
+    except sqlite3.DatabaseError as exc:
+        raise BackupError(
+            "Restored file is not a valid plaintext SQLite database."
+        ) from exc
+
+
+def _validate_sqlcipher_database(
+    database_path: Path,
+    *,
+    passphrase: str,
+) -> None:
+    if not passphrase:
+        raise BackupConfigError(
+            "AUTHSTATUS_SQLCIPHER_KEY is required to validate a SQLCipher restore."
+        )
+
+    sqlcipher3 = import_sqlcipher()
+
+    try:
+        conn = sqlcipher3.connect(str(database_path))
+        try:
+            apply_sqlcipher_key(conn, passphrase)
+            _validate_database_connection(conn)
+        finally:
+            conn.close()
+    except Exception as exc:
+        if isinstance(exc, (BackupConfigError, BackupError)):
+            raise
+
+        raise BackupError(
+            "Restored file is not a valid SQLCipher database for the configured key."
+        ) from exc
+
+
+def _validate_restored_database(database_path: Path) -> None:
+    settings = get_settings()
+
+    if settings.database_encryption == "plaintext":
+        _validate_plaintext_database(database_path)
+        return
+
+    if settings.database_encryption == "sqlcipher":
+        _validate_sqlcipher_database(
+            database_path,
+            passphrase=settings.sqlcipher_key.strip(),
+        )
+        return
+
+    raise BackupConfigError(
+        "Unsupported AUTHSTATUS_DATABASE_ENCRYPTION value: "
+        f"{settings.database_encryption}"
+    )
 
 
 def encrypt_backup_bytes(database_bytes: bytes) -> bytes:
@@ -68,7 +209,7 @@ def create_encrypted_database_backup(
         f"{source_path.stem}_{_backup_timestamp()}{source_path.suffix}.enc"
     )
 
-    backup_path.write_bytes(encrypted_bytes)
+    _atomic_write_bytes(backup_path, encrypted_bytes)
 
     return backup_path
 
@@ -96,7 +237,10 @@ def restore_encrypted_database_backup(
 
     destination_directory.mkdir(parents=True, exist_ok=True)
 
-    restored_name = backup_path.name.removesuffix(".enc").replace(".db", ".restored.db")
+    restored_name = backup_path.name.removesuffix(".enc").replace(
+        ".db",
+        ".restored.db",
+    )
     restored_path = destination_directory / restored_name
 
     if restored_path.exists():
@@ -104,6 +248,25 @@ def restore_encrypted_database_backup(
             f"{Path(restored_name).stem}_{_backup_timestamp()}.db"
         )
 
-    restored_path.write_bytes(decrypted_bytes)
+    temporary_path: Path | None = None
+
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            dir=destination_directory,
+            prefix=f".{restored_path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as temporary_file:
+            temporary_file.write(decrypted_bytes)
+            temporary_file.flush()
+            os.fsync(temporary_file.fileno())
+            temporary_path = Path(temporary_file.name)
+
+        _validate_restored_database(temporary_path)
+        temporary_path.replace(restored_path)
+    finally:
+        if temporary_path is not None and temporary_path.exists():
+            temporary_path.unlink()
 
     return restored_path
