@@ -34,12 +34,6 @@ import { AppShell } from "./components/layout/AppShell";
 import type { AppPage } from "./types/navigation";
 import { AuthRequest } from "./types/auth";
 
-const SETTINGS_STORAGE_KEYS = {
-  facilities: "carequeue.registeredFacilities",
-  insurances: "carequeue.registeredInsurances",
-  webPortals: "carequeue.registeredWebPortals",
-};
-
 function App() {
   const [darkMode, setDarkMode] = useState(true);
   const [activePage, setActivePage] = useState<AppPage>("dashboard");
@@ -63,13 +57,21 @@ function App() {
     setNewWebPortalName,
     facilityOptions,
     insuranceOptions,
+    isLoadingRegisteredOptions,
+    registeredOptionsError,
+    savingCategory,
+    deletingOptionId,
+    isProtectedOption,
     handleAddFacility,
     handleRemoveFacility,
     handleAddInsurance,
     handleRemoveInsurance,
     handleAddWebPortal,
     handleRemoveWebPortal,
-  } = useRegisteredOptions(authRequests);
+  } = useRegisteredOptions(
+    authRequests,
+    Boolean(currentUser && !currentUser.must_change_password)
+  );
 
   const { workflowViewMode, setWorkflowViewMode } = useWorkflowViewMode();
 
@@ -151,26 +153,6 @@ function App() {
     };
   }, []);
 
-  useEffect(() => {
-    window.localStorage.setItem(
-      SETTINGS_STORAGE_KEYS.facilities,
-      JSON.stringify(registeredFacilities)
-    );
-  }, [registeredFacilities]);
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      SETTINGS_STORAGE_KEYS.insurances,
-      JSON.stringify(registeredInsurances)
-    );
-  }, [registeredInsurances]);
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      SETTINGS_STORAGE_KEYS.webPortals,
-      JSON.stringify(registeredWebPortals)
-    );
-  }, [registeredWebPortals]);
 
   const {
     newAuthForm,
@@ -578,6 +560,12 @@ function App() {
           workflowViewMode={workflowViewMode}
           onWorkflowViewModeChange={setWorkflowViewMode}
           onPasswordChanged={handlePasswordChanged}
+          isLoadingRegisteredOptions={isLoadingRegisteredOptions}
+          registeredOptionsError={registeredOptionsError}
+          savingCategory={savingCategory}
+          deletingOptionId={deletingOptionId}
+          isProtectedOption={isProtectedOption}
+          canManageRegisteredOptions={canManageUsers}
         />
       )}
 

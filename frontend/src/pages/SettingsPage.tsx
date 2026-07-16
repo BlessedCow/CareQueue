@@ -2,6 +2,7 @@ import { useState } from "react";
 import { cn } from "../utils/cn";
 import type { WorkflowViewMode } from "../hooks/useWorkflowViewMode";
 import { ChangePasswordCard } from "../components/security/ChangePasswordCard";
+import type { RegisteredOptionCategory } from "../api/registeredOptions";
 
 type DashboardCardKey =
   | "kpis"
@@ -108,18 +109,28 @@ const DASHBOARD_CARD_LABELS: Record<DashboardCardKey, string> = {
 
 interface RegisteredListCardProps {
   darkMode: boolean;
+  category: RegisteredOptionCategory;
   title: string;
   description: string;
   placeholder: string;
   value: string;
   onValueChange: (value: string) => void;
   items: string[];
-  onAdd: () => void;
-  onRemove: (value: string) => void;
+  onAdd: () => Promise<void>;
+  onRemove: (value: string) => Promise<void>;
+  canManage: boolean;
+  isLoading: boolean;
+  savingCategory: RegisteredOptionCategory | null;
+  deletingOptionId: number | null;
+  isProtectedOption: (
+    category: RegisteredOptionCategory,
+    name: string
+  ) => boolean;
 }
 
 function RegisteredListCard({
   darkMode,
+  category,
   title,
   description,
   placeholder,
@@ -128,10 +139,18 @@ function RegisteredListCard({
   items,
   onAdd,
   onRemove,
+  canManage,
+  isLoading,
+  savingCategory,
+  deletingOptionId,
+  isProtectedOption,
 }: RegisteredListCardProps) {
   const [confirmingRemoveItem, setConfirmingRemoveItem] = useState<
     string | null
   >(null);
+
+  const isSaving = savingCategory === category;
+  const isDeleting = deletingOptionId !== null;
 
   return (
     <div
@@ -148,6 +167,7 @@ function RegisteredListCard({
       >
         {title}
       </h3>
+
       <p
         className={cn(
           "mb-4 text-sm",
@@ -157,98 +177,138 @@ function RegisteredListCard({
         {description}
       </p>
 
-      <div className="mb-4 flex gap-2">
-        <input
-          type="text"
-          value={value}
-          onChange={(event) => {
-            onValueChange(event.target.value);
-            setConfirmingRemoveItem(null);
-          }}
-          placeholder={placeholder}
+      {canManage && (
+        <div className="mb-4 flex gap-2">
+          <input
+            type="text"
+            value={value}
+            onChange={(event) => {
+              onValueChange(event.target.value);
+              setConfirmingRemoveItem(null);
+            }}
+            placeholder={placeholder}
+            disabled={isSaving || isDeleting}
+            className={cn(
+              "min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60",
+              darkMode
+                ? "border-gray-700 bg-gray-900 text-gray-100 placeholder-gray-500"
+                : "border-gray-300 bg-white text-gray-900 placeholder-gray-400"
+            )}
+          />
+
+          <button
+            type="button"
+            disabled={isSaving || isDeleting || !value.trim()}
+            onClick={() => {
+              void onAdd();
+              setConfirmingRemoveItem(null);
+            }}
+            className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isSaving ? "Adding..." : "Add"}
+          </button>
+        </div>
+      )}
+
+      {isLoading && (
+        <p
           className={cn(
-            "min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500",
-            darkMode
-              ? "border-gray-700 bg-gray-900 text-gray-100 placeholder-gray-500"
-              : "border-gray-300 bg-white text-gray-900 placeholder-gray-400"
+            "mb-3 text-sm",
+            darkMode ? "text-gray-400" : "text-gray-600"
           )}
-        />
-        <button
-          onClick={() => {
-            onAdd();
-            setConfirmingRemoveItem(null);
-          }}
-          className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
         >
-          Add
-        </button>
-      </div>
+          Loading options...
+        </p>
+      )}
 
       <div className="space-y-2">
-        {items.map((item) => (
-          <div
-            key={item}
-            className={cn(
-              "flex items-center justify-between rounded-lg border px-3 py-2 text-sm",
-              darkMode
-                ? "border-gray-800 bg-gray-950/60"
-                : "border-gray-200 bg-gray-50"
-            )}
-          >
-            <span>{item}</span>
-            {confirmingRemoveItem === item ? (
-              <div className="flex items-center gap-2">
+        {items.map((item) => {
+          const isProtected = isProtectedOption(category, item);
+          const canRemoveItem = canManage && !isProtected;
+
+          return (
+            <div
+              key={item}
+              className={cn(
+                "flex items-center justify-between rounded-lg border px-3 py-2 text-sm",
+                darkMode
+                  ? "border-gray-800 bg-gray-950/60"
+                  : "border-gray-200 bg-gray-50"
+              )}
+            >
+              <span>{item}</span>
+
+              {isProtected ? (
                 <span
                   className={cn(
-                    "text-xs",
-                    darkMode ? "text-gray-400" : "text-gray-500"
+                    "text-xs font-medium",
+                    darkMode ? "text-gray-500" : "text-gray-500"
                   )}
                 >
-                  Remove?
+                  Built in
                 </span>
+              ) : canRemoveItem ? (
+                confirmingRemoveItem === item ? (
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "text-xs",
+                        darkMode ? "text-gray-400" : "text-gray-500"
+                      )}
+                    >
+                      Remove?
+                    </span>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    onRemove(item);
-                    setConfirmingRemoveItem(null);
-                  }}
-                  className={
-                    darkMode
-                      ? "text-red-400 hover:text-red-300"
-                      : "text-red-600 hover:text-red-700"
-                  }
-                >
-                  Yes
-                </button>
+                    <button
+                      type="button"
+                      disabled={isDeleting}
+                      onClick={() => {
+                        void onRemove(item);
+                        setConfirmingRemoveItem(null);
+                      }}
+                      className={cn(
+                        darkMode
+                          ? "text-red-400 hover:text-red-300"
+                          : "text-red-600 hover:text-red-700",
+                        isDeleting && "cursor-not-allowed opacity-50"
+                      )}
+                    >
+                      Yes
+                    </button>
 
-                <button
-                  type="button"
-                  onClick={() => setConfirmingRemoveItem(null)}
-                  className={
-                    darkMode
-                      ? "text-gray-400 hover:text-gray-300"
-                      : "text-gray-600 hover:text-gray-800"
-                  }
-                >
-                  No
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setConfirmingRemoveItem(item)}
-                className={
-                  darkMode
-                    ? "text-red-400 hover:text-red-300"
-                    : "text-red-600 hover:text-red-700"
-                }
-              >
-                Remove
-              </button>
-            )}
-          </div>
-        ))}
+                    <button
+                      type="button"
+                      disabled={isDeleting}
+                      onClick={() => setConfirmingRemoveItem(null)}
+                      className={cn(
+                        darkMode
+                          ? "text-gray-400 hover:text-gray-300"
+                          : "text-gray-600 hover:text-gray-800",
+                        isDeleting && "cursor-not-allowed opacity-50"
+                      )}
+                    >
+                      No
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={isDeleting}
+                    onClick={() => setConfirmingRemoveItem(item)}
+                    className={cn(
+                      darkMode
+                        ? "text-red-400 hover:text-red-300"
+                        : "text-red-600 hover:text-red-700",
+                      isDeleting && "cursor-not-allowed opacity-50"
+                    )}
+                  >
+                    Remove
+                  </button>
+                )
+              ) : null}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -334,20 +394,30 @@ interface SettingsPageProps {
   newFacilityName: string;
   setNewFacilityName: (value: string) => void;
   registeredFacilities: string[];
-  onAddFacility: () => void;
-  onRemoveFacility: (value: string) => void;
+  onAddFacility: () => Promise<void>;
+  onRemoveFacility: (value: string) => Promise<void>;
 
   newInsuranceName: string;
   setNewInsuranceName: (value: string) => void;
   registeredInsurances: string[];
-  onAddInsurance: () => void;
-  onRemoveInsurance: (value: string) => void;
+  onAddInsurance: () => Promise<void>;
+  onRemoveInsurance: (value: string) => Promise<void>;
 
   newWebPortalName: string;
   setNewWebPortalName: (value: string) => void;
   registeredWebPortals: string[];
-  onAddWebPortal: () => void;
-  onRemoveWebPortal: (value: string) => void;
+  onAddWebPortal: () => Promise<void>;
+  onRemoveWebPortal: (value: string) => Promise<void>;
+
+  isLoadingRegisteredOptions: boolean;
+  registeredOptionsError: string | null;
+  savingCategory: RegisteredOptionCategory | null;
+  deletingOptionId: number | null;
+  isProtectedOption: (
+    category: RegisteredOptionCategory,
+    name: string
+  ) => boolean;
+  canManageRegisteredOptions: boolean;
 
   dashboardCardSettings: DashboardCardSettings;
   onToggleDashboardCard: (cardKey: DashboardCardKey) => void;
@@ -376,6 +446,12 @@ export function SettingsPage({
   registeredWebPortals,
   onAddWebPortal,
   onRemoveWebPortal,
+  isLoadingRegisteredOptions,
+  registeredOptionsError,
+  savingCategory,
+  deletingOptionId,
+  isProtectedOption,
+  canManageRegisteredOptions,
   dashboardCardSettings,
   onToggleDashboardCard,
   onResetDashboardCards,
@@ -387,112 +463,144 @@ export function SettingsPage({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 lg:grid-cols-3">
-      <RegisteredListCard
-        darkMode={darkMode}
-        title="Registered Facilities"
-        description="Facilities available when creating authorization records."
-        placeholder="Add facility"
-        value={newFacilityName}
-        onValueChange={setNewFacilityName}
-        items={registeredFacilities}
-        onAdd={onAddFacility}
-        onRemove={onRemoveFacility}
-      />
+      {registeredOptionsError && (
+        <div
+          role="alert"
+          className={cn(
+            "rounded-lg border px-4 py-3 text-sm",
+            darkMode
+              ? "border-red-900/60 bg-red-950/40 text-red-200"
+              : "border-red-200 bg-red-50 text-red-700"
+          )}
+        >
+          {registeredOptionsError}
+        </div>
+      )}
 
-      <RegisteredListCard
-        darkMode={darkMode}
-        title="Registered Insurances"
-        description="Insurance options available when creating authorization records."
-        placeholder="Add insurance"
-        value={newInsuranceName}
-        onValueChange={setNewInsuranceName}
-        items={registeredInsurances}
-        onAdd={onAddInsurance}
-        onRemove={onRemoveInsurance}
-      />
-
-      <div className="space-y-6">
+    <div className="grid gap-6 lg:grid-cols-3">
         <RegisteredListCard
           darkMode={darkMode}
-          title="Web Portals"
-          description="Portal options available for web portal submissions."
-          placeholder="Add portal"
-          value={newWebPortalName}
-          onValueChange={setNewWebPortalName}
-          items={registeredWebPortals}
-          onAdd={onAddWebPortal}
-          onRemove={onRemoveWebPortal}
+          category="facility"
+          title="Registered Facilities"
+          description="Facilities available when creating authorization records."
+          placeholder="Add facility"
+          value={newFacilityName}
+          onValueChange={setNewFacilityName}
+          items={registeredFacilities}
+          onAdd={onAddFacility}
+          onRemove={onRemoveFacility}
+          canManage={canManageRegisteredOptions}
+          isLoading={isLoadingRegisteredOptions}
+          savingCategory={savingCategory}
+          deletingOptionId={deletingOptionId}
+          isProtectedOption={isProtectedOption}
         />
 
-        <WorkflowViewSettingsCard
+        <RegisteredListCard
           darkMode={darkMode}
-          workflowViewMode={workflowViewMode}
-          onWorkflowViewModeChange={onWorkflowViewModeChange}
+          category="insurance"
+          title="Registered Insurances"
+          description="Insurance options available when creating authorization records."
+          placeholder="Add insurance"
+          value={newInsuranceName}
+          onValueChange={setNewInsuranceName}
+          items={registeredInsurances}
+          onAdd={onAddInsurance}
+          onRemove={onRemoveInsurance}
+          canManage={canManageRegisteredOptions}
+          isLoading={isLoadingRegisteredOptions}
+          savingCategory={savingCategory}
+          deletingOptionId={deletingOptionId}
+          isProtectedOption={isProtectedOption}
         />
 
-<DashboardCardsSettingsCard
-          darkMode={darkMode}
-          dashboardCardSettings={dashboardCardSettings}
-          onToggleDashboardCard={onToggleDashboardCard}
-          onResetDashboardCards={onResetDashboardCards}
-        />
-      </div>
-    </div>
-
-    <section
-      className={cn(
-        "rounded-xl border shadow-sm",
-        darkMode ? "border-gray-800 bg-gray-900" : "border-gray-200 bg-white"
-      )}
-    >
-      <button
-        type="button"
-        onClick={() =>
-          setIsPasswordChangeOpen((currentValue) => !currentValue)
-        }
-        aria-expanded={isPasswordChangeOpen}
-        className={cn(
-          "flex w-full items-center justify-between gap-4 rounded-xl px-5 py-4 text-left transition-colors",
-          darkMode ? "hover:bg-gray-800/70" : "hover:bg-gray-50"
-        )}
-      >
-        <div>
-          <h2 className="font-semibold">Account Security</h2>
-          <p
-            className={cn(
-              "mt-1 text-sm",
-              darkMode ? "text-gray-400" : "text-gray-600"
-            )}
-          >
-            Change your CareQueue password and sign out of active sessions.
-          </p>
-        </div>
-
-        <span
-          className={cn(
-            "shrink-0 text-sm font-medium",
-            darkMode ? "text-blue-400" : "text-blue-600"
-          )}
-        >
-          {isPasswordChangeOpen ? "Hide" : "Change password"}
-        </span>
-      </button>
-
-      {isPasswordChangeOpen && (
-        <div
-          className={cn(
-            "border-t p-5",
-            darkMode ? "border-gray-800" : "border-gray-200"
-          )}
-        >
-          <ChangePasswordCard
+        <div className="space-y-6">
+          <RegisteredListCard
             darkMode={darkMode}
-            onPasswordChanged={onPasswordChanged}
+            category="web_portal"
+            title="Web Portals"
+            description="Portal options available for web portal submissions."
+            placeholder="Add portal"
+            value={newWebPortalName}
+            onValueChange={setNewWebPortalName}
+            items={registeredWebPortals}
+            onAdd={onAddWebPortal}
+            onRemove={onRemoveWebPortal}
+            canManage={canManageRegisteredOptions}
+            isLoading={isLoadingRegisteredOptions}
+            savingCategory={savingCategory}
+            deletingOptionId={deletingOptionId}
+            isProtectedOption={isProtectedOption}
+          />
+
+          <WorkflowViewSettingsCard
+            darkMode={darkMode}
+            workflowViewMode={workflowViewMode}
+            onWorkflowViewModeChange={onWorkflowViewModeChange}
+          />
+
+          <DashboardCardsSettingsCard
+            darkMode={darkMode}
+            dashboardCardSettings={dashboardCardSettings}
+            onToggleDashboardCard={onToggleDashboardCard}
+            onResetDashboardCards={onResetDashboardCards}
           />
         </div>
-      )}
-    </section>
-  </div>
-);
+      </div>
+
+      <section
+        className={cn(
+          "rounded-xl border shadow-sm",
+          darkMode ? "border-gray-800 bg-gray-900" : "border-gray-200 bg-white"
+        )}
+      >
+        <button
+          type="button"
+          onClick={() =>
+            setIsPasswordChangeOpen((currentValue) => !currentValue)
+          }
+          aria-expanded={isPasswordChangeOpen}
+          className={cn(
+            "flex w-full items-center justify-between gap-4 rounded-xl px-5 py-4 text-left transition-colors",
+            darkMode ? "hover:bg-gray-800/70" : "hover:bg-gray-50"
+          )}
+        >
+          <div>
+            <h2 className="font-semibold">Account Security</h2>
+            <p
+              className={cn(
+                "mt-1 text-sm",
+                darkMode ? "text-gray-400" : "text-gray-600"
+              )}
+            >
+              Change your CareQueue password and sign out of active sessions.
+            </p>
+          </div>
+
+          <span
+            className={cn(
+              "shrink-0 text-sm font-medium",
+              darkMode ? "text-blue-400" : "text-blue-600"
+            )}
+          >
+            {isPasswordChangeOpen ? "Hide" : "Change password"}
+          </span>
+        </button>
+
+        {isPasswordChangeOpen && (
+          <div
+            className={cn(
+              "border-t p-5",
+              darkMode ? "border-gray-800" : "border-gray-200"
+            )}
+          >
+            <ChangePasswordCard
+              darkMode={darkMode}
+              onPasswordChanged={onPasswordChanged}
+            />
+          </div>
+        )}
+      </section>
+    </div>
+  );
 }

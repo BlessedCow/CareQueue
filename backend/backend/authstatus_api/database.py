@@ -121,6 +121,16 @@ AUDIT_EVENT_TABLE_COLUMNS = {
 }
 
 
+REGISTERED_OPTION_TABLE_COLUMNS = {
+    "id",
+    "category",
+    "name",
+    "normalized_name",
+    "is_protected",
+    "created_at",
+    "updated_at",
+}
+
 def _path_is_relative_to(path: Path, parent: Path) -> bool:
     try:
         path.relative_to(parent)
@@ -343,6 +353,29 @@ def init_db() -> None:
             )
             """
         )
+        
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS registered_options (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                category TEXT NOT NULL,
+                name TEXT NOT NULL,
+                normalized_name TEXT NOT NULL,
+                is_protected INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                CHECK (
+                    category IN (
+                        'facility',
+                        'insurance',
+                        'web_portal'
+                    )
+                ),
+                CHECK (is_protected IN (0, 1)),
+                UNIQUE (category, normalized_name)
+            )
+            """
+        )
 
         ensure_column(conn, "auths", "member_id", "TEXT")
         ensure_column(conn, "auths", "group_number", "TEXT")
@@ -377,3 +410,28 @@ def init_db() -> None:
         ensure_column(conn, "audit_events", "metadata", "TEXT NOT NULL DEFAULT '{}'")
         ensure_column(conn, "audit_events", "ip_address", "TEXT")
         ensure_column(conn, "audit_events", "user_agent", "TEXT")
+        
+        default_option_timestamp = "1970-01-01T00:00:00+00:00"
+
+        for category in ("facility", "insurance", "web_portal"):
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO registered_options (
+                    category,
+                    name,
+                    normalized_name,
+                    is_protected,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    category,
+                    "Other",
+                    "other",
+                    1,
+                    default_option_timestamp,
+                    default_option_timestamp,
+                ),
+            )
