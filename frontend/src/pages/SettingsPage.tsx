@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { cn } from "../utils/cn";
 import type { WorkflowViewMode } from "../hooks/useWorkflowViewMode";
+import { ChangePasswordCard } from "../components/security/ChangePasswordCard";
 
 type DashboardCardKey =
   | "kpis"
@@ -354,6 +355,8 @@ interface SettingsPageProps {
 
   workflowViewMode: WorkflowViewMode;
   onWorkflowViewModeChange: (value: WorkflowViewMode) => void;
+
+  onPasswordChanged: () => void;
 }
 
 export function SettingsPage({
@@ -378,9 +381,13 @@ export function SettingsPage({
   onResetDashboardCards,
   workflowViewMode,
   onWorkflowViewModeChange,
+  onPasswordChanged,
 }: SettingsPageProps) {
+  const [isPasswordChangeOpen, setIsPasswordChangeOpen] = useState(false);
+
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
+    <div className="space-y-6">
+      <div className="grid gap-6 lg:grid-cols-3">
       <RegisteredListCard
         darkMode={darkMode}
         title="Registered Facilities"
@@ -424,7 +431,7 @@ export function SettingsPage({
           onWorkflowViewModeChange={onWorkflowViewModeChange}
         />
 
-        <DashboardCardsSettingsCard
+<DashboardCardsSettingsCard
           darkMode={darkMode}
           dashboardCardSettings={dashboardCardSettings}
           onToggleDashboardCard={onToggleDashboardCard}
@@ -432,5 +439,60 @@ export function SettingsPage({
         />
       </div>
     </div>
-  );
+
+    <section
+      className={cn(
+        "rounded-xl border shadow-sm",
+        darkMode ? "border-gray-800 bg-gray-900" : "border-gray-200 bg-white"
+      )}
+    >
+      <button
+        type="button"
+        onClick={() =>
+          setIsPasswordChangeOpen((currentValue) => !currentValue)
+        }
+        aria-expanded={isPasswordChangeOpen}
+        className={cn(
+          "flex w-full items-center justify-between gap-4 rounded-xl px-5 py-4 text-left transition-colors",
+          darkMode ? "hover:bg-gray-800/70" : "hover:bg-gray-50"
+        )}
+      >
+        <div>
+          <h2 className="font-semibold">Account Security</h2>
+          <p
+            className={cn(
+              "mt-1 text-sm",
+              darkMode ? "text-gray-400" : "text-gray-600"
+            )}
+          >
+            Change your CareQueue password and sign out of active sessions.
+          </p>
+        </div>
+
+        <span
+          className={cn(
+            "shrink-0 text-sm font-medium",
+            darkMode ? "text-blue-400" : "text-blue-600"
+          )}
+        >
+          {isPasswordChangeOpen ? "Hide" : "Change password"}
+        </span>
+      </button>
+
+      {isPasswordChangeOpen && (
+        <div
+          className={cn(
+            "border-t p-5",
+            darkMode ? "border-gray-800" : "border-gray-200"
+          )}
+        >
+          <ChangePasswordCard
+            darkMode={darkMode}
+            onPasswordChanged={onPasswordChanged}
+          />
+        </div>
+      )}
+    </section>
+  </div>
+);
 }

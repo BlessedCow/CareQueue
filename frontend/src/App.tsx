@@ -7,6 +7,7 @@ import { fetchCurrentUser, logoutUser, type CurrentUser } from "./api/security";
 
 // Components
 import { LoginPage } from "./components/LoginPage";
+import { RequiredPasswordChangePage } from "./components/RequiredPasswordChangePage";
 
 // Pages
 import { DashboardPage } from "./pages/DashboardPage";
@@ -183,8 +184,10 @@ function App() {
   useEffect(() => {
     let isMounted = true;
 
-    if (!currentUser) {
+    if (!currentUser || currentUser.must_change_password) {
       setIsLoadingAuths(false);
+      setAuthsError(null);
+
       return () => {
         isMounted = false;
       };
@@ -336,6 +339,15 @@ function App() {
     setActivePage("dashboard");
   };
 
+  const handleRequiredPasswordChanged = () => {
+    clearAccessToken();
+    setCurrentUser(null);
+    setAuthRequests([]);
+    clearAuthEvents();
+    handleCancelAuthForm();
+    setActivePage("dashboard");
+  };
+
   const handleLogout = async () => {
     await logoutUser();
     setCurrentUser(null);
@@ -358,6 +370,26 @@ function App() {
   if (!currentUser) {
     return <LoginPage darkMode={darkMode} onLogin={handleLogin} />;
   }
+
+  if (currentUser.must_change_password) {
+    return (
+      <RequiredPasswordChangePage
+        darkMode={darkMode}
+        username={currentUser.username}
+        onPasswordChanged={handleRequiredPasswordChanged}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  const handlePasswordChanged = () => {
+    clearAccessToken();
+    setCurrentUser(null);
+    setAuthRequests([]);
+    clearAuthEvents();
+    handleCancelAuthForm();
+    setActivePage("dashboard");
+  };
 
   const canManageAuthorizations =
     currentUser.role === "Admin" || currentUser.role === "UR";
@@ -545,6 +577,7 @@ function App() {
           onResetDashboardCards={handleResetDashboardCards}
           workflowViewMode={workflowViewMode}
           onWorkflowViewModeChange={setWorkflowViewMode}
+          onPasswordChanged={handlePasswordChanged}
         />
       )}
 

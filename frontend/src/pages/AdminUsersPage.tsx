@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import {
   createUser,
   fetchUsers,
+  resetUserPassword,
   updateUser,
   type CurrentUser,
 } from "../api/security";
@@ -32,6 +33,15 @@ export function AdminUsersPage({ darkMode, currentUser }: AdminUsersPageProps) {
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   const [isSavingUser, setIsSavingUser] = useState(false);
   const [updatingUserId, setUpdatingUserId] = useState<number | null>(null);
+  const [resettingUserId, setResettingUserId] = useState<number | null>(null);
+  const [temporaryPassword, setTemporaryPassword] = useState<string | null>(
+    null
+  );
+  const [temporaryPasswordUsername, setTemporaryPasswordUsername] = useState<
+    string | null
+  >(null);
+  const [hasCopiedTemporaryPassword, setHasCopiedTemporaryPassword] =
+    useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
 
   async function loadUsers() {
@@ -105,8 +115,143 @@ export function AdminUsersPage({ darkMode, currentUser }: AdminUsersPageProps) {
     }
   };
 
+  const handleResetPassword = async (user: CurrentUser) => {
+    const confirmed = window.confirm(
+      `Reset the password for ${user.username}? This will immediately revoke all of their active sessions.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setResettingUserId(user.id);
+    setUsersError(null);
+    setTemporaryPassword(null);
+    setTemporaryPasswordUsername(null);
+    setHasCopiedTemporaryPassword(false);
+
+    try {
+      const result = await resetUserPassword(user.id);
+
+      setUsers((currentUsers) =>
+        currentUsers.map((currentUserItem) =>
+          currentUserItem.id === user.id
+            ? {
+                ...currentUserItem,
+                must_change_password: result.must_change_password,
+              }
+            : currentUserItem
+        )
+      );
+
+      setTemporaryPassword(result.temporary_password);
+      setTemporaryPasswordUsername(user.username);
+    } catch (error) {
+      setUsersError(
+        error instanceof Error ? error.message : "Unable to reset password."
+      );
+    } finally {
+      setResettingUserId(null);
+    }
+  };
+
+  const handleCopyTemporaryPassword = async () => {
+    if (!temporaryPassword) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(temporaryPassword);
+      setHasCopiedTemporaryPassword(true);
+    } catch {
+      setUsersError(
+        "Unable to copy the temporary password. Select and copy it manually."
+      );
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {temporaryPassword && temporaryPasswordUsername && (
+        <section
+          className={cn(
+            "rounded-xl border p-6 shadow-sm",
+            darkMode
+              ? "border-amber-800 bg-amber-950/30"
+              : "border-amber-200 bg-amber-50"
+          )}
+        >
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">
+                Temporary password created
+              </h2>
+
+              <p
+                className={cn(
+                  "mt-1 text-sm",
+                  darkMode ? "text-amber-200" : "text-amber-800"
+                )}
+              >
+                Give this password securely to {temporaryPasswordUsername}. It
+                will not be available again after this panel is dismissed or the
+                page is refreshed.
+              </p>
+
+              <p
+                className={cn(
+                  "mt-2 text-sm",
+                  darkMode ? "text-gray-300" : "text-gray-700"
+                )}
+              >
+                The user must change it after signing in. Their previous
+                sessions have been revoked.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setTemporaryPassword(null);
+                setTemporaryPasswordUsername(null);
+                setHasCopiedTemporaryPassword(false);
+              }}
+              className={cn(
+                "self-start rounded-lg border px-3 py-2 text-sm font-medium",
+                darkMode
+                  ? "border-gray-700 text-gray-200 hover:bg-gray-800"
+                  : "border-gray-300 text-gray-700 hover:bg-white"
+              )}
+            >
+              Dismiss
+            </button>
+          </div>
+
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+            <input
+              type="text"
+              readOnly
+              value={temporaryPassword}
+              aria-label={`Temporary password for ${temporaryPasswordUsername}`}
+              className={cn(
+                "min-w-0 flex-1 rounded-lg border px-3 py-2 font-mono text-sm",
+                darkMode
+                  ? "border-gray-700 bg-gray-950 text-gray-100"
+                  : "border-gray-300 bg-white text-gray-900"
+              )}
+              onFocus={(event) => event.currentTarget.select()}
+            />
+
+            <button
+              type="button"
+              onClick={() => void handleCopyTemporaryPassword()}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+            >
+              {hasCopiedTemporaryPassword ? "Copied" : "Copy password"}
+            </button>
+          </div>
+        </section>
+      )}
       <section
         className={cn(
           "rounded-xl border p-6 shadow-sm",
@@ -323,20 +468,35 @@ export function AdminUsersPage({ darkMode, currentUser }: AdminUsersPageProps) {
                         </select>
                       </td>
                       <td className="px-6 py-4">
-                        <span
-                          className={cn(
-                            "rounded-full px-2.5 py-1 text-xs font-medium",
-                            user.is_active
-                              ? darkMode
-                                ? "bg-green-950 text-green-300"
-                                : "bg-green-100 text-green-700"
-                              : darkMode
-                              ? "bg-gray-800 text-gray-400"
-                              : "bg-gray-100 text-gray-600"
+                        <div className="flex flex-wrap gap-2">
+                          <span
+                            className={cn(
+                              "rounded-full px-2.5 py-1 text-xs font-medium",
+                              user.is_active
+                                ? darkMode
+                                  ? "bg-green-950 text-green-300"
+                                  : "bg-green-100 text-green-700"
+                                : darkMode
+                                ? "bg-gray-800 text-gray-400"
+                                : "bg-gray-100 text-gray-600"
+                            )}
+                          >
+                            {user.is_active ? "Active" : "Inactive"}
+                          </span>
+
+                          {user.must_change_password && (
+                            <span
+                              className={cn(
+                                "rounded-full px-2.5 py-1 text-xs font-medium",
+                                darkMode
+                                  ? "bg-amber-950 text-amber-300"
+                                  : "bg-amber-100 text-amber-700"
+                              )}
+                            >
+                              Password change required
+                            </span>
                           )}
-                        >
-                          {user.is_active ? "Active" : "Inactive"}
-                        </span>
+                        </div>
                       </td>
                       <td
                         className={cn(
@@ -347,27 +507,55 @@ export function AdminUsersPage({ darkMode, currentUser }: AdminUsersPageProps) {
                         {user.last_login_at ?? "Never"}
                       </td>
                       <td className="px-6 py-4">
-                        <button
-                          type="button"
-                          disabled={isUpdating || isCurrentUser}
-                          onClick={() =>
-                            handleUpdateUser(user, {
-                              is_active: !user.is_active,
-                            })
-                          }
-                          className={cn(
-                            "rounded-lg px-3 py-2 text-sm font-medium",
-                            user.is_active
-                              ? darkMode
-                                ? "bg-gray-800 text-gray-200 hover:bg-gray-700"
-                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                              : "bg-blue-600 text-white hover:bg-blue-700",
-                            (isUpdating || isCurrentUser) &&
-                              "cursor-not-allowed opacity-50"
-                          )}
-                        >
-                          {user.is_active ? "Deactivate" : "Activate"}
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            disabled={isUpdating || isCurrentUser}
+                            onClick={() =>
+                              handleUpdateUser(user, {
+                                is_active: !user.is_active,
+                              })
+                            }
+                            className={cn(
+                              "rounded-lg px-3 py-2 text-sm font-medium",
+                              user.is_active
+                                ? darkMode
+                                  ? "bg-gray-800 text-gray-200 hover:bg-gray-700"
+                                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                : "bg-blue-600 text-white hover:bg-blue-700",
+                              (isUpdating || isCurrentUser) &&
+                                "cursor-not-allowed opacity-50"
+                            )}
+                          >
+                            {user.is_active ? "Deactivate" : "Activate"}
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={
+                              isUpdating ||
+                              resettingUserId !== null ||
+                              isCurrentUser ||
+                              !user.is_active
+                            }
+                            onClick={() => void handleResetPassword(user)}
+                            className={cn(
+                              "rounded-lg border px-3 py-2 text-sm font-medium",
+                              darkMode
+                                ? "border-gray-700 text-gray-200 hover:bg-gray-800"
+                                : "border-gray-300 text-gray-700 hover:bg-gray-100",
+                              (isUpdating ||
+                                resettingUserId !== null ||
+                                isCurrentUser ||
+                                !user.is_active) &&
+                                "cursor-not-allowed opacity-50"
+                            )}
+                          >
+                            {resettingUserId === user.id
+                              ? "Resetting..."
+                              : "Reset password"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

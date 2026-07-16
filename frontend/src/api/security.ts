@@ -12,6 +12,7 @@ export interface CurrentUser {
   is_active: boolean;
   last_login_at: string | null;
   password_changed_at: string;
+  must_change_password: boolean;
 }
 
 interface LoginResponse {
@@ -38,6 +39,84 @@ interface CreateUserPayload {
 interface UpdateUserPayload {
   role?: string;
   is_active?: boolean;
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<PasswordUpdateResponse> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/api/security/change-password`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    let message = "Unable to change password.";
+
+    try {
+      const data = (await response.json()) as { detail?: string };
+
+      if (data.detail) {
+        message = data.detail;
+      }
+    } catch {
+      // Keep the generic message when the response is not JSON.
+    }
+
+    throw new Error(message);
+  }
+
+  return (await response.json()) as PasswordUpdateResponse;
+}
+
+export async function resetUserPassword(
+  userId: number
+): Promise<AdminPasswordResetResponse> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/api/security/users/${userId}/reset-password`,
+    {
+      method: "POST",
+    }
+  );
+
+  if (!response.ok) {
+    let message = "Unable to reset password.";
+
+    try {
+      const data = (await response.json()) as { detail?: string };
+
+      if (data.detail) {
+        message = data.detail;
+      }
+    } catch {
+      // Keep the generic message when the response is not JSON.
+    }
+
+    throw new Error(message);
+  }
+
+  return (await response.json()) as AdminPasswordResetResponse;
+}
+
+export interface PasswordUpdateResponse {
+  password_changed: boolean;
+  sessions_revoked: number;
+}
+
+export interface AdminPasswordResetResponse {
+  password_reset: boolean;
+  temporary_password: string;
+  sessions_revoked: number;
+  must_change_password: boolean;
 }
 
 export interface AuditEvent {
