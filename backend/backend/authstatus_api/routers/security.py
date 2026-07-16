@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 
-from authstatus_api.audit.service import record_audit_event
+from authstatus_api.audit.service import list_audit_events, record_audit_event
 from authstatus_api.security.dependencies import (
     CurrentUserDependency,
     extract_bearer_token,
@@ -18,6 +18,8 @@ from authstatus_api.security.repository import (
     update_user,
 )
 from authstatus_api.security.schemas import (
+    AuditEventListResponse,
+    AuditEventResponse,
     CurrentUserResponse,
     LoginRequest,
     LoginResponse,
@@ -55,6 +57,32 @@ def _user_response(user: dict) -> UserResponse:
 def read_users(current_user: dict = AdminUserDependency) -> UserListResponse:
     return UserListResponse(
         users=[_user_response(user) for user in list_users()],
+    )
+
+
+@router.get("/audit-events", response_model=AuditEventListResponse)
+def read_audit_events(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=200),
+    action: str | None = Query(default=None),
+    username: str | None = Query(default=None),
+    current_user: dict = AdminUserDependency,
+) -> AuditEventListResponse:
+    result = list_audit_events(
+        page=page,
+        page_size=page_size,
+        action=action,
+        username=username,
+    )
+
+    return AuditEventListResponse(
+        events=[
+            AuditEventResponse(**event)
+            for event in result["events"]
+        ],
+        page=result["page"],
+        page_size=result["page_size"],
+        total=result["total"],
     )
 
 

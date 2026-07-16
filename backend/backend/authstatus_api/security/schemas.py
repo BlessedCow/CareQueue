@@ -42,6 +42,26 @@ class UserListResponse(BaseModel):
     users: list[UserResponse]
 
 
+class AuditEventResponse(BaseModel):
+    id: int
+    user_id: int | None = None
+    username: str | None = None
+    action: str
+    resource_type: str
+    resource_id: int | None = None
+    metadata: str
+    ip_address: str | None = None
+    user_agent: str | None = None
+    created_at: str
+
+
+class AuditEventListResponse(BaseModel):
+    events: list[AuditEventResponse]
+    page: int
+    page_size: int
+    total: int
+
+
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

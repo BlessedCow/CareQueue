@@ -40,6 +40,33 @@ interface UpdateUserPayload {
   is_active?: boolean;
 }
 
+export interface AuditEvent {
+  id: number;
+  user_id: number | null;
+  username: string | null;
+  action: string;
+  resource_type: string;
+  resource_id: number | null;
+  metadata: string;
+  ip_address: string | null;
+  user_agent: string | null;
+  created_at: string;
+}
+
+export interface AuditEventListResponse {
+  events: AuditEvent[];
+  page: number;
+  page_size: number;
+  total: number;
+}
+
+interface FetchAuditEventsOptions {
+  page?: number;
+  pageSize?: number;
+  action?: string;
+  username?: string;
+}
+
 export async function loginUser(
   username: string,
   password: string
@@ -129,6 +156,36 @@ export async function updateUser(
   }
 
   return (await response.json()) as CurrentUser;
+}
+
+export async function fetchAuditEvents({
+  page = 1,
+  pageSize = 50,
+  action = "",
+  username = "",
+}: FetchAuditEventsOptions = {}): Promise<AuditEventListResponse> {
+  const searchParams = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+
+  if (action.trim()) {
+    searchParams.set("action", action.trim());
+  }
+
+  if (username.trim()) {
+    searchParams.set("username", username.trim());
+  }
+
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/api/security/audit-events?${searchParams.toString()}`
+  );
+
+  if (!response.ok) {
+    throw new Error("Unable to load audit events.");
+  }
+
+  return (await response.json()) as AuditEventListResponse;
 }
 
 export async function logoutUser(): Promise<void> {

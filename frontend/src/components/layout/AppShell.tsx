@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   LogOut,
   Moon,
+  ScrollText,
   Settings,
   Sun,
   Users,
@@ -63,7 +64,13 @@ const adminNavigationItems: {
     label: "Users",
     icon: Users,
   },
+  {
+    page: "adminAudit",
+    label: "Audit Log",
+    icon: ScrollText,
+  },
 ];
+
 
 const PAGE_TITLES: Record<AppPage, string> = {
   dashboard: "Dashboard",
@@ -71,6 +78,7 @@ const PAGE_TITLES: Record<AppPage, string> = {
   calendar: "Calendar",
   settings: "Settings",
   adminUsers: "Users",
+  adminAudit: "Audit Log",
 };
 
 const PAGE_DESCRIPTIONS: Record<AppPage, string> = {
@@ -79,6 +87,7 @@ const PAGE_DESCRIPTIONS: Record<AppPage, string> = {
   calendar: "Track review dates and LCDs",
   settings: "Configure CareQueue preferences",
   adminUsers: "Manage local CareQueue users and roles",
+  adminAudit: "Review recorded security and workflow activity",
 };
 
 export function AppShell({

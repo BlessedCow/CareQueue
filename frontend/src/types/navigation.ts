@@ -3,4 +3,5 @@ export type AppPage =
   | "authorizations"
   | "calendar"
   | "settings"
-  | "adminUsers";
+  | "adminUsers"
+  | "adminAudit";

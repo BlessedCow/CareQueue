@@ -320,6 +320,107 @@ def test_admin_cannot_remove_own_admin_access(client):
     }
 
 
+def test_admin_can_list_audit_events(client):
+    admin = create_user("admin@example.com", "correct horse battery staple", role="Admin")
+
+    headers = auth_headers_for(
+        client,
+        admin["username"],
+        "correct horse battery staple",
+    )
+
+    response = client.get(
+        "/api/security/audit-events?page=1&page_size=10",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["page"] == 1
+    assert data["page_size"] == 10
+    assert data["total"] >= 1
+    assert isinstance(data["events"], list)
+
+
+def test_ur_user_cannot_list_audit_events(client):
+    create_user("ur@example.com", "correct horse battery staple", role="UR")
+
+    response = client.get(
+        "/api/security/audit-events",
+        headers=auth_headers_for(
+            client,
+            "ur@example.com",
+            "correct horse battery staple",
+        ),
+    )
+
+    assert response.status_code == 403
+
+
+def test_audit_events_endpoint_supports_action_filter(client):
+    admin = create_user("admin@example.com", "correct horse battery staple", role="Admin")
+
+    headers = auth_headers_for(
+        client,
+        admin["username"],
+        "correct horse battery staple",
+    )
+
+    response = client.get(
+        "/api/security/audit-events?action=login",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+
+    events = response.json()["events"]
+
+    assert events
+    assert all(event["action"] == "security.login" for event in events)
+    
+
+def test_audit_events_endpoint_supports_partial_username_filter(client):
+    admin = create_user(
+        "admin@example.com",
+        "correct horse battery staple",
+        role="Admin",
+    )
+    create_user(
+        "readonly@example.com",
+        "correct horse battery staple",
+        role="Read Only",
+    )
+
+    readonly_headers = auth_headers_for(
+        client,
+        "readonly@example.com",
+        "correct horse battery staple",
+    )
+
+    client.post("/api/security/logout", headers=readonly_headers)
+
+    response = client.get(
+        "/api/security/audit-events?username=read",
+        headers=auth_headers_for(
+            client,
+            admin["username"],
+            "correct horse battery staple",
+        ),
+    )
+
+    assert response.status_code == 200
+
+    events = response.json()["events"]
+
+    assert events
+    assert all(
+        event["username"] == "readonly@example.com"
+        for event in events
+    )
+
+
 def test_update_user_returns_404_for_missing_user(client):
     create_user("admin@example.com", "correct horse battery staple", role="Admin")
 

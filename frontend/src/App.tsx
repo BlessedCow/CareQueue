@@ -14,6 +14,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { AuthorizationsPage } from "./pages/AuthorizationsPage";
 import { CalendarRoutePage } from "./pages/CalendarRoutePage";
 import { AdminUsersPage } from "./pages/AdminUsersPage";
+import { AdminAuditPage } from "./pages/AdminAuditPage";
 
 // Hooks
 import { useDashboardCardSettings } from "./hooks/useDashboardCardSettings";
@@ -549,6 +550,10 @@ function App() {
 
       {activePage === "adminUsers" && canManageUsers && (
         <AdminUsersPage darkMode={darkMode} currentUser={currentUser} />
+      )}
+
+      {activePage === "adminAudit" && canManageUsers && (
+        <AdminAuditPage darkMode={darkMode} />
       )}
     </AppShell>
   );

@@ -30,6 +30,15 @@ def _user_agent(request: Request | None) -> str:
 def _safe_metadata(metadata: dict[str, Any] | None) -> str:
     return json.dumps(metadata or {}, sort_keys=True)
 
+def _contains_pattern(value: str) -> str:
+    escaped_value = (
+        value.strip()
+        .replace("\\", "\\\\")
+        .replace("%", "\\%")
+        .replace("_", "\\_")
+    )
+
+    return f"%{escaped_value}%"
 
 def audit_field_names(payload: dict[str, Any]) -> dict[str, list[str]]:
     return {"fields": sorted(payload.keys())}
@@ -91,3 +100,64 @@ def record_audit_event(
         ).fetchone()
 
     return dict(row)
+
+def list_audit_events(
+    *,
+    page: int = 1,
+    page_size: int = 50,
+    action: str | None = None,
+    username: str | None = None,
+) -> dict[str, Any]:
+    init_db()
+
+    filters: list[str] = []
+    values: list[Any] = []
+
+    if action and action.strip():
+        filters.append("LOWER(action) LIKE LOWER(?) ESCAPE '\\'")
+        values.append(_contains_pattern(action))
+
+    if username and username.strip():
+        filters.append("LOWER(username) LIKE LOWER(?) ESCAPE '\\'")
+        values.append(_contains_pattern(username))
+
+    where_clause = f"WHERE {' AND '.join(filters)}" if filters else ""
+    offset = (page - 1) * page_size
+
+    with get_conn() as conn:
+        total = conn.execute(
+            f"""
+            SELECT COUNT(*) AS total
+            FROM audit_events
+            {where_clause}
+            """,
+            values,
+        ).fetchone()["total"]
+
+        rows = conn.execute(
+            f"""
+            SELECT
+                id,
+                user_id,
+                username,
+                action,
+                resource_type,
+                resource_id,
+                metadata,
+                ip_address,
+                user_agent,
+                created_at
+            FROM audit_events
+            {where_clause}
+            ORDER BY id DESC
+            LIMIT ? OFFSET ?
+            """,
+            [*values, page_size, offset],
+        ).fetchall()
+
+    return {
+        "events": [dict(row) for row in rows],
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+    }
