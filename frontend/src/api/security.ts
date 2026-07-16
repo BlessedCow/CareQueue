@@ -32,7 +32,6 @@ interface UserListResponse {
 
 interface CreateUserPayload {
   username: string;
-  password: string;
   role: string;
 }
 
@@ -119,6 +118,11 @@ export interface AdminPasswordResetResponse {
   must_change_password: boolean;
 }
 
+export interface AdminUserCreateResponse {
+  user: CurrentUser;
+  temporary_password: string;
+}
+
 export interface AuditEvent {
   id: number;
   user_id: number | null;
@@ -196,7 +200,7 @@ export async function fetchUsers(): Promise<CurrentUser[]> {
 
 export async function createUser(
   payload: CreateUserPayload
-): Promise<CurrentUser> {
+): Promise<AdminUserCreateResponse> {
   const response = await authenticatedFetch(
     `${API_BASE_URL}/api/security/users`,
     {
@@ -209,10 +213,22 @@ export async function createUser(
   );
 
   if (!response.ok) {
-    throw new Error("Unable to create user.");
+    let message = "Unable to create user.";
+  
+    try {
+      const data = (await response.json()) as { detail?: string };
+  
+      if (data.detail) {
+        message = data.detail;
+      }
+    } catch {
+      // Keep the generic message when the response is not JSON.
+    }
+  
+    throw new Error(message);
   }
-
-  return (await response.json()) as CurrentUser;
+  
+  return (await response.json()) as AdminUserCreateResponse;
 }
 
 export async function updateUser(

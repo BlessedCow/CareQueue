@@ -183,14 +183,13 @@ def test_ur_user_cannot_list_users(client):
     assert response.status_code == 403
 
 
-def test_admin_can_create_user(client):
+def test_admin_can_create_user_with_generated_temporary_password(client):
     create_user("admin@example.com", "correct horse battery staple", role="Admin")
 
     response = client.post(
         "/api/security/users",
         json={
             "username": "new-user@example.com",
-            "password": "correct horse battery staple",
             "role": "Read Only",
         },
         headers=auth_headers_for(
@@ -203,21 +202,34 @@ def test_admin_can_create_user(client):
     assert response.status_code == 201
 
     data = response.json()
+    created_user = data["user"]
 
-    assert data["username"] == "new-user@example.com"
-    assert data["role"] == "Read Only"
-    assert data["is_active"] is True
-    assert "password_hash" not in data
+    assert created_user["username"] == "new-user@example.com"
+    assert created_user["role"] == "Read Only"
+    assert created_user["is_active"] is True
+    assert created_user["must_change_password"] is True
+    assert len(data["temporary_password"]) == 24
+    assert "password_hash" not in created_user
+
+    login_response = client.post(
+        "/api/security/login",
+        json={
+            "username": created_user["username"],
+            "password": data["temporary_password"],
+        },
+    )
+
+    assert login_response.status_code == 200
+    assert login_response.json()["user"]["must_change_password"] is True
 
 
-def test_create_user_writes_audit_event(client):
+def test_create_user_writes_safe_audit_event(client):
     create_user("admin@example.com", "correct horse battery staple", role="Admin")
 
     response = client.post(
         "/api/security/users",
         json={
             "username": "new-user@example.com",
-            "password": "correct horse battery staple",
             "role": "UR",
         },
         headers=auth_headers_for(
@@ -228,6 +240,9 @@ def test_create_user_writes_audit_event(client):
     )
 
     assert response.status_code == 201
+
+    temporary_password = response.json()["temporary_password"]
+    created_user = response.json()["user"]
 
     with get_conn() as conn:
         row = conn.execute(
@@ -240,9 +255,30 @@ def test_create_user_writes_audit_event(client):
 
     assert row["action"] == "user.create"
     assert row["resource_type"] == "user"
-    assert row["resource_id"] == response.json()["id"]
-    assert "correct horse battery staple" not in row["metadata"]
+    assert row["resource_id"] == created_user["id"]
+    assert temporary_password not in row["metadata"]
     assert "new-user@example.com" not in row["metadata"]
+    assert "must_change_password" in row["metadata"]
+
+
+def test_create_user_rejects_admin_supplied_password(client):
+    create_user("admin@example.com", "correct horse battery staple", role="Admin")
+
+    response = client.post(
+        "/api/security/users",
+        json={
+            "username": "new-user@example.com",
+            "password": "admin selected password",
+            "role": "UR",
+        },
+        headers=auth_headers_for(
+            client,
+            "admin@example.com",
+            "correct horse battery staple",
+        ),
+    )
+
+    assert response.status_code == 422
 
 
 def test_admin_can_update_user_role_and_active_status(client):

@@ -17,13 +17,11 @@ interface AdminUsersPageProps {
 
 interface NewUserForm {
   username: string;
-  password: string;
   role: string;
 }
 
 const emptyUserForm: NewUserForm = {
   username: "",
-  password: "",
   role: "UR",
 };
 
@@ -68,19 +66,25 @@ export function AdminUsersPage({ darkMode, currentUser }: AdminUsersPageProps) {
     event.preventDefault();
     setIsSavingUser(true);
     setUsersError(null);
+    setTemporaryPassword(null);
+    setTemporaryPasswordUsername(null);
+    setHasCopiedTemporaryPassword(false);
 
     try {
-      const createdUser = await createUser({
+      const result = await createUser({
         username: newUserForm.username,
-        password: newUserForm.password,
         role: newUserForm.role,
       });
 
       setUsers((currentUsers) =>
-        [...currentUsers, createdUser].sort((firstUser, secondUser) =>
+        [...currentUsers, result.user].sort((firstUser, secondUser) =>
           firstUser.username.localeCompare(secondUser.username)
         )
       );
+
+      setTemporaryPassword(result.temporary_password);
+      setTemporaryPasswordUsername(result.user.username);
+      setHasCopiedTemporaryPassword(false);
       setNewUserForm(emptyUserForm);
     } catch (error) {
       setUsersError(
@@ -184,7 +188,7 @@ export function AdminUsersPage({ darkMode, currentUser }: AdminUsersPageProps) {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-lg font-semibold">
-                Temporary password created
+                Temporary password ready
               </h2>
 
               <p
@@ -204,7 +208,7 @@ export function AdminUsersPage({ darkMode, currentUser }: AdminUsersPageProps) {
                   darkMode ? "text-gray-300" : "text-gray-700"
                 )}
               >
-                The user must change it after signing in. Their previous
+                The user must change it after signing in. Any previous active
                 sessions have been revoked.
               </p>
             </div>
@@ -266,13 +270,14 @@ export function AdminUsersPage({ darkMode, currentUser }: AdminUsersPageProps) {
               darkMode ? "text-gray-400" : "text-gray-600"
             )}
           >
-            Create local CareQueue users. Do not use shared accounts.
+            Create local CareQueue users. A secure temporary password will be
+            generated automatically.
           </p>
         </div>
 
         <form
           onSubmit={handleCreateUser}
-          className="mt-6 grid gap-4 lg:grid-cols-[1fr_1fr_220px_auto]"
+          className="mt-6 grid gap-4 lg:grid-cols-[1fr_220px_auto]"
         >
           <label className="space-y-2">
             <span className="text-sm font-medium">Username</span>
@@ -287,29 +292,6 @@ export function AdminUsersPage({ darkMode, currentUser }: AdminUsersPageProps) {
                 }))
               }
               required
-              className={cn(
-                "w-full rounded-lg border px-3 py-2 text-sm outline-none",
-                darkMode
-                  ? "border-gray-700 bg-gray-950 text-gray-100"
-                  : "border-gray-300 bg-white text-gray-900"
-              )}
-            />
-          </label>
-
-          <label className="space-y-2">
-            <span className="text-sm font-medium">Temporary password</span>
-            <input
-              type="password"
-              autoComplete="new-password"
-              value={newUserForm.password}
-              onChange={(event) =>
-                setNewUserForm((currentForm) => ({
-                  ...currentForm,
-                  password: event.target.value,
-                }))
-              }
-              required
-              minLength={8}
               className={cn(
                 "w-full rounded-lg border px-3 py-2 text-sm outline-none",
                 darkMode

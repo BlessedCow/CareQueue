@@ -23,6 +23,7 @@ from authstatus_api.security.repository import (
 )
 from authstatus_api.security.schemas import (
     AdminPasswordResetResponse,
+    AdminUserCreateResponse,
     AuditEventListResponse,
     AuditEventResponse,
     ChangePasswordRequest,
@@ -99,26 +100,39 @@ def read_audit_events(
 
 @router.post(
     "/users",
-    response_model=UserResponse,
+    response_model=AdminUserCreateResponse,
     status_code=status.HTTP_201_CREATED,
 )
 def create_managed_user(
     payload: UserCreateRequest,
     request: Request,
     current_user: dict = AdminUserDependency,
-) -> UserResponse:
-    user = create_user(payload.username, payload.password, role=payload.role)
+) -> AdminUserCreateResponse:
+    temporary_password = generate_temporary_password()
+
+    user = create_user(
+        payload.username,
+        temporary_password,
+        role=payload.role,
+        must_change_password=True,
+    )
 
     record_audit_event(
         action="user.create",
         resource_type="user",
         resource_id=user["id"],
         user=current_user,
-        metadata={"role": payload.role},
+        metadata={
+            "role": payload.role,
+            "must_change_password": True,
+        },
         request=request,
     )
 
-    return _user_response(user)
+    return AdminUserCreateResponse(
+        user=_user_response(user),
+        temporary_password=temporary_password,
+    )
 
 
 @router.patch("/users/{user_id}", response_model=UserResponse)

@@ -16,7 +16,6 @@ class LoginRequest(BaseModel):
 
 class UserCreateRequest(BaseModel):
     username: str
-    password: str
     role: UserRole = "UR"
 
     model_config = ConfigDict(extra="forbid")
@@ -46,8 +45,8 @@ class AdminPasswordResetResponse(BaseModel):
     temporary_password: str
     sessions_revoked: int
     must_change_password: bool
-
-
+    
+    
 class UserResponse(BaseModel):
     id: int
     username: str
@@ -56,6 +55,11 @@ class UserResponse(BaseModel):
     last_login_at: str | None = None
     password_changed_at: str
     must_change_password: bool
+
+
+class AdminUserCreateResponse(BaseModel):
+    user: UserResponse
+    temporary_password: str    
 
 
 class UserListResponse(BaseModel):
