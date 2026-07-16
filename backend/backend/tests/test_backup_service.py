@@ -50,12 +50,38 @@ def test_encrypt_backup_bytes_does_not_return_plaintext():
     assert b"SQLite format 3" not in encrypted
 
 
-def test_create_encrypted_database_backup_writes_encrypted_file(tmp_path):
+def test_create_encrypted_database_backup_writes_encrypted_snapshot(tmp_path):
     database_path = tmp_path / "auth_tracker.db"
     backup_directory = tmp_path / "backups"
-    database_bytes = b"SQLite format 3\x00test database bytes"
 
-    database_path.write_bytes(database_bytes)
+    init_db()
+
+    with sqlite3.connect(database_path) as conn:
+        conn.execute(
+            """
+            INSERT INTO users (
+                username,
+                password_hash,
+                role,
+                is_active,
+                failed_login_count,
+                password_changed_at,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "backup@example.com",
+                "test-password-hash",
+                "Admin",
+                1,
+                0,
+                "2026-01-01T00:00:00+00:00",
+                "2026-01-01T00:00:00+00:00",
+                "2026-01-01T00:00:00+00:00",
+            ),
+        )
 
     backup_path = create_encrypted_database_backup(
         database_path=database_path,
@@ -65,8 +91,61 @@ def test_create_encrypted_database_backup_writes_encrypted_file(tmp_path):
     assert backup_path.exists()
     assert backup_path.name.startswith("auth_tracker_")
     assert backup_path.name.endswith(".db.enc")
-    assert database_bytes not in backup_path.read_bytes()
-    assert decrypt_backup_file(backup_path) == database_bytes
+    assert b"backup@example.com" not in backup_path.read_bytes()
+
+    decrypted_snapshot = decrypt_backup_file(backup_path)
+    restored_snapshot_path = tmp_path / "snapshot.db"
+    restored_snapshot_path.write_bytes(decrypted_snapshot)
+
+    with sqlite3.connect(restored_snapshot_path) as conn:
+        username = conn.execute(
+            "SELECT username FROM users WHERE username = ?",
+            ("backup@example.com",),
+        ).fetchone()
+
+        integrity_result = conn.execute("PRAGMA quick_check").fetchone()
+
+    assert username is not None
+    assert username[0] == "backup@example.com"
+    assert integrity_result is not None
+    assert integrity_result[0] == "ok"
+    
+def test_create_encrypted_database_backup_removes_temporary_snapshot(
+    tmp_path,
+):
+    database_path = tmp_path / "auth_tracker.db"
+    backup_directory = tmp_path / "backups"
+
+    init_db()
+
+    create_encrypted_database_backup(
+        database_path=database_path,
+        backup_directory=backup_directory,
+    )
+
+    assert not list(backup_directory.glob(".*.snapshot.*"))
+    assert not list(backup_directory.glob("*.tmp"))
+    
+
+def test_create_encrypted_database_backup_rejects_invalid_plaintext_database(
+    tmp_path,
+):
+    database_path = tmp_path / "invalid.db"
+    backup_directory = tmp_path / "backups"
+
+    database_path.write_bytes(b"not a valid SQLite database")
+
+    with pytest.raises(
+        BackupError,
+        match="consistent plaintext database snapshot",
+    ):
+        create_encrypted_database_backup(
+            database_path=database_path,
+            backup_directory=backup_directory,
+        )
+
+    assert not list(backup_directory.glob("*.db.enc"))
+    assert not list(backup_directory.glob(".*.snapshot.*"))
 
 
 def test_create_encrypted_database_backup_rejects_missing_database(tmp_path):
@@ -92,8 +171,6 @@ def test_restore_encrypted_database_backup_writes_valid_safe_restore_file(
 
     init_db()
 
-    original_database_bytes = database_path.read_bytes()
-
     backup_path = create_encrypted_database_backup(
         database_path=database_path,
         backup_directory=backup_directory,
@@ -107,28 +184,50 @@ def test_restore_encrypted_database_backup_writes_valid_safe_restore_file(
     assert restored_path.exists()
     assert restored_path.parent == restore_directory
     assert restored_path.name.endswith(".restored.db")
-    assert restored_path.read_bytes() == original_database_bytes
-    assert database_path.read_bytes() == original_database_bytes
 
-    with sqlite3.connect(restored_path) as conn:
-        integrity_result = conn.execute("PRAGMA quick_check").fetchone()
+    with sqlite3.connect(database_path) as original_conn:
+        original_tables = {
+            row[0]
+            for row in original_conn.execute(
+                """
+                SELECT name
+                FROM sqlite_master
+                WHERE type = 'table'
+                """
+            ).fetchall()
+        }
 
+    with sqlite3.connect(restored_path) as restored_conn:
+        restored_tables = {
+            row[0]
+            for row in restored_conn.execute(
+                """
+                SELECT name
+                FROM sqlite_master
+                WHERE type = 'table'
+                """
+            ).fetchall()
+        }
+
+        integrity_result = restored_conn.execute(
+            "PRAGMA quick_check"
+        ).fetchone()
+
+    assert restored_tables == original_tables
     assert integrity_result is not None
     assert integrity_result[0] == "ok"
-    
+
 
 def test_restore_rejects_decrypted_file_that_is_not_a_carequeue_database(
     tmp_path,
 ):
     backup_directory = tmp_path / "backups"
     restore_directory = tmp_path / "restores"
-    invalid_database_path = tmp_path / "invalid.db"
+    backup_directory.mkdir(parents=True)
 
-    invalid_database_path.write_bytes(b"not a CareQueue database")
-
-    backup_path = create_encrypted_database_backup(
-        database_path=invalid_database_path,
-        backup_directory=backup_directory,
+    backup_path = backup_directory / "invalid.db.enc"
+    backup_path.write_bytes(
+        encrypt_backup_bytes(b"not a CareQueue database")
     )
 
     with pytest.raises(

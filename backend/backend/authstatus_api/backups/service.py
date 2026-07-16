@@ -73,7 +73,91 @@ def _atomic_write_bytes(destination_path: Path, data: bytes) -> None:
         if temporary_path is not None and temporary_path.exists():
             temporary_path.unlink()
 
+def _create_plaintext_snapshot(
+    source_path: Path,
+    snapshot_path: Path,
+) -> None:
+    source_conn: sqlite3.Connection | None = None
+    snapshot_conn: sqlite3.Connection | None = None
 
+    try:
+        source_conn = sqlite3.connect(source_path)
+        snapshot_conn = sqlite3.connect(snapshot_path)
+        source_conn.backup(snapshot_conn)
+    except sqlite3.DatabaseError as exc:
+        raise BackupError(
+            "Unable to create a consistent plaintext database snapshot."
+        ) from exc
+    finally:
+        if snapshot_conn is not None:
+            snapshot_conn.close()
+
+        if source_conn is not None:
+            source_conn.close()
+
+
+def _create_sqlcipher_snapshot(
+    source_path: Path,
+    snapshot_path: Path,
+    *,
+    passphrase: str,
+) -> None:
+    if not passphrase:
+        raise BackupConfigError(
+            "AUTHSTATUS_SQLCIPHER_KEY is required to back up a SQLCipher database."
+        )
+
+    sqlcipher3 = import_sqlcipher()
+    source_conn: Any | None = None
+    snapshot_conn: Any | None = None
+
+    try:
+        source_conn = sqlcipher3.connect(str(source_path))
+        apply_sqlcipher_key(source_conn, passphrase)
+
+        snapshot_conn = sqlcipher3.connect(str(snapshot_path))
+        apply_sqlcipher_key(snapshot_conn, passphrase)
+
+        source_conn.backup(snapshot_conn)
+    except Exception as exc:
+        if isinstance(exc, BackupConfigError):
+            raise
+
+        raise BackupError(
+            "Unable to create a consistent SQLCipher database snapshot."
+        ) from exc
+    finally:
+        if snapshot_conn is not None:
+            snapshot_conn.close()
+
+        if source_conn is not None:
+            source_conn.close()
+
+
+def _create_database_snapshot(
+    source_path: Path,
+    snapshot_path: Path,
+) -> None:
+    settings = get_settings()
+
+    if settings.database_encryption == "plaintext":
+        _create_plaintext_snapshot(source_path, snapshot_path)
+        return
+
+    if settings.database_encryption == "sqlcipher":
+        _create_sqlcipher_snapshot(
+            source_path,
+            snapshot_path,
+            passphrase=settings.sqlcipher_key.strip(),
+        )
+        return
+
+    raise BackupConfigError(
+        "Unsupported AUTHSTATUS_DATABASE_ENCRYPTION value: "
+        f"{settings.database_encryption}"
+    )
+    
+    
 def _read_integrity_result(conn: Any) -> str:
     row = conn.execute("PRAGMA quick_check").fetchone()
 
@@ -204,12 +288,28 @@ def create_encrypted_database_backup(
 
     destination_directory.mkdir(parents=True, exist_ok=True)
 
-    encrypted_bytes = encrypt_backup_bytes(source_path.read_bytes())
-    backup_path = destination_directory / (
-        f"{source_path.stem}_{_backup_timestamp()}{source_path.suffix}.enc"
-    )
+    snapshot_path: Path | None = None
 
-    _atomic_write_bytes(backup_path, encrypted_bytes)
+    try:
+        with tempfile.NamedTemporaryFile(
+            dir=destination_directory,
+            prefix=f".{source_path.stem}.snapshot.",
+            suffix=source_path.suffix,
+            delete=False,
+        ) as snapshot_file:
+            snapshot_path = Path(snapshot_file.name)
+
+        _create_database_snapshot(source_path, snapshot_path)
+
+        encrypted_bytes = encrypt_backup_bytes(snapshot_path.read_bytes())
+        backup_path = destination_directory / (
+            f"{source_path.stem}_{_backup_timestamp()}{source_path.suffix}.enc"
+        )
+
+        _atomic_write_bytes(backup_path, encrypted_bytes)
+    finally:
+        if snapshot_path is not None and snapshot_path.exists():
+            snapshot_path.unlink()
 
     return backup_path
 
