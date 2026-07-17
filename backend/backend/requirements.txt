@@ -4,6 +4,7 @@ pydantic
 pydantic-settings
 cryptography
 python-dotenv
+pypdf
 httpx2
 pytest
 ruff

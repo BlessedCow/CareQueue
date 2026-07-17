@@ -80,3 +80,4 @@ Thumbs.db
 
 # Other files to ignore
 /TODO.txt
+local_vobs/
