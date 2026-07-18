@@ -1,4 +1,9 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import {
+  PdfIntakeReviewPanel,
+  type PdfIntakeFormValues,
+} from "./PdfIntakeReviewPanel";
+import { usePdfIntakePreview } from "../hooks/usePdfIntakePreview";
 import { cn } from "../utils/cn";
 
 function formatPhoneNumber(value: string) {
@@ -16,6 +21,20 @@ function formatPhoneNumber(value: string) {
     3,
     6
   )}-${digitsOnly.slice(6)}`;
+}
+
+function findRegisteredOption(value: string, options: string[]): string | null {
+  const normalizedValue = value.trim().toLocaleLowerCase();
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  return (
+    options.find(
+      (option) => option.trim().toLocaleLowerCase() === normalizedValue
+    ) ?? null
+  );
 }
 
 interface NewAuthFormState {
@@ -53,6 +72,7 @@ interface AddAuthorizationFormProps {
   darkMode: boolean;
   isCreatingAuth: boolean;
   submitLabel: string;
+  allowPdfIntake: boolean;
   registeredFacilities: string[];
   registeredInsurances: string[];
   registeredWebPortals: string[];
@@ -69,6 +89,7 @@ export function AddAuthorizationForm({
   darkMode,
   isCreatingAuth,
   submitLabel,
+  allowPdfIntake,
   registeredFacilities,
   registeredInsurances,
   registeredWebPortals,
@@ -77,7 +98,111 @@ export function AddAuthorizationForm({
   onCancel,
 }: AddAuthorizationFormProps) {
   const [showAuthNotes, setShowAuthNotes] = useState(true);
+  const pdfFileInputRef = useRef<HTMLInputElement>(null);
+  const [pdfApplyWarning, setPdfApplyWarning] = useState<string | null>(null);
+
+  const {
+    selectedPdfFile,
+    pdfIntakePreview,
+    isLoadingPdfPreview,
+    pdfIntakeError,
+    selectPdf,
+    requestPreview,
+    clearPdfIntake,
+  } = usePdfIntakePreview();
   const hasAuthNotes = form.careManagerNotes.trim().length > 0;
+  const resetPdfFileInput = () => {
+    if (pdfFileInputRef.current) {
+      pdfFileInputRef.current.value = "";
+    }
+  };
+
+  const handlePdfSelection = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+
+    setPdfApplyWarning(null);
+    selectPdf(file);
+  };
+
+  const handleRequestPdfPreview = async () => {
+    await requestPreview();
+    resetPdfFileInput();
+  };
+
+  const handleCancelPdfIntake = () => {
+    clearPdfIntake();
+    setPdfApplyWarning(null);
+    resetPdfFileInput();
+  };
+
+  const handleApplyPdfValues = (values: PdfIntakeFormValues) => {
+    const warnings: string[] = [];
+
+    if (values.clientName?.trim()) {
+      onFieldChange("clientName", values.clientName.trim());
+    }
+
+    if (values.memberId?.trim()) {
+      onFieldChange("memberId", values.memberId.trim());
+    }
+
+    if (values.groupNumber?.trim()) {
+      onFieldChange("groupNumber", values.groupNumber.trim());
+    }
+
+    if (values.dateOfBirth?.trim()) {
+      onFieldChange("dateOfBirth", values.dateOfBirth.trim());
+    }
+
+    if (values.startDate?.trim()) {
+      onFieldChange("startDate", values.startDate.trim());
+    }
+
+    if (values.phoneNumber?.trim()) {
+      onFieldChange("phoneNumber", formatPhoneNumber(values.phoneNumber));
+    }
+
+    if (values.facility?.trim()) {
+      const matchingFacility = findRegisteredOption(
+        values.facility,
+        registeredFacilities
+      );
+
+      if (matchingFacility) {
+        onFieldChange("facility", matchingFacility);
+      } else {
+        warnings.push(
+          `"${values.facility.trim()}" is not a registered facility.`
+        );
+      }
+    }
+
+    if (values.insurance?.trim()) {
+      const matchingInsurance = findRegisteredOption(
+        values.insurance,
+        registeredInsurances
+      );
+
+      if (matchingInsurance) {
+        onFieldChange("insurance", matchingInsurance);
+      } else {
+        warnings.push(
+          `"${values.insurance.trim()}" is not a registered insurance.`
+        );
+      }
+    }
+
+    setPdfApplyWarning(
+      warnings.length > 0
+        ? `${warnings.join(
+            " "
+          )} Select an existing option manually or add it in Settings.`
+        : null
+    );
+
+    clearPdfIntake();
+    resetPdfFileInput();
+  };
   return (
     <form
       onSubmit={onSubmit}
@@ -88,6 +213,122 @@ export function AddAuthorizationForm({
           : "border-gray-200 bg-gray-50"
       )}
     >
+      {allowPdfIntake && (
+        <section
+          className={cn(
+            "rounded-xl border p-4 md:col-span-2",
+            darkMode
+              ? "border-gray-800 bg-gray-950/40"
+              : "border-gray-200 bg-white"
+          )}
+        >
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h3 className="text-sm font-semibold">Import from PDF</h3>
+              <p
+                className={cn(
+                  "mt-1 text-xs",
+                  darkMode ? "text-gray-400" : "text-gray-600"
+                )}
+              >
+                The PDF is processed in memory and is not stored by CareQueue.
+                Review all extracted values before applying them.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="space-y-1 text-sm">
+                <span className={darkMode ? "text-gray-300" : "text-gray-700"}>
+                  PDF file
+                </span>
+                <input
+                  ref={pdfFileInputRef}
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  disabled={isLoadingPdfPreview}
+                  onChange={handlePdfSelection}
+                  className={cn(
+                    "block max-w-full text-sm",
+                    darkMode
+                      ? "text-gray-300 file:bg-gray-800 file:text-gray-100"
+                      : "text-gray-700 file:bg-gray-100 file:text-gray-800",
+                    "file:mr-3 file:rounded-lg file:border-0 file:px-3 file:py-2 file:text-sm file:font-medium"
+                  )}
+                />
+              </label>
+
+              <button
+                type="button"
+                disabled={!selectedPdfFile || isLoadingPdfPreview}
+                onClick={() => void handleRequestPdfPreview()}
+                className={cn(
+                  "rounded-lg px-4 py-2 text-sm font-medium",
+                  selectedPdfFile && !isLoadingPdfPreview
+                    ? "bg-blue-600 text-white hover:bg-blue-700"
+                    : darkMode
+                    ? "cursor-not-allowed bg-gray-800 text-gray-500"
+                    : "cursor-not-allowed bg-gray-200 text-gray-500"
+                )}
+              >
+                {isLoadingPdfPreview ? "Processing..." : "Review PDF"}
+              </button>
+
+              {(selectedPdfFile || pdfIntakeError) && (
+                <button
+                  type="button"
+                  disabled={isLoadingPdfPreview}
+                  onClick={handleCancelPdfIntake}
+                  className={cn(
+                    "rounded-lg border px-3 py-2 text-sm font-medium",
+                    darkMode
+                      ? "border-gray-700 text-gray-200 hover:bg-gray-900"
+                      : "border-gray-300 text-gray-700 hover:bg-gray-100"
+                  )}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          {pdfIntakeError && (
+            <p
+              role="alert"
+              className={cn(
+                "mt-3 rounded-lg border px-3 py-2 text-sm",
+                darkMode
+                  ? "border-red-900 bg-red-950/40 text-red-200"
+                  : "border-red-200 bg-red-50 text-red-700"
+              )}
+            >
+              {pdfIntakeError}
+            </p>
+          )}
+
+          {pdfApplyWarning && (
+            <p
+              role="status"
+              className={cn(
+                "mt-3 rounded-lg border px-3 py-2 text-sm",
+                darkMode
+                  ? "border-amber-900 bg-amber-950/40 text-amber-200"
+                  : "border-amber-300 bg-amber-50 text-amber-800"
+              )}
+            >
+              {pdfApplyWarning}
+            </p>
+          )}
+        </section>
+      )}
+
+      {allowPdfIntake && pdfIntakePreview && (
+        <PdfIntakeReviewPanel
+          preview={pdfIntakePreview}
+          darkMode={darkMode}
+          onApply={handleApplyPdfValues}
+          onCancel={handleCancelPdfIntake}
+        />
+      )}
       <label className="space-y-1 text-sm">
         <span className={darkMode ? "text-gray-300" : "text-gray-700"}>
           Client Name

@@ -286,6 +286,10 @@ export function AuthorizationsPage({
                   ? "Add LOC Change"
                   : "Add Authorization"
               }
+              allowPdfIntake={
+                !editingAuthId &&
+                newAuthForm.authType !== "Concurrent"
+              }
               registeredFacilities={registeredFacilities}
               registeredInsurances={registeredInsurances}
               registeredWebPortals={registeredWebPortals}
