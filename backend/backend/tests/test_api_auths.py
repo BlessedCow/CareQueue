@@ -25,7 +25,11 @@ def configure_test_settings(tmp_path, monkeypatch):
 
 @pytest.fixture
 def auth_headers(client):
-    create_user("ur@example.com", "correct horse battery staple", role="UR")
+    create_user(
+        "ur@example.com",
+        "correct horse battery staple",
+        role="UR",
+    )
 
     response = client.post(
         "/api/security/login",
@@ -37,7 +41,9 @@ def auth_headers(client):
 
     assert response.status_code == 200
 
-    token = response.json()["access_token"]
+    token = client.cookies.get("carequeue_session")
+
+    assert token
 
     return {"Authorization": f"Bearer {token}"}
 
@@ -421,7 +427,11 @@ def test_read_only_user_can_view_auths(client):
         },
     )
 
-    token = login_response.json()["access_token"]
+    assert login_response.status_code == 200
+
+    token = client.cookies.get("carequeue_session")
+
+    assert token
 
     response = client.get(
         "/api/auths",
@@ -442,7 +452,11 @@ def test_read_only_user_cannot_create_auth(client):
         },
     )
 
-    token = login_response.json()["access_token"]
+    assert login_response.status_code == 200
+
+    token = client.cookies.get("carequeue_session")
+
+    assert token
 
     response = client.post(
         "/api/auths",

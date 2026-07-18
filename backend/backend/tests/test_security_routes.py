@@ -26,7 +26,11 @@ def client():
         yield test_client
 
 
-def auth_headers_for(client: TestClient, username: str, password: str) -> dict[str, str]:
+def auth_headers_for(
+    client: TestClient,
+    username: str,
+    password: str,
+) -> dict[str, str]:
     response = client.post(
         "/api/security/login",
         json={
@@ -37,12 +41,14 @@ def auth_headers_for(client: TestClient, username: str, password: str) -> dict[s
 
     assert response.status_code == 200
 
-    token = response.json()["access_token"]
+    token = client.cookies.get("carequeue_session")
+
+    assert token
 
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_login_returns_bearer_token_and_user(client):
+def test_login_returns_user_without_session_token(client):
     create_user("user@example.com", "correct horse battery staple", role="Admin")
 
     response = client.post(
@@ -57,10 +63,17 @@ def test_login_returns_bearer_token_and_user(client):
 
     data = response.json()
 
-    assert data["access_token"]
-    assert data["token_type"] == "bearer"
-    assert data["expires_at"]
-    assert data["user"]["username"] == "user@example.com"
+    assert data == {
+        "user": {
+            "id": data["user"]["id"],
+            "username": "user@example.com",
+            "role": "Admin",
+            "is_active": True,
+            "last_login_at": data["user"]["last_login_at"],
+            "password_changed_at": data["user"]["password_changed_at"],
+            "must_change_password": False,
+        },
+    }
     assert data["user"]["role"] == "Admin"
     assert "password_hash" not in data["user"]
 
@@ -129,7 +142,11 @@ def test_me_returns_current_user(client):
         },
     )
 
-    token = login_response.json()["access_token"]
+    assert login_response.status_code == 200
+
+    token = client.cookies.get("carequeue_session")
+
+    assert token
 
     response = client.get(
         "/api/security/me",
@@ -217,6 +234,13 @@ def test_session_cookie_takes_priority_over_bearer_header(
             "password": "correct horse battery staple",
         },
     )
+
+    assert cookie_login.status_code == 200
+
+    cookie_token = client.cookies.get("carequeue_session")
+
+    assert cookie_token
+
     bearer_login = client.post(
         "/api/security/login",
         json={
@@ -225,11 +249,15 @@ def test_session_cookie_takes_priority_over_bearer_header(
         },
     )
 
-    bearer_token = bearer_login.json()["access_token"]
+    assert bearer_login.status_code == 200
+
+    bearer_token = client.cookies.get("carequeue_session")
+
+    assert bearer_token
 
     client.cookies.set(
         "carequeue_session",
-        cookie_login.json()["access_token"],
+        cookie_token,
         path="/api",
     )
 
@@ -639,7 +667,11 @@ def test_logout_revokes_session(client):
         },
     )
 
-    token = login_response.json()["access_token"]
+    assert login_response.status_code == 200
+
+    token = client.cookies.get("carequeue_session")
+
+    assert token
 
     logout_response = client.post(
         "/api/security/logout",
@@ -778,6 +810,13 @@ def test_change_password_revokes_all_existing_sessions(client):
             "password": "old password value",
         },
     )
+
+    assert first_login.status_code == 200
+
+    first_token = client.cookies.get("carequeue_session")
+
+    assert first_token
+
     second_login = client.post(
         "/api/security/login",
         json={
@@ -786,8 +825,11 @@ def test_change_password_revokes_all_existing_sessions(client):
         },
     )
 
-    first_token = first_login.json()["access_token"]
-    second_token = second_login.json()["access_token"]
+    assert second_login.status_code == 200
+
+    second_token = client.cookies.get("carequeue_session")
+
+    assert second_token
 
     response = client.post(
         "/api/security/change-password",
@@ -882,7 +924,11 @@ def test_admin_reset_revokes_existing_user_sessions(client):
             "password": "old password value",
         },
     )
-    user_token = user_login.json()["access_token"]
+    assert user_login.status_code == 200
+
+    user_token = client.cookies.get("carequeue_session")
+
+    assert user_token
 
     response = client.post(
         f"/api/security/users/{user['id']}/reset-password",
@@ -1006,7 +1052,9 @@ def test_login_and_logout_write_audit_events(client):
 
     assert login_response.status_code == 200
 
-    token = login_response.json()["access_token"]
+    token = client.cookies.get("carequeue_session")
+
+    assert token
 
     logout_response = client.post(
         "/api/security/logout",

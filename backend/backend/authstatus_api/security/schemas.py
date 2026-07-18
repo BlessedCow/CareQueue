@@ -87,9 +87,6 @@ class AuditEventListResponse(BaseModel):
 
 
 class LoginResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    expires_at: str
     user: UserResponse
 
 

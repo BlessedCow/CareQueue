@@ -17,10 +17,6 @@ from authstatus_api.security.dependencies import (
     extract_session_token,
     require_role,
 )
-from authstatus_api.security.sessions import (
-    DEFAULT_SESSION_MINUTES,
-)
-from authstatus_api.settings import get_settings
 from authstatus_api.security.password_hashing import verify_password
 from authstatus_api.security.repository import (
     authenticate_user,
@@ -50,9 +46,13 @@ from authstatus_api.security.schemas import (
     UserResponse,
     UserUpdateRequest,
 )
+from authstatus_api.security.sessions import (
+    DEFAULT_SESSION_MINUTES,
+)
 from authstatus_api.security.temporary_passwords import (
     generate_temporary_password,
 )
+from authstatus_api.settings import get_settings
 
 router = APIRouter(prefix="/api/security", tags=["security"])
 
@@ -354,8 +354,6 @@ def login(
     )
 
     return LoginResponse(
-        access_token=created_session["token"],
-        expires_at=session["expires_at"],
         user=_user_response(user),
     )
 

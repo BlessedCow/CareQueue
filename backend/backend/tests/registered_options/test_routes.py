@@ -47,10 +47,12 @@ def auth_headers_for(
 
     assert response.status_code == 200
 
+    token = client.cookies.get("carequeue_session")
+
+    assert token
+
     return {
-        "Authorization": (
-            f"Bearer {response.json()['access_token']}"
-        ),
+        "Authorization": f"Bearer {token}",
     }
 
 
