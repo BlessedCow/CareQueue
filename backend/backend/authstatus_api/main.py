@@ -9,6 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from authstatus_api.crypto import generate_encryption_key
 from authstatus_api.database import init_db
 from authstatus_api.errors import register_exception_handlers
+from authstatus_api.pdf_intake.router import (
+    router as pdf_intake_router,
+)
 from authstatus_api.registered_options.router import (
     router as registered_options_router,
 )
@@ -60,10 +63,9 @@ def create_app() -> FastAPI:
     api.include_router(security_router)
     api.include_router(auths_router)
     api.include_router(analytics_router)
-    api.include_router(security_router)
     api.include_router(registered_options_router)
-    api.include_router(auths_router)
     api.include_router(analytics_router)
+    api.include_router(pdf_intake_router)
 
     return api
 
