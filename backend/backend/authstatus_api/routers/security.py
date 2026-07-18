@@ -3,7 +3,6 @@ from __future__ import annotations
 from fastapi import (
     APIRouter,
     Depends,
-    Header,
     HTTPException,
     Query,
     Request,
@@ -362,13 +361,9 @@ def login(
 def logout(
     request: Request,
     response: Response,
-    authorization: str | None = Header(default=None),
 ) -> LogoutResponse:
     settings = get_settings()
-    token = extract_session_token(
-        request,
-        authorization,
-    )
+    token = extract_session_token(request)
     user = get_user_for_session_token(token)
     logged_out = revoke_session(token)
 

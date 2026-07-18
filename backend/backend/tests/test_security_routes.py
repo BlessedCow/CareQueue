@@ -40,12 +40,9 @@ def auth_headers_for(
     )
 
     assert response.status_code == 200
+    assert client.cookies.get("carequeue_session")
 
-    token = client.cookies.get("carequeue_session")
-
-    assert token
-
-    return {"Authorization": f"Bearer {token}"}
+    return {}
 
 
 def test_login_returns_user_without_session_token(client):
@@ -144,14 +141,7 @@ def test_me_returns_current_user(client):
 
     assert login_response.status_code == 200
 
-    token = client.cookies.get("carequeue_session")
-
-    assert token
-
-    response = client.get(
-        "/api/security/me",
-        headers={"Authorization": f"Bearer {token}"},
-    )
+    response = client.get("/api/security/me")
 
     assert response.status_code == 200
 
@@ -213,65 +203,45 @@ def test_session_cookie_authenticates_without_bearer_header(
     )
 
 
-def test_session_cookie_takes_priority_over_bearer_header(
+def test_bearer_header_does_not_authenticate_without_cookie(
     client,
 ):
     create_user(
-        "cookie-user@example.com",
+        "user@example.com",
         "correct horse battery staple",
         role="UR",
     )
-    create_user(
-        "bearer-user@example.com",
-        "correct horse battery staple",
-        role="Admin",
-    )
 
-    cookie_login = client.post(
+    login_response = client.post(
         "/api/security/login",
         json={
-            "username": "cookie-user@example.com",
+            "username": "user@example.com",
             "password": "correct horse battery staple",
         },
     )
 
-    assert cookie_login.status_code == 200
+    assert login_response.status_code == 200
 
-    cookie_token = client.cookies.get("carequeue_session")
+    token = client.cookies.get("carequeue_session")
 
-    assert cookie_token
+    assert token
 
-    bearer_login = client.post(
-        "/api/security/login",
-        json={
-            "username": "bearer-user@example.com",
-            "password": "correct horse battery staple",
-        },
-    )
-
-    assert bearer_login.status_code == 200
-
-    bearer_token = client.cookies.get("carequeue_session")
-
-    assert bearer_token
-
-    client.cookies.set(
+    client.cookies.delete(
         "carequeue_session",
-        cookie_token,
         path="/api",
     )
 
     response = client.get(
         "/api/security/me",
         headers={
-            "Authorization": f"Bearer {bearer_token}",
+            "Authorization": f"Bearer {token}",
         },
     )
 
-    assert response.status_code == 200
-    assert response.json()["user"]["username"] == (
-        "cookie-user@example.com"
-    )
+    assert response.status_code == 401
+    assert response.json() == {
+        "detail": "Authentication required.",
+    }
 
 
 def test_logout_revokes_and_clears_session_cookie(client):
@@ -649,7 +619,9 @@ def test_me_rejects_missing_token(client):
 def test_me_rejects_invalid_token(client):
     response = client.get(
         "/api/security/me",
-        headers={"Authorization": "Bearer invalid-token"},
+        headers={
+            "Authorization": "Bearer invalid-token",
+        },
     )
 
     assert response.status_code == 401
@@ -657,7 +629,11 @@ def test_me_rejects_invalid_token(client):
 
 
 def test_logout_revokes_session(client):
-    create_user("user@example.com", "correct horse battery staple", role="UR")
+    create_user(
+        "user@example.com",
+        "correct horse battery staple",
+        role="UR",
+    )
 
     login_response = client.post(
         "/api/security/login",
@@ -669,22 +645,12 @@ def test_logout_revokes_session(client):
 
     assert login_response.status_code == 200
 
-    token = client.cookies.get("carequeue_session")
-
-    assert token
-
-    logout_response = client.post(
-        "/api/security/logout",
-        headers={"Authorization": f"Bearer {token}"},
-    )
+    logout_response = client.post("/api/security/logout")
 
     assert logout_response.status_code == 200
     assert logout_response.json() == {"logged_out": True}
 
-    me_response = client.get(
-        "/api/security/me",
-        headers={"Authorization": f"Bearer {token}"},
-    )
+    me_response = client.get("/api/security/me")
 
     assert me_response.status_code == 401
 
@@ -831,25 +797,35 @@ def test_change_password_revokes_all_existing_sessions(client):
 
     assert second_token
 
+    client.cookies.set(
+        "carequeue_session",
+        first_token,
+        path="/api",
+    )
+
     response = client.post(
         "/api/security/change-password",
         json={
             "current_password": "old password value",
             "new_password": "new password value",
         },
-        headers={"Authorization": f"Bearer {first_token}"},
     )
 
     assert response.status_code == 200
 
-    first_me = client.get(
-        "/api/security/me",
-        headers={"Authorization": f"Bearer {first_token}"},
+    client.cookies.set(
+        "carequeue_session",
+        first_token,
+        path="/api",
     )
-    second_me = client.get(
-        "/api/security/me",
-        headers={"Authorization": f"Bearer {second_token}"},
+    first_me = client.get("/api/security/me")
+
+    client.cookies.set(
+        "carequeue_session",
+        second_token,
+        path="/api",
     )
+    second_me = client.get("/api/security/me")
 
     assert first_me.status_code == 401
     assert second_me.status_code == 401
@@ -941,15 +917,13 @@ def test_admin_reset_revokes_existing_user_sessions(client):
 
     assert response.status_code == 200
 
-    client.cookies.delete(
+    client.cookies.set(
         "carequeue_session",
+        user_token,
         path="/api",
     )
 
-    previous_session = client.get(
-        "/api/security/me",
-        headers={"Authorization": f"Bearer {user_token}"},
-    )
+    previous_session = client.get("/api/security/me")
 
     assert previous_session.status_code == 401
 
@@ -1052,14 +1026,7 @@ def test_login_and_logout_write_audit_events(client):
 
     assert login_response.status_code == 200
 
-    token = client.cookies.get("carequeue_session")
-
-    assert token
-
-    logout_response = client.post(
-        "/api/security/logout",
-        headers={"Authorization": f"Bearer {token}"},
-    )
+    logout_response = client.post("/api/security/logout")
 
     assert logout_response.status_code == 200
 
@@ -1109,24 +1076,18 @@ def test_forced_change_user_can_log_out(client):
         must_change_password=True,
     )
 
-    headers = auth_headers_for(
+    auth_headers_for(
         client,
         user["username"],
         "temporary password value",
     )
 
-    response = client.post(
-        "/api/security/logout",
-        headers=headers,
-    )
-
+    response = client.post("/api/security/logout")
+    
     assert response.status_code == 200
     assert response.json() == {"logged_out": True}
 
-    me_response = client.get(
-        "/api/security/me",
-        headers=headers,
-    )
+    me_response = client.get("/api/security/me")
 
     assert me_response.status_code == 401
 

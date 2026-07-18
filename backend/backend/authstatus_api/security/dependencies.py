@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from fastapi import Depends, Header, HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request, status
 
 from authstatus_api.security.repository import (
     get_user_for_session_token,
@@ -10,47 +10,23 @@ from authstatus_api.security.repository import (
 from authstatus_api.settings import get_settings
 
 
-def extract_bearer_token(authorization: str | None) -> str:
-    if not authorization:
+def extract_session_token(request: Request) -> str:
+    settings = get_settings()
+    token = request.cookies.get(settings.session_cookie_name)
+
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required.",
         )
 
-    scheme, _, token = authorization.partition(" ")
-
-    if scheme.lower() != "bearer" or not token.strip():
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials.",
-        )
-
-    return token.strip()
-
-
-def extract_session_token(
-    request: Request,
-    authorization: str | None,
-) -> str:
-    settings = get_settings()
-    cookie_token = request.cookies.get(
-        settings.session_cookie_name
-    )
-
-    if cookie_token:
-        return cookie_token
-
-    return extract_bearer_token(authorization)
+    return token
 
 
 def get_authenticated_user(
     request: Request,
-    authorization: str | None = Header(default=None),
 ) -> dict:
-    token = extract_session_token(
-        request,
-        authorization,
-    )
+    token = extract_session_token(request)
     user = get_user_for_session_token(token)
 
     if user is None:

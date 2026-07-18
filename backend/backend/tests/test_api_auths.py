@@ -225,7 +225,6 @@ def test_validation_error_response_does_not_echo_request_payload(
 
 
 def test_internal_error_response_does_not_expose_exception_message(
-    auth_headers,
     monkeypatch,
 ):
     def fail_list_auths() -> list[dict]:
@@ -234,7 +233,23 @@ def test_internal_error_response_does_not_expose_exception_message(
     monkeypatch.setattr(auths_router, "list_auths", fail_list_auths)
 
     with TestClient(create_app(), raise_server_exceptions=False) as safe_client:
-        response = safe_client.get("/api/auths", headers=auth_headers)
+        create_user(
+            "ur@example.com",
+            "correct horse battery staple",
+            role="UR",
+        )
+
+        login_response = safe_client.post(
+            "/api/security/login",
+            json={
+                "username": "ur@example.com",
+                "password": "correct horse battery staple",
+            },
+        )
+
+        assert login_response.status_code == 200
+
+        response = safe_client.get("/api/auths")
 
     assert response.status_code == 500
     assert response.json() == {"detail": "An unexpected error occurred."}
