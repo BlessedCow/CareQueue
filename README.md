@@ -305,8 +305,6 @@ PATCH  /api/auths/{auth_id}/events/{event_id}
 DELETE /api/auths/{auth_id}/events/{event_id}
 
 GET    /api/analytics/summary
-
-GET    /api/dev/encryption-key
 ```
 
 Most API routes require a bearer token.

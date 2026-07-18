@@ -1,9 +1,4 @@
-import {
-  API_BASE_URL,
-  authenticatedFetch,
-  clearAccessToken,
-  setAccessToken,
-} from "./client";
+import { API_BASE_URL, authenticatedFetch } from "./client";
 
 export interface CurrentUser {
   id: number;
@@ -16,9 +11,6 @@ export interface CurrentUser {
 }
 
 interface LoginResponse {
-  access_token: string;
-  token_type: string;
-  expires_at: string;
   user: CurrentUser;
 }
 
@@ -156,6 +148,7 @@ export async function loginUser(
 ): Promise<CurrentUser> {
   const response = await fetch(`${API_BASE_URL}/api/security/login`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
     },
@@ -167,7 +160,6 @@ export async function loginUser(
   }
 
   const data = (await response.json()) as LoginResponse;
-  setAccessToken(data.access_token);
 
   return data.user;
 }
@@ -176,11 +168,11 @@ export async function fetchCurrentUser(): Promise<CurrentUser> {
   const response = await authenticatedFetch(`${API_BASE_URL}/api/security/me`);
 
   if (!response.ok) {
-    clearAccessToken();
     throw new Error("Session expired.");
   }
 
   const data = (await response.json()) as CurrentUserResponse;
+
   return data.user;
 }
 
@@ -214,20 +206,20 @@ export async function createUser(
 
   if (!response.ok) {
     let message = "Unable to create user.";
-  
+
     try {
       const data = (await response.json()) as { detail?: string };
-  
+
       if (data.detail) {
         message = data.detail;
       }
     } catch {
       // Keep the generic message when the response is not JSON.
     }
-  
+
     throw new Error(message);
   }
-  
+
   return (await response.json()) as AdminUserCreateResponse;
 }
 
@@ -284,11 +276,7 @@ export async function fetchAuditEvents({
 }
 
 export async function logoutUser(): Promise<void> {
-  try {
-    await authenticatedFetch(`${API_BASE_URL}/api/security/logout`, {
-      method: "POST",
-    });
-  } finally {
-    clearAccessToken();
-  }
+  await authenticatedFetch(`${API_BASE_URL}/api/security/logout`, {
+    method: "POST",
+  });
 }

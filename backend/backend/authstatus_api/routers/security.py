@@ -1,13 +1,26 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    status,
+)
 
 from authstatus_api.audit.service import list_audit_events, record_audit_event
 from authstatus_api.security.dependencies import (
     AuthenticatedUserDependency,
-    extract_bearer_token,
+    extract_session_token,
     require_role,
 )
+from authstatus_api.security.sessions import (
+    DEFAULT_SESSION_MINUTES,
+)
+from authstatus_api.settings import get_settings
 from authstatus_api.security.password_hashing import verify_password
 from authstatus_api.security.repository import (
     authenticate_user,
@@ -292,7 +305,11 @@ def reset_managed_user_password(
 
 
 @router.post("/login", response_model=LoginResponse)
-def login(payload: LoginRequest, request: Request) -> LoginResponse:
+def login(
+    payload: LoginRequest,
+    request: Request,
+    response: Response,
+) -> LoginResponse:
     user = authenticate_user(payload.username, payload.password)
 
     if user is None:
@@ -316,6 +333,17 @@ def login(payload: LoginRequest, request: Request) -> LoginResponse:
     )
 
     session = created_session["session"]
+    settings = get_settings()
+
+    response.set_cookie(
+        key=settings.session_cookie_name,
+        value=created_session["token"],
+        max_age=DEFAULT_SESSION_MINUTES * 60,
+        httponly=True,
+        secure=settings.session_cookie_secure,
+        samesite="lax",
+        path="/api",
+    )
     
     record_audit_event(
         action="security.login",
@@ -335,11 +363,24 @@ def login(payload: LoginRequest, request: Request) -> LoginResponse:
 @router.post("/logout", response_model=LogoutResponse)
 def logout(
     request: Request,
+    response: Response,
     authorization: str | None = Header(default=None),
 ) -> LogoutResponse:
-    token = extract_bearer_token(authorization)
+    settings = get_settings()
+    token = extract_session_token(
+        request,
+        authorization,
+    )
     user = get_user_for_session_token(token)
     logged_out = revoke_session(token)
+
+    response.delete_cookie(
+        key=settings.session_cookie_name,
+        path="/api",
+        httponly=True,
+        secure=settings.session_cookie_secure,
+        samesite="lax",
+    )
 
     if logged_out:
         record_audit_event(
@@ -350,7 +391,6 @@ def logout(
         )
 
     return LogoutResponse(logged_out=logged_out)
-
 
 @router.get("/me", response_model=CurrentUserResponse)
 def read_current_user(

@@ -144,6 +144,144 @@ def test_me_returns_current_user(client):
     assert data["user"]["role"] == "UR"
 
 
+def test_login_sets_httponly_session_cookie(client):
+    create_user(
+        "user@example.com",
+        "correct horse battery staple",
+        role="UR",
+    )
+
+    response = client.post(
+        "/api/security/login",
+        json={
+            "username": "user@example.com",
+            "password": "correct horse battery staple",
+        },
+    )
+
+    assert response.status_code == 200
+
+    set_cookie = response.headers["set-cookie"]
+
+    assert "carequeue_session=" in set_cookie
+    assert "HttpOnly" in set_cookie
+    assert "SameSite=lax" in set_cookie
+    assert "Path=/api" in set_cookie
+
+
+def test_session_cookie_authenticates_without_bearer_header(
+    client,
+):
+    create_user(
+        "user@example.com",
+        "correct horse battery staple",
+        role="UR",
+    )
+
+    login_response = client.post(
+        "/api/security/login",
+        json={
+            "username": "user@example.com",
+            "password": "correct horse battery staple",
+        },
+    )
+
+    assert login_response.status_code == 200
+
+    response = client.get("/api/security/me")
+
+    assert response.status_code == 200
+    assert response.json()["user"]["username"] == (
+        "user@example.com"
+    )
+
+
+def test_session_cookie_takes_priority_over_bearer_header(
+    client,
+):
+    create_user(
+        "cookie-user@example.com",
+        "correct horse battery staple",
+        role="UR",
+    )
+    create_user(
+        "bearer-user@example.com",
+        "correct horse battery staple",
+        role="Admin",
+    )
+
+    cookie_login = client.post(
+        "/api/security/login",
+        json={
+            "username": "cookie-user@example.com",
+            "password": "correct horse battery staple",
+        },
+    )
+    bearer_login = client.post(
+        "/api/security/login",
+        json={
+            "username": "bearer-user@example.com",
+            "password": "correct horse battery staple",
+        },
+    )
+
+    bearer_token = bearer_login.json()["access_token"]
+
+    client.cookies.set(
+        "carequeue_session",
+        cookie_login.json()["access_token"],
+        path="/api",
+    )
+
+    response = client.get(
+        "/api/security/me",
+        headers={
+            "Authorization": f"Bearer {bearer_token}",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["user"]["username"] == (
+        "cookie-user@example.com"
+    )
+
+
+def test_logout_revokes_and_clears_session_cookie(client):
+    create_user(
+        "user@example.com",
+        "correct horse battery staple",
+        role="UR",
+    )
+
+    login_response = client.post(
+        "/api/security/login",
+        json={
+            "username": "user@example.com",
+            "password": "correct horse battery staple",
+        },
+    )
+
+    assert login_response.status_code == 200
+
+    logout_response = client.post("/api/security/logout")
+
+    assert logout_response.status_code == 200
+    assert logout_response.json() == {
+        "logged_out": True,
+    }
+
+    set_cookie = logout_response.headers["set-cookie"]
+
+    assert "carequeue_session=" in set_cookie
+    assert "Max-Age=0" in set_cookie
+
+    current_user_response = client.get(
+        "/api/security/me"
+    )
+
+    assert current_user_response.status_code == 401
+
+
 def test_admin_can_list_users(client):
     create_user("admin@example.com", "correct horse battery staple", role="Admin")
     create_user("ur@example.com", "correct horse battery staple", role="UR")
@@ -756,6 +894,11 @@ def test_admin_reset_revokes_existing_user_sessions(client):
     )
 
     assert response.status_code == 200
+
+    client.cookies.delete(
+        "carequeue_session",
+        path="/api",
+    )
 
     previous_session = client.get(
         "/api/security/me",

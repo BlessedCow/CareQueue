@@ -40,7 +40,14 @@ class Settings(BaseSettings):
         default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"],
         validation_alias="AUTHSTATUS_CORS_ORIGINS",
     )
-    
+    session_cookie_name: str = Field(
+        default="carequeue_session",
+        validation_alias="AUTHSTATUS_SESSION_COOKIE_NAME",
+    )
+    session_cookie_secure: bool = Field(
+        default=False,
+        validation_alias="AUTHSTATUS_SESSION_COOKIE_SECURE",
+    )
     sqlcipher_key: str = Field(
         default="",
         validation_alias="AUTHSTATUS_SQLCIPHER_KEY",

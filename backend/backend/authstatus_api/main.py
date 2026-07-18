@@ -6,7 +6,6 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from authstatus_api.crypto import generate_encryption_key
 from authstatus_api.database import init_db
 from authstatus_api.errors import register_exception_handlers
 from authstatus_api.pdf_intake.router import (
@@ -54,17 +53,10 @@ def create_app() -> FastAPI:
             "version": settings.app_version,
         }
 
-    @api.get("/api/dev/encryption-key")
-    def create_dev_encryption_key() -> dict[str, str]:
-        return {
-            "AUTHSTATUS_ENCRYPTION_KEY": generate_encryption_key(),
-        }
-
     api.include_router(security_router)
     api.include_router(auths_router)
     api.include_router(analytics_router)
     api.include_router(registered_options_router)
-    api.include_router(analytics_router)
     api.include_router(pdf_intake_router)
 
     return api

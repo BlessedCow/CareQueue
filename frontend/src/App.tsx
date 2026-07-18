@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 // API
 import { fetchAuthRequests } from "./api/authStatus";
-import { clearAccessToken } from "./api/client";
 import { fetchCurrentUser, logoutUser, type CurrentUser } from "./api/security";
 
 // Components
@@ -138,7 +137,9 @@ function App() {
           setCurrentUser(user);
         }
       } catch {
-        clearAccessToken();
+        if (isMounted) {
+          setCurrentUser(null);
+        }
       } finally {
         if (isMounted) {
           setIsCheckingSession(false);
@@ -152,7 +153,6 @@ function App() {
       isMounted = false;
     };
   }, []);
-
 
   const {
     newAuthForm,
@@ -321,8 +321,8 @@ function App() {
     setActivePage("dashboard");
   };
 
-  const handleRequiredPasswordChanged = () => {
-    clearAccessToken();
+  const handleRequiredPasswordChanged = async () => {
+    await logoutUser();
     setCurrentUser(null);
     setAuthRequests([]);
     clearAuthEvents();
@@ -364,8 +364,8 @@ function App() {
     );
   }
 
-  const handlePasswordChanged = () => {
-    clearAccessToken();
+  const handlePasswordChanged = async () => {
+    await logoutUser();
     setCurrentUser(null);
     setAuthRequests([]);
     clearAuthEvents();
