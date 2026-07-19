@@ -42,8 +42,22 @@ def auth_headers_for(
     assert response.status_code == 200
     assert client.cookies.get("carequeue_session")
 
-    return {}
+    csrf_token = client.cookies.get("carequeue_csrf")
 
+    assert csrf_token
+
+    return {
+        "X-CSRF-Token": csrf_token,
+    }
+
+def csrf_headers(client: TestClient) -> dict[str, str]:
+    csrf_token = client.cookies.get("carequeue_csrf")
+
+    assert csrf_token
+
+    return {
+        "X-CSRF-Token": csrf_token,
+    }
 
 def test_login_returns_user_without_session_token(client):
     create_user("user@example.com", "correct horse battery staple", role="Admin")
@@ -315,7 +329,10 @@ def test_logout_revokes_and_clears_session_cookie(client):
     assert login_response.status_code == 200
     assert client.cookies.get("carequeue_csrf")
 
-    logout_response = client.post("/api/security/logout")
+    logout_response = client.post(
+        "/api/security/logout",
+        headers=csrf_headers(client),
+    )
 
     assert logout_response.status_code == 200
     assert logout_response.json() == {
@@ -713,7 +730,10 @@ def test_logout_revokes_session(client):
 
     assert login_response.status_code == 200
 
-    logout_response = client.post("/api/security/logout")
+    logout_response = client.post(
+        "/api/security/logout",
+        headers=csrf_headers(client),
+    )
 
     assert logout_response.status_code == 200
     assert logout_response.json() == {"logged_out": True}
@@ -850,6 +870,10 @@ def test_change_password_revokes_all_existing_sessions(client):
     first_token = client.cookies.get("carequeue_session")
 
     assert first_token
+    
+    first_csrf_token = client.cookies.get("carequeue_csrf")
+
+    assert first_csrf_token
 
     second_login = client.post(
         "/api/security/login",
@@ -871,11 +895,20 @@ def test_change_password_revokes_all_existing_sessions(client):
         path="/api",
     )
 
+    client.cookies.set(
+        "carequeue_csrf",
+        first_csrf_token,
+        path="/",
+    )
+
     response = client.post(
         "/api/security/change-password",
         json={
             "current_password": "old password value",
             "new_password": "new password value",
+        },
+        headers={
+            "X-CSRF-Token": first_csrf_token,
         },
     )
 
@@ -1094,7 +1127,10 @@ def test_login_and_logout_write_audit_events(client):
 
     assert login_response.status_code == 200
 
-    logout_response = client.post("/api/security/logout")
+    logout_response = client.post(
+        "/api/security/logout",
+        headers=csrf_headers(client),
+    )
 
     assert logout_response.status_code == 200
 
@@ -1150,7 +1186,10 @@ def test_forced_change_user_can_log_out(client):
         "temporary password value",
     )
 
-    response = client.post("/api/security/logout")
+    response = client.post(
+        "/api/security/logout",
+        headers=csrf_headers(client),
+    )
     
     assert response.status_code == 200
     assert response.json() == {"logged_out": True}

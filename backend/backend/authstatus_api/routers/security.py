@@ -11,7 +11,10 @@ from fastapi import (
 )
 
 from authstatus_api.audit.service import list_audit_events, record_audit_event
-from authstatus_api.security.csrf import generate_csrf_token
+from authstatus_api.security.csrf import (
+    generate_csrf_token,
+    validate_csrf_request,
+)
 from authstatus_api.security.dependencies import (
     AuthenticatedUserDependency,
     extract_session_token,
@@ -377,6 +380,15 @@ def logout(
     settings = get_settings()
     token = extract_session_token(request)
     user = get_user_for_session_token(token)
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required.",
+        )
+
+    validate_csrf_request(request)
+
     logged_out = revoke_session(token)
 
     response.delete_cookie(

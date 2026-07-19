@@ -60,15 +60,16 @@ def auth_headers_for(
 
     assert response.status_code == 200
 
-    token = client.cookies.get("carequeue_session")
+    assert client.cookies.get("carequeue_session")
 
-    assert token
+    csrf_token = client.cookies.get("carequeue_csrf")
+
+    assert csrf_token
 
     return {
-        "Authorization": f"Bearer {token}",
+        "X-CSRF-Token": csrf_token,
         "Content-Type": "application/pdf",
     }
-
 
 def extraction_result(
     *,

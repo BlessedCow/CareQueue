@@ -4,6 +4,7 @@ from collections.abc import Callable
 
 from fastapi import Depends, HTTPException, Request, status
 
+from authstatus_api.security.csrf import validate_csrf_request
 from authstatus_api.security.repository import (
     get_user_for_session_token,
 )
@@ -34,6 +35,8 @@ def get_authenticated_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required.",
         )
+
+    validate_csrf_request(request)
 
     return user
 

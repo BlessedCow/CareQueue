@@ -41,11 +41,15 @@ def auth_headers(client):
 
     assert response.status_code == 200
 
-    token = client.cookies.get("carequeue_session")
+    assert client.cookies.get("carequeue_session")
 
-    assert token
+    csrf_token = client.cookies.get("carequeue_csrf")
 
-    return {"Authorization": f"Bearer {token}"}
+    assert csrf_token
+
+    return {
+        "X-CSRF-Token": csrf_token,
+    }
 
 @pytest.fixture
 def client():
@@ -469,14 +473,18 @@ def test_read_only_user_cannot_create_auth(client):
 
     assert login_response.status_code == 200
 
-    token = client.cookies.get("carequeue_session")
+    assert client.cookies.get("carequeue_session")
 
-    assert token
+    csrf_token = client.cookies.get("carequeue_csrf")
+
+    assert csrf_token
 
     response = client.post(
         "/api/auths",
         json=make_payload(),
-        headers={"Authorization": f"Bearer {token}"},
+        headers={
+            "X-CSRF-Token": csrf_token,
+        },
     )
 
     assert response.status_code == 403
