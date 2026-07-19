@@ -67,13 +67,7 @@ CareQueue/
 │   │   └── conftest.py
 │   ├── requirements.txt
 │   ├── requirements-dev.txt
-│   ├── pyproject.toml
-│   ├── app.py
-│   ├── config.py
-│   ├── emailer.py
-│   ├── schema.py
-│   ├── storage.py
-│   └── test_app.py
+│   └── pyproject.toml
 ├── README.md
 ├── CONTRIBUTING.md
 ├── DISCLAIMER.md
@@ -87,7 +81,7 @@ The current FastAPI backend lives in:
 backend/authstatus_api/
 ```
 
-The older local backend files under `backend/` are legacy AuthStatus/Streamlit-era files and are separate from the current FastAPI API.
+The backend root also contains the test suite, operational scripts, dependency files, and backend tooling configuration.
 
 ## Frontend Architecture
 

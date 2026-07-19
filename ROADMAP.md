@@ -72,7 +72,6 @@ CareQueue is currently focused on strengthening the local application foundation
 - Expand audit logging tests
 - Expand SQLCipher and backup safety tests
 - Add frontend tests when the frontend structure stabilizes
-- Remove or archive old legacy Streamlit/AuthStatus code that is no longer part of the active FastAPI application
 - Keep changes small, focused, and easy to review
 
 ## Longer-Term Ideas

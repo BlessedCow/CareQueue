@@ -111,13 +111,8 @@ AUTHSTATUS_BACKUP_ENCRYPTION_KEY=encrypted backup file key
 │   │   └── conftest.py
 │   ├── requirements.txt
 │   ├── requirements-dev.txt
-│   ├── pyproject.toml
-│   ├── app.py                         # Legacy Streamlit/AuthStatus code
-│   ├── config.py                      # Legacy backend config
-│   ├── emailer.py                     # Legacy email helper
-│   ├── schema.py                      # Legacy schema helper
-│   ├── storage.py                     # Legacy storage helper
-│   └── test_app.py                    # Legacy test file
+│   └── pyproject.toml
+│
 ├── docs/
 │   ├── README.md
 │   ├── screenshots/
@@ -449,6 +444,5 @@ Do not commit database files, encrypted backups, restore files, `.env`, virtual 
 ## Development Notes
 
 - The current FastAPI backend lives in `backend/authstatus_api`.
-- Some older files under `backend/` are legacy AuthStatus/Streamlit files.
 - Backend tests should be run against `backend/tests`.
 - The app is currently local-first and should not be deployed publicly without additional production hardening.

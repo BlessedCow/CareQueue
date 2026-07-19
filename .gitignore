@@ -64,10 +64,6 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Streamlit secrets
-.streamlit/secrets.toml
-backend/.streamlit/secrets.toml
-
 # Editor / IDE files
 .vscode/
 .idea/
