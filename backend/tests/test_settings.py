@@ -1,9 +1,32 @@
 from __future__ import annotations
 
 import pytest
+from cryptography.fernet import Fernet
 from pydantic import ValidationError
 
 from authstatus_api.settings import Settings
+
+
+def encryption_key() -> str:
+    return Fernet.generate_key().decode("utf-8")
+
+
+def valid_production_settings(**overrides):
+    values = {
+        "AUTHSTATUS_APP_ENVIRONMENT": "production",
+        "AUTHSTATUS_DATABASE_ENCRYPTION": "sqlcipher",
+        "AUTHSTATUS_SQLCIPHER_KEY": "production sqlcipher passphrase",
+        "AUTHSTATUS_ENCRYPTION_KEY": encryption_key(),
+        "AUTHSTATUS_BACKUP_ENCRYPTION_KEY": encryption_key(),
+        "AUTHSTATUS_SESSION_COOKIE_SECURE": True,
+        "AUTHSTATUS_CORS_ORIGINS": "https://carequeue.example",
+    }
+    values.update(overrides)
+
+    return Settings(
+        _env_file=None,
+        **values,
+    )
 
 
 def test_default_environment_is_development(monkeypatch):
@@ -35,11 +58,8 @@ def test_supported_environment_values_are_normalized(value):
 
 
 def test_production_environment_is_normalized_with_secure_configuration():
-    settings = Settings(
-        _env_file=None,
+    settings = valid_production_settings(
         AUTHSTATUS_APP_ENVIRONMENT=" PRODUCTION ",
-        AUTHSTATUS_SESSION_COOKIE_SECURE=True,
-        AUTHSTATUS_CORS_ORIGINS="https://carequeue.example",
     )
 
     assert settings.app_environment == "production"
@@ -133,10 +153,7 @@ def test_cors_origins_reject_normalized_duplicates():
 
 
 def test_production_allows_hostname_containing_localhost_text():
-    settings = Settings(
-        _env_file=None,
-        AUTHSTATUS_APP_ENVIRONMENT="production",
-        AUTHSTATUS_SESSION_COOKIE_SECURE=True,
+    settings = valid_production_settings(
         AUTHSTATUS_CORS_ORIGINS=("https://localhost-support.example"),
     )
 
@@ -150,11 +167,8 @@ def test_production_requires_secure_session_cookie():
         ValidationError,
         match="Production requires secure session cookies",
     ):
-        Settings(
-            _env_file=None,
-            AUTHSTATUS_APP_ENVIRONMENT="production",
+        valid_production_settings(
             AUTHSTATUS_SESSION_COOKIE_SECURE=False,
-            AUTHSTATUS_CORS_ORIGINS="https://carequeue.example",
         )
 
 
@@ -179,18 +193,89 @@ def test_production_rejects_unsafe_cors_origins(origin):
 
 
 def test_production_accepts_secure_configuration():
-    settings = Settings(
-        _env_file=None,
-        AUTHSTATUS_APP_ENVIRONMENT="production",
-        AUTHSTATUS_SESSION_COOKIE_SECURE=True,
+    settings = valid_production_settings(
         AUTHSTATUS_CORS_ORIGINS=(
             "https://carequeue.example," "https://admin.carequeue.example"
         ),
     )
 
     assert settings.app_environment == "production"
+    assert settings.database_encryption == "sqlcipher"
     assert settings.session_cookie_secure is True
     assert settings.cors_origins == [
         "https://carequeue.example",
         "https://admin.carequeue.example",
     ]
+
+
+def test_production_rejects_plaintext_database_mode():
+    with pytest.raises(
+        ValidationError,
+        match="Production requires SQLCipher",
+    ):
+        valid_production_settings(
+            AUTHSTATUS_DATABASE_ENCRYPTION="plaintext",
+        )
+
+
+def test_production_requires_sqlcipher_key():
+    with pytest.raises(
+        ValidationError,
+        match="AUTHSTATUS_SQLCIPHER_KEY",
+    ):
+        valid_production_settings(
+            AUTHSTATUS_SQLCIPHER_KEY="",
+        )
+
+
+def test_production_requires_field_encryption_key():
+    with pytest.raises(
+        ValidationError,
+        match="AUTHSTATUS_ENCRYPTION_KEY",
+    ):
+        valid_production_settings(
+            AUTHSTATUS_ENCRYPTION_KEY="",
+        )
+
+
+def test_production_rejects_invalid_field_encryption_key():
+    with pytest.raises(
+        ValidationError,
+        match="valid AUTHSTATUS_ENCRYPTION_KEY",
+    ):
+        valid_production_settings(
+            AUTHSTATUS_ENCRYPTION_KEY="invalid-key",
+        )
+
+
+def test_production_requires_backup_encryption_key():
+    with pytest.raises(
+        ValidationError,
+        match="AUTHSTATUS_BACKUP_ENCRYPTION_KEY",
+    ):
+        valid_production_settings(
+            AUTHSTATUS_BACKUP_ENCRYPTION_KEY="",
+        )
+
+
+def test_production_rejects_invalid_backup_encryption_key():
+    with pytest.raises(
+        ValidationError,
+        match="valid AUTHSTATUS_BACKUP_ENCRYPTION_KEY",
+    ):
+        valid_production_settings(
+            AUTHSTATUS_BACKUP_ENCRYPTION_KEY="invalid-key",
+        )
+
+
+def test_production_requires_separate_encryption_keys():
+    shared_key = encryption_key()
+
+    with pytest.raises(
+        ValidationError,
+        match="encryption keys must be different",
+    ):
+        valid_production_settings(
+            AUTHSTATUS_ENCRYPTION_KEY=shared_key,
+            AUTHSTATUS_BACKUP_ENCRYPTION_KEY=shared_key,
+        )

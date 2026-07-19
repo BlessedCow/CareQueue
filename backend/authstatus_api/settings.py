@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Annotated
 from urllib.parse import urlsplit
 
+from cryptography.fernet import Fernet
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import (
     BaseSettings,
@@ -201,6 +202,41 @@ class Settings(BaseSettings):
     def validate_production_security(self) -> Settings:
         if self.app_environment != "production":
             return self
+
+        if self.database_encryption != "sqlcipher":
+            raise ValueError("Production requires SQLCipher database encryption.")
+
+        if not self.sqlcipher_key.strip():
+            raise ValueError("Production requires AUTHSTATUS_SQLCIPHER_KEY.")
+
+        encryption_key = self.encryption_key.strip()
+
+        if not encryption_key:
+            raise ValueError("Production requires AUTHSTATUS_ENCRYPTION_KEY.")
+
+        try:
+            Fernet(encryption_key.encode("utf-8"))
+        except ValueError as exc:
+            raise ValueError(
+                "Production requires a valid AUTHSTATUS_ENCRYPTION_KEY."
+            ) from exc
+
+        backup_encryption_key = self.backup_encryption_key.strip()
+
+        if not backup_encryption_key:
+            raise ValueError("Production requires AUTHSTATUS_BACKUP_ENCRYPTION_KEY.")
+
+        try:
+            Fernet(backup_encryption_key.encode("utf-8"))
+        except ValueError as exc:
+            raise ValueError(
+                "Production requires a valid " "AUTHSTATUS_BACKUP_ENCRYPTION_KEY."
+            ) from exc
+
+        if encryption_key == backup_encryption_key:
+            raise ValueError(
+                "Production field and backup encryption keys must be different."
+            )
 
         if not self.session_cookie_secure:
             raise ValueError("Production requires secure session cookies.")
