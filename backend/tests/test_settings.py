@@ -75,12 +75,41 @@ def test_cors_origins_reject_non_origin_urls(origin):
         )
 
 
+def test_cors_origins_accept_json_environment_list():
+    settings = Settings(
+        _env_file=None,
+        AUTHSTATUS_CORS_ORIGINS=(
+            '["http://localhost:5173",' '"https://carequeue.example"]'
+        ),
+    )
+
+    assert settings.cors_origins == [
+        "http://localhost:5173",
+        "https://carequeue.example",
+    ]
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "[invalid-json",
+        '{"origin": "https://carequeue.example"}',
+        '["https://carequeue.example", 123]',
+    ],
+)
+def test_cors_origins_reject_invalid_json_values(value):
+    with pytest.raises(ValidationError):
+        Settings(
+            _env_file=None,
+            AUTHSTATUS_CORS_ORIGINS=value,
+        )
+
+
 def test_cors_origins_are_normalized():
     settings = Settings(
         _env_file=None,
         AUTHSTATUS_CORS_ORIGINS=(
-            "HTTP://LOCALHOST:5173/,"
-            "HTTPS://CAREQUEUE.EXAMPLE/"
+            "HTTP://LOCALHOST:5173/," "HTTPS://CAREQUEUE.EXAMPLE/"
         ),
     )
 
@@ -98,8 +127,7 @@ def test_cors_origins_reject_normalized_duplicates():
         Settings(
             _env_file=None,
             AUTHSTATUS_CORS_ORIGINS=(
-                "https://carequeue.example,"
-                "HTTPS://CAREQUEUE.EXAMPLE/"
+                "https://carequeue.example," "HTTPS://CAREQUEUE.EXAMPLE/"
             ),
         )
 
@@ -109,9 +137,7 @@ def test_production_allows_hostname_containing_localhost_text():
         _env_file=None,
         AUTHSTATUS_APP_ENVIRONMENT="production",
         AUTHSTATUS_SESSION_COOKIE_SECURE=True,
-        AUTHSTATUS_CORS_ORIGINS=(
-            "https://localhost-support.example"
-        ),
+        AUTHSTATUS_CORS_ORIGINS=("https://localhost-support.example"),
     )
 
     assert settings.cors_origins == [
@@ -158,8 +184,7 @@ def test_production_accepts_secure_configuration():
         AUTHSTATUS_APP_ENVIRONMENT="production",
         AUTHSTATUS_SESSION_COOKIE_SECURE=True,
         AUTHSTATUS_CORS_ORIGINS=(
-            "https://carequeue.example,"
-            "https://admin.carequeue.example"
+            "https://carequeue.example," "https://admin.carequeue.example"
         ),
     )
 

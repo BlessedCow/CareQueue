@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import json
 from functools import lru_cache
 from pathlib import Path
+from typing import Annotated
 from urllib.parse import urlsplit
 
 from pydantic import Field, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import (
+    BaseSettings,
+    NoDecode,
+    SettingsConfigDict,
+)
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[0]
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -40,9 +46,14 @@ class Settings(BaseSettings):
         default=False,
         validation_alias="AUTHSTATUS_ALLOW_UNSAFE_DATABASE_PATH",
     )
-    encryption_key: str = Field(default="", validation_alias="AUTHSTATUS_ENCRYPTION_KEY")
-    cors_origins: list[str] = Field(
-        default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"],
+    encryption_key: str = Field(
+        default="", validation_alias="AUTHSTATUS_ENCRYPTION_KEY"
+    )
+    cors_origins: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ],
         validation_alias="AUTHSTATUS_CORS_ORIGINS",
     )
     session_cookie_name: str = Field(
@@ -65,7 +76,7 @@ class Settings(BaseSettings):
         default="",
         validation_alias="AUTHSTATUS_SQLCIPHER_KEY",
     )
-    
+
     backup_encryption_key: str = Field(
         default="",
         validation_alias="AUTHSTATUS_BACKUP_ENCRYPTION_KEY",
@@ -74,7 +85,7 @@ class Settings(BaseSettings):
         default=Path("backend/backups"),
         validation_alias="AUTHSTATUS_BACKUP_DIRECTORY",
     )
-    
+
     restore_directory: Path = Field(
         default=Path("backend/restores"),
         validation_alias="AUTHSTATUS_RESTORE_DIRECTORY",
@@ -84,7 +95,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
-    
+
     @field_validator("app_environment")
     @classmethod
     def validate_app_environment(cls, value: str) -> str:
@@ -100,7 +111,7 @@ class Settings(BaseSettings):
             )
 
         return normalized_value
-    
+
     @field_validator("database_encryption")
     @classmethod
     def validate_database_encryption(cls, value: str) -> str:
@@ -118,11 +129,31 @@ class Settings(BaseSettings):
         value: str | list[str],
     ) -> list[str]:
         if isinstance(value, str):
-            values = [
-                origin.strip()
-                for origin in value.split(",")
-                if origin.strip()
-            ]
+            stripped_value = value.strip()
+
+            if stripped_value.startswith("["):
+                try:
+                    parsed_value = json.loads(stripped_value)
+                except json.JSONDecodeError as exc:
+                    raise ValueError(
+                        "CORS origins must be a valid JSON list or "
+                        "comma-separated origins."
+                    ) from exc
+
+                if not isinstance(parsed_value, list) or not all(
+                    isinstance(origin, str) for origin in parsed_value
+                ):
+                    raise ValueError(
+                        "CORS origins JSON value must be a list of strings."
+                    )
+
+                values = parsed_value
+            else:
+                values = [
+                    origin.strip()
+                    for origin in stripped_value.split(",")
+                    if origin.strip()
+                ]
         else:
             values = value
 
@@ -137,81 +168,54 @@ class Settings(BaseSettings):
                 "http",
                 "https",
             }:
-                raise ValueError(
-                    "CORS origins must use HTTP or HTTPS."
-                )
+                raise ValueError("CORS origins must use HTTP or HTTPS.")
 
             if not parsed_origin.netloc:
-                raise ValueError(
-                    "CORS origins must include a hostname."
-                )
+                raise ValueError("CORS origins must include a hostname.")
 
-            if (
-                parsed_origin.username is not None
-                or parsed_origin.password is not None
-            ):
-                raise ValueError(
-                    "CORS origins cannot contain credentials."
-                )
+            if parsed_origin.username is not None or parsed_origin.password is not None:
+                raise ValueError("CORS origins cannot contain credentials.")
 
             if parsed_origin.path not in {"", "/"}:
-                raise ValueError(
-                    "CORS origins cannot contain a path."
-                )
+                raise ValueError("CORS origins cannot contain a path.")
 
             if parsed_origin.query:
-                raise ValueError(
-                    "CORS origins cannot contain a query string."
-                )
+                raise ValueError("CORS origins cannot contain a query string.")
 
             if parsed_origin.fragment:
-                raise ValueError(
-                    "CORS origins cannot contain a fragment."
-                )
+                raise ValueError("CORS origins cannot contain a fragment.")
 
             normalized_origin = (
-                f"{parsed_origin.scheme.lower()}://"
-                f"{parsed_origin.netloc.lower()}"
+                f"{parsed_origin.scheme.lower()}://" f"{parsed_origin.netloc.lower()}"
             )
 
             if normalized_origin in seen_origins:
-                raise ValueError(
-                    "CORS origins cannot contain duplicates."
-                )
+                raise ValueError("CORS origins cannot contain duplicates.")
 
             seen_origins.add(normalized_origin)
             normalized_origins.append(normalized_origin)
 
         return normalized_origins
-    
-    
+
     @model_validator(mode="after")
     def validate_production_security(self) -> Settings:
         if self.app_environment != "production":
             return self
 
         if not self.session_cookie_secure:
-            raise ValueError(
-                "Production requires secure session cookies."
-            )
+            raise ValueError("Production requires secure session cookies.")
 
         if not self.cors_origins:
-            raise ValueError(
-                "Production requires at least one trusted CORS origin."
-            )
+            raise ValueError("Production requires at least one trusted CORS origin.")
 
         for origin in self.cors_origins:
             normalized_origin = origin.strip().lower()
 
             if normalized_origin == "*":
-                raise ValueError(
-                    "Production CORS origins cannot contain a wildcard."
-                )
+                raise ValueError("Production CORS origins cannot contain a wildcard.")
 
             if not normalized_origin.startswith("https://"):
-                raise ValueError(
-                    "Production CORS origins must use HTTPS."
-                )
+                raise ValueError("Production CORS origins must use HTTPS.")
 
             hostname = urlsplit(normalized_origin).hostname
 

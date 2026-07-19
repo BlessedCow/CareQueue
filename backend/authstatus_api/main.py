@@ -19,6 +19,18 @@ from authstatus_api.routers.auths import router as auths_router
 from authstatus_api.routers.security import router as security_router
 from authstatus_api.settings import get_settings
 
+CORS_ALLOWED_METHODS = [
+    "GET",
+    "POST",
+    "PATCH",
+    "DELETE",
+]
+
+CORS_ALLOWED_HEADERS = [
+    "Content-Type",
+    "X-CSRF-Token",
+]
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -39,8 +51,8 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=CORS_ALLOWED_METHODS,
+        allow_headers=CORS_ALLOWED_HEADERS,
     )
 
     register_exception_handlers(api)
