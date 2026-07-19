@@ -138,6 +138,7 @@ AUTHSTATUS_BACKUP_ENCRYPTION_KEY=encrypted backup file key
 ├── SECURITY.md
 ├── LICENSE
 └── .gitignore
+```
 
 ## Backend Setup
 
