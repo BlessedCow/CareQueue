@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -23,9 +24,9 @@ class Settings(BaseSettings):
     app_name: str = "AuthStatus API"
     app_version: str = "0.1.0"
     app_environment: str = Field(
-    default="development",
-    validation_alias="AUTHSTATUS_APP_ENVIRONMENT",
-)
+        default="development",
+        validation_alias="AUTHSTATUS_APP_ENVIRONMENT",
+    )
 
     database_path: Path = Field(
         default=Path("backend/data/auth_tracker.db"),
@@ -112,11 +113,77 @@ class Settings(BaseSettings):
 
     @field_validator("cors_origins", mode="before")
     @classmethod
-    def parse_cors_origins(cls, value: str | list[str]) -> list[str]:
+    def parse_and_validate_cors_origins(
+        cls,
+        value: str | list[str],
+    ) -> list[str]:
         if isinstance(value, str):
-            return [origin.strip() for origin in value.split(",") if origin.strip()]
+            values = [
+                origin.strip()
+                for origin in value.split(",")
+                if origin.strip()
+            ]
+        else:
+            values = value
 
-        return value
+        normalized_origins: list[str] = []
+        seen_origins: set[str] = set()
+
+        for raw_origin in values:
+            origin = raw_origin.strip()
+            parsed_origin = urlsplit(origin)
+
+            if parsed_origin.scheme.lower() not in {
+                "http",
+                "https",
+            }:
+                raise ValueError(
+                    "CORS origins must use HTTP or HTTPS."
+                )
+
+            if not parsed_origin.netloc:
+                raise ValueError(
+                    "CORS origins must include a hostname."
+                )
+
+            if (
+                parsed_origin.username is not None
+                or parsed_origin.password is not None
+            ):
+                raise ValueError(
+                    "CORS origins cannot contain credentials."
+                )
+
+            if parsed_origin.path not in {"", "/"}:
+                raise ValueError(
+                    "CORS origins cannot contain a path."
+                )
+
+            if parsed_origin.query:
+                raise ValueError(
+                    "CORS origins cannot contain a query string."
+                )
+
+            if parsed_origin.fragment:
+                raise ValueError(
+                    "CORS origins cannot contain a fragment."
+                )
+
+            normalized_origin = (
+                f"{parsed_origin.scheme.lower()}://"
+                f"{parsed_origin.netloc.lower()}"
+            )
+
+            if normalized_origin in seen_origins:
+                raise ValueError(
+                    "CORS origins cannot contain duplicates."
+                )
+
+            seen_origins.add(normalized_origin)
+            normalized_origins.append(normalized_origin)
+
+        return normalized_origins
+    
     
     @model_validator(mode="after")
     def validate_production_security(self) -> Settings:
@@ -146,15 +213,19 @@ class Settings(BaseSettings):
                     "Production CORS origins must use HTTPS."
                 )
 
-            if (
-                "localhost" in normalized_origin
-                or "127.0.0.1" in normalized_origin
-            ):
+            hostname = urlsplit(normalized_origin).hostname
+
+            if hostname in {
+                "localhost",
+                "127.0.0.1",
+                "::1",
+            }:
                 raise ValueError(
                     "Production CORS origins cannot use local development hosts."
                 )
 
         return self
+
 
 @lru_cache
 def get_settings() -> Settings:
