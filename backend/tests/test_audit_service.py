@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 import pytest
+
 from authstatus_api.audit.service import (
     audit_field_names,
     list_audit_events,

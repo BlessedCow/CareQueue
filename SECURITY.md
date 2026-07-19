@@ -38,14 +38,14 @@ Use fake or clearly anonymized data for tests, screenshots, examples, issues, an
 Local secrets should be stored in environment files that are ignored by Git:
 
 ```text
-backend/backend/.env
+.env
 frontend/.env
 ```
 
 Commit only example files:
 
 ```text
-backend/backend/.env.example
+.env.example
 frontend/.env.example
 ```
 

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import pytest
+from cryptography.fernet import Fernet
+
 from authstatus_api import crypto
 from authstatus_api.settings import get_settings
-from cryptography.fernet import Fernet
 
 
 @pytest.fixture(autouse=True)

@@ -4,6 +4,7 @@ import sqlite3
 
 import pytest
 import sqlcipher3
+
 from authstatus_api.database_encryption.sqlcipher_probe import (
     SQLCipherProbeError,
     apply_sqlcipher_key,

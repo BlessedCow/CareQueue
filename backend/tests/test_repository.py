@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 import pytest
+
 from authstatus_api import crypto
 from authstatus_api.repository import (
     create_auth,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+
 from authstatus_api.registered_options.repository import (
     ProtectedRegisteredOptionError,
     RegisteredOptionAlreadyExistsError,

@@ -4,6 +4,7 @@ import sqlite3
 from datetime import UTC, datetime, timedelta
 
 import pytest
+
 from authstatus_api.database import get_conn
 from authstatus_api.security.password_hashing import verify_password
 from authstatus_api.security.repository import (

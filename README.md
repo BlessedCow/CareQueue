@@ -88,29 +88,36 @@ AUTHSTATUS_BACKUP_ENCRYPTION_KEY=encrypted backup file key
 
 ```text
 ├── backend/
+│   ├── authstatus_api/
+│   │   ├── audit/
+│   │   ├── backups/
+│   │   ├── database_encryption/
+│   │   ├── pdf_intake/
+│   │   ├── registered_options/
+│   │   ├── routers/
+│   │   ├── security/
+│   │   ├── crypto.py
+│   │   ├── database.py
+│   │   ├── errors.py
+│   │   ├── main.py
+│   │   ├── repository.py
+│   │   ├── schemas.py
+│   │   └── settings.py
+│   ├── scripts/
+│   ├── tests/
+│   │   ├── pdf_intake/
+│   │   ├── registered_options/
+│   │   ├── security/
+│   │   └── conftest.py
+│   ├── requirements.txt
+│   ├── requirements-dev.txt
+│   ├── pyproject.toml
 │   ├── app.py                         # Legacy Streamlit/AuthStatus code
 │   ├── config.py                      # Legacy backend config
 │   ├── emailer.py                     # Legacy email helper
 │   ├── schema.py                      # Legacy schema helper
 │   ├── storage.py                     # Legacy storage helper
-│   ├── test_app.py                    # Legacy test file
-│   └── backend/
-│       ├── authstatus_api/
-│       │   ├── audit/
-│       │   ├── backups/
-│       │   ├── database_encryption/
-│       │   ├── routers/
-│       │   ├── security/
-│       │   ├── crypto.py
-│       │   ├── database.py
-│       │   ├── main.py
-│       │   ├── repository.py
-│       │   ├── schemas.py
-│       │   └── settings.py
-│       ├── scripts/
-│       ├── tests/
-│       ├── requirements.txt
-│       └── requirements-dev.txt
+│   └── test_app.py                    # Legacy test file
 ├── docs/
 │   ├── README.md
 │   ├── screenshots/
@@ -119,14 +126,14 @@ AUTHSTATUS_BACKUP_ENCRYPTION_KEY=encrypted backup file key
 │   ├── src/
 │   │   ├── api/
 │   │   ├── components/
-│   │   ├── components/layout/
+│   │   │   └── layout/
 │   │   ├── hooks/
 │   │   ├── pages/
 │   │   ├── types/
 │   │   └── utils/
 │   ├── package.json
 │   └── vite.config.ts
-    .env.example
+├── .env.example
 ├── ARCHITECTURE.md
 ├── CONTRIBUTING.md
 ├── DISCLAIMER.md
@@ -136,14 +143,13 @@ AUTHSTATUS_BACKUP_ENCRYPTION_KEY=encrypted backup file key
 ├── SECURITY.md
 ├── LICENSE
 └── .gitignore
-```
 
 ## Backend Setup
 
 From the repository root:
 
 ```bash
-cd backend/backend
+cd backend
 py -3.12 -m venv .venv
 .venv\Scripts\activate
 python -m pip install --upgrade pip
@@ -249,7 +255,7 @@ There is no public signup screen. Create users locally from the backend script.
 From the repository root:
 
 ```bash
-python backend/backend/scripts/create_user.py --username admin@example.com --role Admin
+python backend/scripts/create_user.py --username admin@example.com --role Admin
 ```
 
 Available roles:
@@ -314,7 +320,7 @@ Most API routes require a bearer token.
 Create an encrypted backup of the active database:
 
 ```bash
-python backend/backend/scripts/create_encrypted_backup.py
+python backend/scripts/create_encrypted_backup.py
 ```
 
 Backups are written to:
@@ -332,7 +338,7 @@ Backup files end in:
 Restore an encrypted backup to a safe restore location:
 
 ```bash
-python backend/backend/scripts/restore_encrypted_backup.py backend/backups/<backup-file>.db.enc
+python backend/scripts/restore_encrypted_backup.py backend/backups/<backup-file>.db.enc
 ```
 
 Restores are written to:
@@ -350,7 +356,7 @@ CareQueue supports optional SQLCipher database-file encryption.
 Prepare a safe SQLCipher cutover:
 
 ```bash
-python backend/backend/scripts/prepare_sqlcipher_cutover.py --force
+python backend/scripts/prepare_sqlcipher_cutover.py --force
 ```
 
 This will:
@@ -372,13 +378,13 @@ backend/data/auth_tracker.sqlcipher.db
 Verify a SQLCipher database manually:
 
 ```bash
-python backend/backend/scripts/verify_sqlcipher_database.py
+python backend/scripts/verify_sqlcipher_database.py
 ```
 
 Create only the SQLCipher copy manually:
 
 ```bash
-python backend/backend/scripts/migrate_to_sqlcipher.py
+python backend/scripts/migrate_to_sqlcipher.py
 ```
 
 Recommended local switch to SQLCipher mode:
@@ -396,7 +402,7 @@ Keep the plaintext database until SQLCipher mode has been tested through normal 
 Backend tests from the repository root:
 
 ```bash
-pytest backend/backend/tests -q
+pytest backend/tests -q
 ```
 
 Ruff from the repository root:
@@ -419,7 +425,7 @@ npm run build
 The following files and directories are local runtime data, generated artifacts, or sensitive configuration and should remain ignored:
 
 ```text
-backend/backend/.env
+backend/.env
 backend/data/
 backend/backups/
 backend/restores/
@@ -429,7 +435,7 @@ backend/restores/
 *.db.enc
 *.restored.db
 frontend/node_modules/
-backend/backend/.venv/
+backend/.venv/
 ```
 
 Before committing, check the staged and unstaged files:
@@ -442,7 +448,7 @@ Do not commit database files, encrypted backups, restore files, `.env`, virtual 
 
 ## Development Notes
 
-- The current FastAPI backend lives in `backend/backend/authstatus_api`.
+- The current FastAPI backend lives in `backend/authstatus_api`.
 - Some older files under `backend/` are legacy AuthStatus/Streamlit files.
-- Backend tests should be run against `backend/backend/tests`.
+- Backend tests should be run against `backend/tests`.
 - The app is currently local-first and should not be deployed publicly without additional production hardening.

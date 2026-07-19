@@ -61,7 +61,7 @@ Do not commit local runtime files, generated files, or sensitive configuration.
 Examples include:
 
 ```text
-backend/backend/.env
+.env
 backend/data/
 backend/backups/
 backend/restores/
@@ -71,7 +71,7 @@ backend/restores/
 *.db.enc
 *.restored.db
 frontend/node_modules/
-backend/backend/.venv/
+backend/.venv/
 ```
 
 Before committing, check the staged and unstaged files:
@@ -122,7 +122,8 @@ Before opening a pull request, run the relevant checks for the files you changed
 Backend checks from the repository root:
 
 ```bash
-pytest backend/backend/tests -q
+pytest backend/tests -q
+pytest backend/tests -n auto -q
 python -m ruff check . --fix
 ```
 

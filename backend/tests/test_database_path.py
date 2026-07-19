@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+
 from authstatus_api.database import (
     EXPECTED_DATABASE_DIRECTORY,
     DatabaseEncryptionError,

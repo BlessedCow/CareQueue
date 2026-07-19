@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+
 from authstatus_api.security.temporary_passwords import (
     TEMPORARY_PASSWORD_LENGTH,
     generate_temporary_password,

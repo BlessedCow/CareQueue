@@ -3,13 +3,14 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
+from fastapi import HTTPException
+from starlette.requests import Request
+
 from authstatus_api.security.csrf import (
     CSRF_TOKEN_BYTES,
     generate_csrf_token,
     validate_csrf_request,
 )
-from fastapi import HTTPException
-from starlette.requests import Request
 
 
 def build_request(

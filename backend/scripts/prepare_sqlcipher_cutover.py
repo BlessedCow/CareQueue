@@ -91,7 +91,7 @@ def main() -> int:
         print(f"- {table_name}")
 
     print()
-    print("To switch the backend to SQLCipher mode, update backend/backend/.env:")
+    print("To switch the backend to SQLCipher mode, update the repository-root .env:")
     print(f"AUTHSTATUS_DATABASE_PATH={result['env_values']['AUTHSTATUS_DATABASE_PATH']}")
     print(
         "AUTHSTATUS_DATABASE_ENCRYPTION="

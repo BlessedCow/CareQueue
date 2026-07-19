@@ -4,13 +4,14 @@ import json
 import sqlite3
 
 import pytest
+from fastapi.testclient import TestClient
+
 from authstatus_api.crypto import ENCRYPTED_TEXT_PREFIX, generate_encryption_key
 from authstatus_api.database import get_conn
 from authstatus_api.main import create_app
 from authstatus_api.routers import auths as auths_router
 from authstatus_api.security.repository import create_user
 from authstatus_api.settings import get_settings
-from fastapi.testclient import TestClient
 
 
 @pytest.fixture(autouse=True)

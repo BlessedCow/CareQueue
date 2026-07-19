@@ -38,34 +38,42 @@ CareQueue/
 │   └── src/
 │       ├── api/
 │       ├── components/
-│       ├── components/layout/
+│       │   └── layout/
 │       ├── hooks/
 │       ├── pages/
 │       ├── types/
 │       └── utils/
 ├── backend/
+│   ├── authstatus_api/
+│   │   ├── audit/
+│   │   ├── backups/
+│   │   ├── database_encryption/
+│   │   ├── pdf_intake/
+│   │   ├── registered_options/
+│   │   ├── routers/
+│   │   ├── security/
+│   │   ├── crypto.py
+│   │   ├── database.py
+│   │   ├── errors.py
+│   │   ├── main.py
+│   │   ├── repository.py
+│   │   ├── schemas.py
+│   │   └── settings.py
+│   ├── scripts/
+│   ├── tests/
+│   │   ├── pdf_intake/
+│   │   ├── registered_options/
+│   │   ├── security/
+│   │   └── conftest.py
+│   ├── requirements.txt
+│   ├── requirements-dev.txt
+│   ├── pyproject.toml
 │   ├── app.py
 │   ├── config.py
 │   ├── emailer.py
 │   ├── schema.py
 │   ├── storage.py
-│   └── backend/
-│       ├── authstatus_api/
-│       │   ├── audit/
-│       │   ├── backups/
-│       │   ├── database_encryption/
-│       │   ├── routers/
-│       │   ├── security/
-│       │   ├── crypto.py
-│       │   ├── database.py
-│       │   ├── main.py
-│       │   ├── repository.py
-│       │   ├── schemas.py
-│       │   └── settings.py
-│       ├── scripts/
-│       ├── tests/
-│       ├── requirements.txt
-│       └── requirements-dev.txt
+│   └── test_app.py
 ├── README.md
 ├── CONTRIBUTING.md
 ├── DISCLAIMER.md
@@ -76,7 +84,7 @@ CareQueue/
 The current FastAPI backend lives in:
 
 ```text
-backend/backend/authstatus_api/
+backend/authstatus_api/
 ```
 
 The older local backend files under `backend/` are legacy AuthStatus/Streamlit-era files and are separate from the current FastAPI API.
@@ -89,7 +97,7 @@ The frontend is a React/Vite/Tailwind application.
 frontend/src/
 ├── api/
 ├── components/
-├── components/layout/
+│   └── layout/
 ├── hooks/
 ├── pages/
 ├── types/
@@ -237,22 +245,31 @@ Responsibilities:
 The FastAPI backend is located at:
 
 ```text
-backend/backend/authstatus_api/
+backend/authstatus_api/
 ```
 
 ```text
-authstatus_api/
-├── audit/
-├── backups/
-├── database_encryption/
-├── routers/
-├── security/
-├── crypto.py
-├── database.py
-├── main.py
-├── repository.py
-├── schemas.py
-└── settings.py
+backend/
+├── authstatus_api/
+│   ├── audit/
+│   ├── backups/
+│   ├── database_encryption/
+│   ├── pdf_intake/
+│   ├── registered_options/
+│   ├── routers/
+│   ├── security/
+│   ├── crypto.py
+│   ├── database.py
+│   ├── errors.py
+│   ├── main.py
+│   ├── repository.py
+│   ├── schemas.py
+│   └── settings.py
+├── scripts/
+├── tests/
+├── requirements.txt
+├── requirements-dev.txt
+└── pyproject.toml
 ```
 
 ### `main.py`
@@ -346,7 +363,7 @@ Responsibilities:
 Routers are located at:
 
 ```text
-backend/backend/authstatus_api/routers/
+backend/authstatus_api/routers/
 ```
 
 ### `auths.py`
@@ -389,16 +406,18 @@ Responsibilities:
 Security-related backend code is located at:
 
 ```text
-backend/backend/authstatus_api/security/
+backend/authstatus_api/security/
 ```
 
 ```text
 security/
+├── csrf.py
 ├── dependencies.py
 ├── password_hashing.py
 ├── repository.py
 ├── schemas.py
-└── sessions.py
+├── sessions.py
+└── temporary_passwords.py
 ```
 
 ### Authentication
@@ -469,7 +488,7 @@ These layers protect different things and use separate keys.
 Implemented in:
 
 ```text
-backend/backend/authstatus_api/crypto.py
+backend/authstatus_api/crypto.py
 ```
 
 Configured with:
@@ -487,7 +506,7 @@ The same key is required to decrypt existing encrypted field values.
 Implemented in:
 
 ```text
-backend/backend/authstatus_api/database_encryption/
+backend/authstatus_api/database_encryption/
 ```
 
 Configured with:
@@ -510,7 +529,7 @@ AUTHSTATUS_DATABASE_ENCRYPTION=plaintext
 Implemented in:
 
 ```text
-backend/backend/authstatus_api/backups/service.py
+backend/authstatus_api/backups/service.py
 ```
 
 Configured with:
@@ -534,7 +553,7 @@ Restore operations write to a safe restore directory and should not overwrite th
 Audit logging is implemented in:
 
 ```text
-backend/backend/authstatus_api/audit/service.py
+backend/authstatus_api/audit/service.py
 ```
 
 Audit records are stored in the database.
@@ -704,7 +723,7 @@ Updated data is returned or reloaded
 Maintenance scripts live in:
 
 ```text
-backend/backend/scripts/
+backend/scripts/
 ```
 
 Current scripts include:
@@ -761,7 +780,7 @@ Local runtime files should not be committed.
 Examples:
 
 ```text
-backend/backend/.env
+backend/.env
 backend/data/
 backend/backups/
 backend/restores/
@@ -777,13 +796,13 @@ backend/restores/
 Backend tests are located at:
 
 ```text
-backend/backend/tests/
+backend/tests/
 ```
 
 Run backend tests from the repository root:
 
 ```bash
-pytest backend/backend/tests -q
+pytest backend/tests -q
 ```
 
 Run Ruff from the repository root:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 import pytest
+
 from authstatus_api.database import get_conn, init_db
 from authstatus_api.settings import get_settings
 

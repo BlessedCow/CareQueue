@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 import pytest
+
 from authstatus_api.crypto import generate_encryption_key
 from authstatus_api.database_encryption.cutover import (
     SQLCipherCutoverError,

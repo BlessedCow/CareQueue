@@ -38,7 +38,7 @@ Also confirm that the SQLCipher and backup encryption keys are configured.
 From the repository root:
 
 ```powershell
-backend\backend\.venv\Scripts\python.exe -c "import sys; sys.path.insert(0, 'backend/backend'); from authstatus_api.settings import get_settings; s=get_settings(); print(s.database_path); print(s.database_encryption); print(bool(s.sqlcipher_key)); print(bool(s.backup_encryption_key))"
+backend\.venv\Scripts\python.exe -c "import sys; sys.path.insert(0, 'backend'); from authstatus_api.settings import get_settings; s=get_settings(); print(s.database_path); print(s.database_encryption); print(bool(s.sqlcipher_key)); print(bool(s.backup_encryption_key))"
 ```
 
 Expected output:

@@ -3,6 +3,8 @@ from __future__ import annotations
 from unittest.mock import Mock, patch
 
 import pytest
+from pypdf.errors import PdfReadError
+
 from authstatus_api.pdf_intake.extractor import (
     EncryptedPdfError,
     InvalidPdfError,
@@ -10,7 +12,6 @@ from authstatus_api.pdf_intake.extractor import (
     PdfFormField,
     extract_pdf_text,
 )
-from pypdf.errors import PdfReadError
 
 
 def mock_reader_with_pages(
