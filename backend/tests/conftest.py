@@ -23,8 +23,16 @@ def isolate_test_settings(monkeypatch, tmp_path):
     from authstatus_api.settings import get_settings
 
     monkeypatch.setattr(settings_module, "ROOT_ENV_FILE", tmp_path / ".env")
-    monkeypatch.setenv("AUTHSTATUS_DATABASE_ENCRYPTION", "plaintext")
-    monkeypatch.setenv("AUTHSTATUS_SQLCIPHER_KEY", "")
+    monkeypatch.setenv(
+        "AUTHSTATUS_APP_ENVIRONMENT",
+        "test",
+    )
+    monkeypatch.setenv(
+        "AUTHSTATUS_DATABASE_ENCRYPTION", "plaintext"
+    )
+    monkeypatch.setenv(
+        "AUTHSTATUS_SQLCIPHER_KEY", ""
+    )
     get_settings.cache_clear()
 
     yield

@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[0]
@@ -22,6 +22,10 @@ def resolve_project_path(path: Path) -> Path:
 class Settings(BaseSettings):
     app_name: str = "AuthStatus API"
     app_version: str = "0.1.0"
+    app_environment: str = Field(
+    default="development",
+    validation_alias="AUTHSTATUS_APP_ENVIRONMENT",
+)
 
     database_path: Path = Field(
         default=Path("backend/data/auth_tracker.db"),
@@ -80,6 +84,22 @@ class Settings(BaseSettings):
         extra="ignore",
     )
     
+    @field_validator("app_environment")
+    @classmethod
+    def validate_app_environment(cls, value: str) -> str:
+        normalized_value = value.strip().lower()
+
+        if normalized_value not in {
+            "development",
+            "test",
+            "production",
+        }:
+            raise ValueError(
+                "app_environment must be development, test, or production."
+            )
+
+        return normalized_value
+    
     @field_validator("database_encryption")
     @classmethod
     def validate_database_encryption(cls, value: str) -> str:
@@ -97,7 +117,44 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in value.split(",") if origin.strip()]
 
         return value
+    
+    @model_validator(mode="after")
+    def validate_production_security(self) -> Settings:
+        if self.app_environment != "production":
+            return self
 
+        if not self.session_cookie_secure:
+            raise ValueError(
+                "Production requires secure session cookies."
+            )
+
+        if not self.cors_origins:
+            raise ValueError(
+                "Production requires at least one trusted CORS origin."
+            )
+
+        for origin in self.cors_origins:
+            normalized_origin = origin.strip().lower()
+
+            if normalized_origin == "*":
+                raise ValueError(
+                    "Production CORS origins cannot contain a wildcard."
+                )
+
+            if not normalized_origin.startswith("https://"):
+                raise ValueError(
+                    "Production CORS origins must use HTTPS."
+                )
+
+            if (
+                "localhost" in normalized_origin
+                or "127.0.0.1" in normalized_origin
+            ):
+                raise ValueError(
+                    "Production CORS origins cannot use local development hosts."
+                )
+
+        return self
 
 @lru_cache
 def get_settings() -> Settings:
