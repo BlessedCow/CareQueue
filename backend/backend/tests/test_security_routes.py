@@ -88,8 +88,27 @@ def test_login_rejects_wrong_password(client):
 
     assert response.status_code == 401
     assert response.json() == {"detail": "Invalid username or password."}
-    
-    
+
+
+def test_failed_login_does_not_set_csrf_cookie(client):
+    create_user(
+        "user@example.com",
+        "correct horse battery staple",
+        role="UR",
+    )
+
+    response = client.post(
+        "/api/security/login",
+        json={
+            "username": "user@example.com",
+            "password": "wrong password",
+        },
+    )
+
+    assert response.status_code == 401
+    assert client.cookies.get("carequeue_csrf") is None
+
+
 def test_failed_login_writes_audit_event(client):
     create_user("user@example.com", "correct horse battery staple", role="UR")
 
@@ -176,6 +195,40 @@ def test_login_sets_httponly_session_cookie(client):
     assert "Path=/api" in set_cookie
 
 
+
+def test_login_sets_readable_csrf_cookie(client):
+    create_user(
+        "user@example.com",
+        "correct horse battery staple",
+        role="UR",
+    )
+
+    response = client.post(
+        "/api/security/login",
+        json={
+            "username": "user@example.com",
+            "password": "correct horse battery staple",
+        },
+    )
+
+    assert response.status_code == 200
+
+    csrf_token = client.cookies.get("carequeue_csrf")
+
+    assert csrf_token
+
+    set_cookie_headers = response.headers.get_list("set-cookie")
+    csrf_cookie_header = next(
+        header
+        for header in set_cookie_headers
+        if header.startswith("carequeue_csrf=")
+    )
+
+    assert "HttpOnly" not in csrf_cookie_header
+    assert "SameSite=lax" in csrf_cookie_header
+    assert "Path=/" in csrf_cookie_header
+
+
 def test_session_cookie_authenticates_without_bearer_header(
     client,
 ):
@@ -260,6 +313,7 @@ def test_logout_revokes_and_clears_session_cookie(client):
     )
 
     assert login_response.status_code == 200
+    assert client.cookies.get("carequeue_csrf")
 
     logout_response = client.post("/api/security/logout")
 
@@ -278,6 +332,20 @@ def test_logout_revokes_and_clears_session_cookie(client):
     )
 
     assert current_user_response.status_code == 401
+    
+    assert client.cookies.get("carequeue_csrf") is None
+
+    set_cookie_headers = logout_response.headers.get_list(
+        "set-cookie"
+    )
+    csrf_cookie_header = next(
+        header
+        for header in set_cookie_headers
+        if header.startswith("carequeue_csrf=")
+    )
+
+    assert "Max-Age=0" in csrf_cookie_header
+    assert "Path=/" in csrf_cookie_header
 
 
 def test_admin_can_list_users(client):

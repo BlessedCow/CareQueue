@@ -11,6 +11,7 @@ from fastapi import (
 )
 
 from authstatus_api.audit.service import list_audit_events, record_audit_event
+from authstatus_api.security.csrf import generate_csrf_token
 from authstatus_api.security.dependencies import (
     AuthenticatedUserDependency,
     extract_session_token,
@@ -333,6 +334,7 @@ def login(
 
     session = created_session["session"]
     settings = get_settings()
+    csrf_token = generate_csrf_token()
 
     response.set_cookie(
         key=settings.session_cookie_name,
@@ -342,6 +344,16 @@ def login(
         secure=settings.session_cookie_secure,
         samesite="lax",
         path="/api",
+    )
+    
+    response.set_cookie(
+        key=settings.csrf_cookie_name,
+        value=csrf_token,
+        max_age=DEFAULT_SESSION_MINUTES * 60,
+        httponly=False,
+        secure=settings.session_cookie_secure,
+        samesite="lax",
+        path="/",
     )
     
     record_audit_event(
@@ -371,6 +383,14 @@ def logout(
         key=settings.session_cookie_name,
         path="/api",
         httponly=True,
+        secure=settings.session_cookie_secure,
+        samesite="lax",
+    )
+    
+    response.delete_cookie(
+        key=settings.csrf_cookie_name,
+        path="/",
+        httponly=False,
         secure=settings.session_cookie_secure,
         samesite="lax",
     )

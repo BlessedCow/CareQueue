@@ -48,6 +48,14 @@ class Settings(BaseSettings):
         default=False,
         validation_alias="AUTHSTATUS_SESSION_COOKIE_SECURE",
     )
+    csrf_cookie_name: str = Field(
+        default="carequeue_csrf",
+        validation_alias="AUTHSTATUS_CSRF_COOKIE_NAME",
+    )
+    csrf_header_name: str = Field(
+        default="X-CSRF-Token",
+        validation_alias="AUTHSTATUS_CSRF_HEADER_NAME",
+    )
     sqlcipher_key: str = Field(
         default="",
         validation_alias="AUTHSTATUS_SQLCIPHER_KEY",
