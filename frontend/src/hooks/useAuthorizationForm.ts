@@ -39,7 +39,7 @@ export const DEFAULT_AUTH_FORM: NewAuthFormState = {
   groupNumber: "",
   dateOfBirth: "",
   facility: "",
-  loc: "",
+  loc: "DTX",
   status: "Pending",
   startDate: "",
   endDate: "",

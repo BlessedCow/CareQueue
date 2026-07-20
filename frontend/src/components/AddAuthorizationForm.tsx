@@ -4,6 +4,12 @@ import {
   type PdfIntakeFormValues,
 } from "./PdfIntakeReviewPanel";
 import { usePdfIntakePreview } from "../hooks/usePdfIntakePreview";
+import type { NewAuthFormState } from "../hooks/useAuthorizationForm";
+import {
+  hasAuthorizationFormErrors,
+  validateAuthorizationForm,
+  type AuthorizationFormErrors,
+} from "../utils/authorizationFormValidation";
 import { cn } from "../utils/cn";
 
 function formatPhoneNumber(value: string) {
@@ -35,36 +41,6 @@ function findRegisteredOption(value: string, options: string[]): string | null {
       (option) => option.trim().toLocaleLowerCase() === normalizedValue
     ) ?? null
   );
-}
-
-interface NewAuthFormState {
-  clientName: string;
-  memberId: string;
-  groupNumber: string;
-  dateOfBirth: string;
-  facility: string;
-  loc: string;
-  status: string;
-  startDate: string;
-  endDate: string;
-  programmingDays: string;
-  reviewDueDate: string;
-  requestedDays: string;
-  approvedDays: string;
-  insurance: string;
-  authType: string;
-  submissionMethod: string;
-  phoneNumber: string;
-  phoneExtension: string;
-  faxNumber: string;
-  webPortal: string;
-  webPortalUrl: string;
-  hasCareManager: boolean;
-  careManagerName: string;
-  careManagerContactType: string;
-  careManagerPhone: string;
-  careManagerFax: string;
-  careManagerNotes: string;
 }
 
 interface AddAuthorizationFormProps {
@@ -100,6 +76,7 @@ export function AddAuthorizationForm({
   const [showAuthNotes, setShowAuthNotes] = useState(true);
   const pdfFileInputRef = useRef<HTMLInputElement>(null);
   const [pdfApplyWarning, setPdfApplyWarning] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<AuthorizationFormErrors>({});
 
   const {
     selectedPdfFile,
@@ -117,6 +94,33 @@ export function AddAuthorizationForm({
     }
   };
 
+  const handleFieldChange = (
+    field: keyof NewAuthFormState,
+    value: string | boolean
+  ) => {
+    onFieldChange(field, value);
+
+    if (formErrors[field]) {
+      setFormErrors((currentErrors) => {
+        const nextErrors = { ...currentErrors };
+        delete nextErrors[field];
+        return nextErrors;
+      });
+    }
+  };
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    const errors = validateAuthorizationForm(form);
+
+    if (hasAuthorizationFormErrors(errors)) {
+      event.preventDefault();
+      setFormErrors(errors);
+      return;
+    }
+
+    setFormErrors({});
+    onSubmit(event);
+  };
   const handlePdfSelection = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
 
@@ -139,27 +143,27 @@ export function AddAuthorizationForm({
     const warnings: string[] = [];
 
     if (values.clientName?.trim()) {
-      onFieldChange("clientName", values.clientName.trim());
+      handleFieldChange("clientName", values.clientName.trim());
     }
 
     if (values.memberId?.trim()) {
-      onFieldChange("memberId", values.memberId.trim());
+      handleFieldChange("memberId", values.memberId.trim());
     }
 
     if (values.groupNumber?.trim()) {
-      onFieldChange("groupNumber", values.groupNumber.trim());
+      handleFieldChange("groupNumber", values.groupNumber.trim());
     }
 
     if (values.dateOfBirth?.trim()) {
-      onFieldChange("dateOfBirth", values.dateOfBirth.trim());
+      handleFieldChange("dateOfBirth", values.dateOfBirth.trim());
     }
 
     if (values.startDate?.trim()) {
-      onFieldChange("startDate", values.startDate.trim());
+      handleFieldChange("startDate", values.startDate.trim());
     }
 
     if (values.phoneNumber?.trim()) {
-      onFieldChange("phoneNumber", formatPhoneNumber(values.phoneNumber));
+      handleFieldChange("phoneNumber", formatPhoneNumber(values.phoneNumber));
     }
 
     if (values.facility?.trim()) {
@@ -169,7 +173,7 @@ export function AddAuthorizationForm({
       );
 
       if (matchingFacility) {
-        onFieldChange("facility", matchingFacility);
+        handleFieldChange("facility", matchingFacility);
       } else {
         warnings.push(
           `"${values.facility.trim()}" is not a registered facility.`
@@ -184,7 +188,7 @@ export function AddAuthorizationForm({
       );
 
       if (matchingInsurance) {
-        onFieldChange("insurance", matchingInsurance);
+        handleFieldChange("insurance", matchingInsurance);
       } else {
         warnings.push(
           `"${values.insurance.trim()}" is not a registered insurance.`
@@ -205,7 +209,8 @@ export function AddAuthorizationForm({
   };
   return (
     <form
-      onSubmit={onSubmit}
+      onSubmit={handleSubmit}
+      noValidate
       className={cn(
         "mb-5 grid gap-4 rounded-lg border p-4 md:grid-cols-2",
         darkMode
@@ -333,10 +338,13 @@ export function AddAuthorizationForm({
         <span className={darkMode ? "text-gray-300" : "text-gray-700"}>
           Client Name
         </span>
+
         <input
           type="text"
           value={form.clientName}
-          onChange={(event) => onFieldChange("clientName", event.target.value)}
+          onChange={(event) =>
+            handleFieldChange("clientName", event.target.value)
+          }
           className={cn(
             "w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500",
             darkMode
@@ -344,6 +352,12 @@ export function AddAuthorizationForm({
               : "border-gray-300 bg-white text-gray-900"
           )}
         />
+
+        {formErrors.clientName && (
+          <p role="alert" className="text-xs text-red-600">
+            {formErrors.clientName}
+          </p>
+        )}
       </label>
 
       <label className="space-y-1 text-sm">
@@ -387,7 +401,9 @@ export function AddAuthorizationForm({
         <input
           type="date"
           value={form.dateOfBirth}
-          onChange={(event) => onFieldChange("dateOfBirth", event.target.value)}
+          onChange={(event) =>
+            handleFieldChange("dateOfBirth", event.target.value)
+          }
           className={cn(
             "w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500",
             darkMode
@@ -395,6 +411,11 @@ export function AddAuthorizationForm({
               : "border-gray-300 bg-white text-gray-900"
           )}
         />
+        {formErrors.dateOfBirth && (
+          <p role="alert" className="text-xs text-red-600">
+            {formErrors.dateOfBirth}
+          </p>
+        )}
       </label>
 
       <label className="space-y-1 text-sm">
@@ -426,7 +447,9 @@ export function AddAuthorizationForm({
         </span>
         <select
           value={form.facility}
-          onChange={(event) => onFieldChange("facility", event.target.value)}
+          onChange={(event) =>
+            handleFieldChange("facility", event.target.value)
+          }
           className={cn(
             "w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500",
             darkMode
@@ -440,6 +463,11 @@ export function AddAuthorizationForm({
             </option>
           ))}
         </select>
+        {formErrors.facility && (
+          <p role="alert" className="text-xs text-red-600">
+            {formErrors.facility}
+          </p>
+        )}
       </label>
 
       <label className="space-y-1 text-sm">
@@ -448,7 +476,7 @@ export function AddAuthorizationForm({
         </span>
         <select
           value={form.loc}
-          onChange={(event) => onFieldChange("loc", event.target.value)}
+          onChange={(event) => handleFieldChange("loc", event.target.value)}
           className={cn(
             "w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500",
             darkMode
@@ -461,6 +489,11 @@ export function AddAuthorizationForm({
           <option value="PHP">PHP</option>
           <option value="IOP">IOP</option>
         </select>
+        {formErrors.loc && (
+          <p role="alert" className="text-xs text-red-600">
+            {formErrors.loc}
+          </p>
+        )}
       </label>
 
       <label className="space-y-1 text-sm">
@@ -469,7 +502,7 @@ export function AddAuthorizationForm({
         </span>
         <select
           value={form.status}
-          onChange={(event) => onFieldChange("status", event.target.value)}
+          onChange={(event) => handleFieldChange("status", event.target.value)}
           className={cn(
             "w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500",
             darkMode
@@ -484,6 +517,11 @@ export function AddAuthorizationForm({
           <option value="Completed">Completed</option>
           <option value="Discharged">Discharged</option>
         </select>
+        {formErrors.status && (
+          <p role="alert" className="text-xs text-red-600">
+            {formErrors.status}
+          </p>
+        )}
       </label>
 
       <label className="space-y-1 text-sm">
@@ -493,7 +531,9 @@ export function AddAuthorizationForm({
         <input
           type="date"
           value={form.startDate}
-          onChange={(event) => onFieldChange("startDate", event.target.value)}
+          onChange={(event) =>
+            handleFieldChange("startDate", event.target.value)
+          }
           className={cn(
             "w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500",
             darkMode
@@ -501,6 +541,11 @@ export function AddAuthorizationForm({
               : "border-gray-300 bg-white text-gray-900"
           )}
         />
+        {formErrors.startDate && (
+          <p role="alert" className="text-xs text-red-600">
+            {formErrors.startDate}
+          </p>
+        )}
       </label>
 
       <label className="space-y-1 text-sm">
@@ -510,7 +555,7 @@ export function AddAuthorizationForm({
         <input
           type="date"
           value={form.endDate}
-          onChange={(event) => onFieldChange("endDate", event.target.value)}
+          onChange={(event) => handleFieldChange("endDate", event.target.value)}
           className={cn(
             "w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500",
             darkMode
@@ -518,6 +563,11 @@ export function AddAuthorizationForm({
               : "border-gray-300 bg-white text-gray-900"
           )}
         />
+        {formErrors.endDate && (
+          <p role="alert" className="text-xs text-red-600">
+            {formErrors.endDate}
+          </p>
+        )}
       </label>
 
       <label className="space-y-1 text-sm">
@@ -528,7 +578,7 @@ export function AddAuthorizationForm({
           type="date"
           value={form.reviewDueDate}
           onChange={(event) =>
-            onFieldChange("reviewDueDate", event.target.value)
+            handleFieldChange("reviewDueDate", event.target.value)
           }
           className={cn(
             "w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500",
@@ -537,6 +587,11 @@ export function AddAuthorizationForm({
               : "border-gray-300 bg-white text-gray-900"
           )}
         />
+        {formErrors.reviewDueDate && (
+          <p role="alert" className="text-xs text-red-600">
+            {formErrors.reviewDueDate}
+          </p>
+        )}
       </label>
 
       <label className="space-y-1 text-sm">
@@ -607,7 +662,9 @@ export function AddAuthorizationForm({
         </span>
         <select
           value={form.authType}
-          onChange={(event) => onFieldChange("authType", event.target.value)}
+          onChange={(event) =>
+            handleFieldChange("authType", event.target.value)
+          }
           className={cn(
             "w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500",
             darkMode
@@ -619,6 +676,11 @@ export function AddAuthorizationForm({
           <option value="LOC Change">LOC Change</option>
           <option value="Retro">Retro</option>
         </select>
+        {formErrors.authType && (
+          <p role="alert" className="text-xs text-red-600">
+            {formErrors.authType}
+          </p>
+        )}
       </label>
 
       <label className="space-y-1 text-sm">
