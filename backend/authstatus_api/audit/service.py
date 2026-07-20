@@ -6,7 +6,8 @@ from typing import Any
 
 from fastapi import Request
 
-from authstatus_api.database import get_conn, init_db
+from authstatus_api.persistence.connections import get_conn
+from authstatus_api.persistence.schema import init_db
 
 
 def _now() -> str:
@@ -30,15 +31,14 @@ def _user_agent(request: Request | None) -> str:
 def _safe_metadata(metadata: dict[str, Any] | None) -> str:
     return json.dumps(metadata or {}, sort_keys=True)
 
+
 def _contains_pattern(value: str) -> str:
     escaped_value = (
-        value.strip()
-        .replace("\\", "\\\\")
-        .replace("%", "\\%")
-        .replace("_", "\\_")
+        value.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
     )
 
     return f"%{escaped_value}%"
+
 
 def audit_field_names(payload: dict[str, Any]) -> dict[str, list[str]]:
     return {"fields": sorted(payload.keys())}
@@ -100,6 +100,7 @@ def record_audit_event(
         ).fetchone()
 
     return dict(row)
+
 
 def list_audit_events(
     *,

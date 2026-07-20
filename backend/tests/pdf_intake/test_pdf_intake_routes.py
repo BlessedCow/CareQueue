@@ -7,7 +7,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from authstatus_api.crypto import generate_encryption_key
-from authstatus_api.database import get_conn
 from authstatus_api.main import create_app
 from authstatus_api.pdf_intake.extractor import (
     EncryptedPdfError,
@@ -19,6 +18,7 @@ from authstatus_api.pdf_intake.templates.standard_vob import (
     ExtractionSource,
     StandardVobExtraction,
 )
+from authstatus_api.persistence.connections import get_conn
 from authstatus_api.security.repository import create_user
 from authstatus_api.settings import get_settings
 
@@ -71,6 +71,7 @@ def auth_headers_for(
         "X-CSRF-Token": csrf_token,
         "Content-Type": "application/pdf",
     }
+
 
 def extraction_result(
     *,
@@ -169,9 +170,7 @@ def test_authorized_role_can_preview_pdf(
         )
 
     assert response.status_code == 200
-    extract_mock.assert_called_once_with(
-        b"%PDF-1.7 synthetic content"
-    )
+    extract_mock.assert_called_once_with(b"%PDF-1.7 synthetic content")
 
     data = response.json()
 
@@ -199,9 +198,7 @@ def test_authorized_role_can_preview_pdf(
     assert "form_fields" not in data
     assert "rectangle" not in serialized_response
 
-    assert response.headers["cache-control"] == (
-        "no-store, private"
-    )
+    assert response.headers["cache-control"] == ("no-store, private")
     assert response.headers["pragma"] == "no-cache"
     assert response.headers["expires"] == "0"
 
@@ -262,9 +259,7 @@ def test_pdf_preview_requires_pdf_content_type(client):
     assert response.json() == {
         "detail": "The request must contain a PDF.",
     }
-    assert response.headers["cache-control"] == (
-        "no-store, private"
-    )
+    assert response.headers["cache-control"] == ("no-store, private")
 
 
 def test_pdf_preview_rejects_invalid_pdf_safely(client):
@@ -276,9 +271,7 @@ def test_pdf_preview_rejects_invalid_pdf_safely(client):
 
     with patch(
         "authstatus_api.pdf_intake.router.extract_pdf_text",
-        side_effect=InvalidPdfError(
-            "sensitive parser internals"
-        ),
+        side_effect=InvalidPdfError("sensitive parser internals"),
     ):
         response = client.post(
             "/api/pdf-intake/preview",
@@ -295,9 +288,7 @@ def test_pdf_preview_rejects_invalid_pdf_safely(client):
         "detail": "The uploaded PDF could not be read.",
     }
     assert "sensitive parser internals" not in response.text
-    assert response.headers["cache-control"] == (
-        "no-store, private"
-    )
+    assert response.headers["cache-control"] == ("no-store, private")
 
 
 def test_pdf_preview_rejects_encrypted_pdf_safely(client):
@@ -309,9 +300,7 @@ def test_pdf_preview_rejects_encrypted_pdf_safely(client):
 
     with patch(
         "authstatus_api.pdf_intake.router.extract_pdf_text",
-        side_effect=EncryptedPdfError(
-            "sensitive encryption details"
-        ),
+        side_effect=EncryptedPdfError("sensitive encryption details"),
     ):
         response = client.post(
             "/api/pdf-intake/preview",
@@ -360,15 +349,13 @@ def test_pdf_preview_audit_metadata_contains_no_phi(client):
     assert response.status_code == 200
 
     with get_conn() as conn:
-        audit_row = conn.execute(
-            """
+        audit_row = conn.execute("""
             SELECT action, resource_type, metadata
             FROM audit_events
             WHERE action = 'pdf_intake.preview'
             ORDER BY id DESC
             LIMIT 1
-            """
-        ).fetchone()
+            """).fetchone()
 
     assert audit_row is not None
     assert audit_row["resource_type"] == "pdf_intake"

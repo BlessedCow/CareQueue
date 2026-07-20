@@ -7,8 +7,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from authstatus_api.crypto import ENCRYPTED_TEXT_PREFIX, generate_encryption_key
-from authstatus_api.database import get_conn
 from authstatus_api.main import create_app
+from authstatus_api.persistence.connections import get_conn
 from authstatus_api.routers import auths as auths_router
 from authstatus_api.security.repository import create_user
 from authstatus_api.settings import get_settings
@@ -23,6 +23,7 @@ def configure_test_settings(tmp_path, monkeypatch):
     yield
 
     get_settings.cache_clear()
+
 
 @pytest.fixture
 def auth_headers(client):
@@ -51,6 +52,7 @@ def auth_headers(client):
     return {
         "X-CSRF-Token": csrf_token,
     }
+
 
 @pytest.fixture
 def client():
@@ -144,7 +146,9 @@ def test_create_auth_endpoint_stores_selected_fields_encrypted(client, auth_head
 
 
 def test_list_auths_endpoint_returns_decrypted_records(client, auth_headers):
-    create_response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
+    create_response = client.post(
+        "/api/auths", json=make_payload(), headers=auth_headers
+    )
 
     assert create_response.status_code == 201
 
@@ -162,7 +166,9 @@ def test_list_auths_endpoint_returns_decrypted_records(client, auth_headers):
 
 
 def test_get_auth_endpoint_returns_decrypted_record(client, auth_headers):
-    create_response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
+    create_response = client.post(
+        "/api/auths", json=make_payload(), headers=auth_headers
+    )
 
     assert create_response.status_code == 201
 
@@ -185,7 +191,9 @@ def test_get_auth_endpoint_returns_404_for_missing_record(client, auth_headers):
 
 
 def test_delete_auth_endpoint_removes_record(client, auth_headers):
-    create_response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
+    create_response = client.post(
+        "/api/auths", json=make_payload(), headers=auth_headers
+    )
 
     assert create_response.status_code == 201
 
@@ -213,7 +221,8 @@ def test_create_auth_endpoint_rejects_unknown_fields(client, auth_headers):
     response = client.post("/api/auths", json=payload, headers=auth_headers)
 
     assert response.status_code == 422
-    
+
+
 def test_validation_error_response_does_not_echo_request_payload(
     client,
     auth_headers,
@@ -262,8 +271,11 @@ def test_internal_error_response_does_not_expose_exception_message(
     assert "ABC123" not in response.text
     assert "internal failure" not in response.text
 
+
 def test_patch_auth_endpoint_updates_selected_fields(client, auth_headers):
-    create_response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
+    create_response = client.post(
+        "/api/auths", json=make_payload(), headers=auth_headers
+    )
 
     assert create_response.status_code == 201
 
@@ -289,7 +301,9 @@ def test_patch_auth_endpoint_updates_selected_fields(client, auth_headers):
 
 
 def test_patch_auth_endpoint_encrypts_updated_sensitive_fields(client, auth_headers):
-    create_response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
+    create_response = client.post(
+        "/api/auths", json=make_payload(), headers=auth_headers
+    )
 
     assert create_response.status_code == 201
 
@@ -334,7 +348,9 @@ def test_patch_auth_endpoint_returns_404_for_missing_record(client, auth_headers
 
 
 def test_patch_auth_endpoint_rejects_unknown_fields(client, auth_headers):
-    create_response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
+    create_response = client.post(
+        "/api/auths", json=make_payload(), headers=auth_headers
+    )
 
     assert create_response.status_code == 201
 
@@ -345,17 +361,15 @@ def test_patch_auth_endpoint_rejects_unknown_fields(client, auth_headers):
     )
 
     assert response.status_code == 422
-    
+
 
 def audit_rows() -> list[dict]:
     with get_conn() as conn:
-        rows = conn.execute(
-            """
+        rows = conn.execute("""
             SELECT action, resource_type, resource_id, username, metadata
             FROM audit_events
             ORDER BY id
-            """
-        ).fetchall()
+            """).fetchall()
 
     return [dict(row) for row in rows]
 
@@ -383,7 +397,9 @@ def test_create_auth_writes_audit_event(client, auth_headers):
 
 
 def test_update_auth_writes_audit_event_without_phi_values(client, auth_headers):
-    create_response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
+    create_response = client.post(
+        "/api/auths", json=make_payload(), headers=auth_headers
+    )
 
     assert create_response.status_code == 201
 
@@ -414,7 +430,9 @@ def test_update_auth_writes_audit_event_without_phi_values(client, auth_headers)
 
 
 def test_delete_auth_writes_audit_event(client, auth_headers):
-    create_response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
+    create_response = client.post(
+        "/api/auths", json=make_payload(), headers=auth_headers
+    )
 
     assert create_response.status_code == 201
 
@@ -429,6 +447,7 @@ def test_delete_auth_writes_audit_event(client, auth_headers):
     assert rows[-1]["resource_id"] == 1
     assert rows[-1]["username"] == "ur@example.com"
 
+
 def test_auth_routes_require_authentication(client):
     response = client.get("/api/auths")
 
@@ -437,7 +456,9 @@ def test_auth_routes_require_authentication(client):
 
 
 def test_read_only_user_can_view_auths(client):
-    create_user("readonly@example.com", "correct horse battery staple", role="Read Only")
+    create_user(
+        "readonly@example.com", "correct horse battery staple", role="Read Only"
+    )
 
     login_response = client.post(
         "/api/security/login",
@@ -462,7 +483,9 @@ def test_read_only_user_can_view_auths(client):
 
 
 def test_read_only_user_cannot_create_auth(client):
-    create_user("readonly@example.com", "correct horse battery staple", role="Read Only")
+    create_user(
+        "readonly@example.com", "correct horse battery staple", role="Read Only"
+    )
 
     login_response = client.post(
         "/api/security/login",
@@ -491,6 +514,7 @@ def test_read_only_user_cannot_create_auth(client):
     assert response.status_code == 403
     assert response.json() == {"detail": "Operation not permitted for this role."}
 
+
 def make_event_payload() -> dict:
     return {
         "event_type": "Initial Review",
@@ -507,7 +531,9 @@ def make_event_payload() -> dict:
 
 
 def test_create_auth_event_writes_audit_event_without_note_value(client, auth_headers):
-    create_response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
+    create_response = client.post(
+        "/api/auths", json=make_payload(), headers=auth_headers
+    )
 
     assert create_response.status_code == 201
 
@@ -536,7 +562,9 @@ def test_create_auth_event_writes_audit_event_without_note_value(client, auth_he
 
 
 def test_update_auth_event_writes_audit_event_without_note_value(client, auth_headers):
-    create_response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
+    create_response = client.post(
+        "/api/auths", json=make_payload(), headers=auth_headers
+    )
 
     assert create_response.status_code == 201
 
@@ -573,7 +601,9 @@ def test_update_auth_event_writes_audit_event_without_note_value(client, auth_he
 
 
 def test_delete_auth_event_writes_audit_event(client, auth_headers):
-    create_response = client.post("/api/auths", json=make_payload(), headers=auth_headers)
+    create_response = client.post(
+        "/api/auths", json=make_payload(), headers=auth_headers
+    )
 
     assert create_response.status_code == 201
 
@@ -596,7 +626,7 @@ def test_delete_auth_event_writes_audit_event(client, auth_headers):
     assert rows[-1]["resource_id"] == 1
     assert rows[-1]["username"] == "ur@example.com"
     assert json.loads(rows[-1]["metadata"]) == {"auth_id": 1}
-    
+
 
 def test_analytics_summary_endpoint_counts_records(client, auth_headers):
     first_payload = make_payload()

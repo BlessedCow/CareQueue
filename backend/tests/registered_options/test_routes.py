@@ -4,8 +4,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from authstatus_api.crypto import generate_encryption_key
-from authstatus_api.database import get_conn
 from authstatus_api.main import create_app
+from authstatus_api.persistence.connections import get_conn
 from authstatus_api.security.repository import create_user
 from authstatus_api.settings import get_settings
 
@@ -57,6 +57,7 @@ def auth_headers_for(
     return {
         "X-CSRF-Token": csrf_token,
     }
+
 
 def test_authenticated_user_can_list_registered_options(client):
     create_user(
@@ -209,9 +210,7 @@ def test_create_registered_option_rejects_duplicate_name(client):
     assert first_response.status_code == 201
     assert duplicate_response.status_code == 409
     assert duplicate_response.json() == {
-        "detail": (
-            "A registered option with this name already exists."
-        ),
+        "detail": ("A registered option with this name already exists."),
     }
 
 
@@ -277,10 +276,7 @@ def test_admin_can_delete_custom_registered_option(client):
         headers=headers,
     )
 
-    assert [
-        option["name"]
-        for option in list_response.json()["options"]
-    ] == ["Other"]
+    assert [option["name"] for option in list_response.json()["options"]] == ["Other"]
 
 
 def test_protected_registered_option_cannot_be_deleted(client):
@@ -380,27 +376,16 @@ def test_registered_option_changes_write_safe_audit_events(client):
     assert delete_response.status_code == 200
 
     with get_conn() as conn:
-        rows = conn.execute(
-            """
+        rows = conn.execute("""
             SELECT action, resource_id, metadata
             FROM audit_events
             WHERE resource_type = 'registered_option'
             ORDER BY id
-            """
-        ).fetchall()
+            """).fetchall()
 
-    assert [
-        (row["action"], row["resource_id"])
-        for row in rows
-    ] == [
+    assert [(row["action"], row["resource_id"]) for row in rows] == [
         ("registered_option.create", option_id),
         ("registered_option.delete", option_id),
     ]
-    assert all(
-        "Sensitive Facility Name" not in row["metadata"]
-        for row in rows
-    )
-    assert all(
-        '"category": "facility"' in row["metadata"]
-        for row in rows
-    )
+    assert all("Sensitive Facility Name" not in row["metadata"] for row in rows)
+    assert all('"category": "facility"' in row["metadata"] for row in rows)

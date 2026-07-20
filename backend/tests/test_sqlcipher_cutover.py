@@ -31,22 +31,18 @@ def configure_test_settings(tmp_path, monkeypatch):
 def create_plaintext_database(database_path):
     conn = sqlite3.connect(str(database_path))
     try:
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT NOT NULL
             )
-            """
-        )
-        conn.execute(
-            """
+            """)
+        conn.execute("""
             CREATE TABLE auths (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 client_name TEXT NOT NULL
             )
-            """
-        )
+            """)
         conn.execute(
             """
             INSERT INTO users (username)

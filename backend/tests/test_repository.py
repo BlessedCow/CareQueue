@@ -5,7 +5,7 @@ import sqlite3
 import pytest
 
 from authstatus_api import crypto
-from authstatus_api.repository import (
+from authstatus_api.authorizations.repository import (
     create_auth,
     create_auth_event,
     delete_auth,
@@ -86,7 +86,9 @@ def test_create_auth_stores_selected_fields_encrypted():
 
     with sqlite3.connect(database_path) as conn:
         conn.row_factory = sqlite3.Row
-        row = conn.execute("SELECT * FROM auths WHERE id = ?", (created["id"],)).fetchone()
+        row = conn.execute(
+            "SELECT * FROM auths WHERE id = ?", (created["id"],)
+        ).fetchone()
 
     assert row is not None
     assert row["client_name"].startswith(crypto.ENCRYPTED_TEXT_PREFIX)
@@ -123,7 +125,8 @@ def test_delete_auth_removes_record():
 
 def test_delete_auth_returns_false_for_missing_record():
     assert delete_auth(999) is False
-    
+
+
 def test_update_auth_updates_selected_fields():
     created = create_auth(make_payload())
 
@@ -163,7 +166,9 @@ def test_update_auth_encrypts_updated_sensitive_fields():
 
     with sqlite3.connect(database_path) as conn:
         conn.row_factory = sqlite3.Row
-        row = conn.execute("SELECT * FROM auths WHERE id = ?", (created["id"],)).fetchone()
+        row = conn.execute(
+            "SELECT * FROM auths WHERE id = ?", (created["id"],)
+        ).fetchone()
 
     assert row is not None
     assert row["client_name"].startswith(crypto.ENCRYPTED_TEXT_PREFIX)
@@ -184,7 +189,7 @@ def test_update_auth_with_empty_payload_returns_existing_record():
     assert updated is not None
     assert updated["id"] == created["id"]
     assert updated["client_name"] == "John Smith"
-    
+
 
 def test_create_auth_event_returns_decrypted_record():
     created = create_auth(make_payload())
@@ -253,6 +258,7 @@ def test_terminal_timeline_event_clears_review_due_date():
     assert discharged is not None
     assert discharged["status"] == "Discharged"
     assert discharged["review_due_date"] == ""
+
 
 def test_create_auth_event_returns_none_for_missing_auth():
     event = create_auth_event(

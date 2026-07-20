@@ -13,7 +13,7 @@ from authstatus_api.backups.service import (
     restore_encrypted_database_backup,
 )
 from authstatus_api.crypto import generate_encryption_key
-from authstatus_api.database import init_db
+from authstatus_api.persistence.schema import init_db
 from authstatus_api.settings import get_settings
 
 
@@ -41,6 +41,7 @@ def configure_test_settings(tmp_path, monkeypatch):
     yield
 
     get_settings.cache_clear()
+
 
 def test_encrypt_backup_bytes_does_not_return_plaintext():
     plaintext = b"SQLite format 3\x00test database bytes"
@@ -110,7 +111,8 @@ def test_create_encrypted_database_backup_writes_encrypted_snapshot(tmp_path):
     assert username[0] == "backup@example.com"
     assert integrity_result is not None
     assert integrity_result[0] == "ok"
-    
+
+
 def test_create_encrypted_database_backup_removes_temporary_snapshot(
     tmp_path,
 ):
@@ -126,7 +128,7 @@ def test_create_encrypted_database_backup_removes_temporary_snapshot(
 
     assert not list(backup_directory.glob(".*.snapshot.*"))
     assert not list(backup_directory.glob("*.tmp"))
-    
+
 
 def test_create_encrypted_database_backup_rejects_invalid_plaintext_database(
     tmp_path,
@@ -162,7 +164,8 @@ def test_encrypt_backup_bytes_requires_backup_key(monkeypatch):
 
     with pytest.raises(BackupConfigError):
         encrypt_backup_bytes(b"database bytes")
-        
+
+
 def test_restore_encrypted_database_backup_writes_valid_safe_restore_file(
     tmp_path,
 ):
@@ -187,32 +190,20 @@ def test_restore_encrypted_database_backup_writes_valid_safe_restore_file(
     assert restored_path.name.endswith(".restored.db")
 
     with sqlite3.connect(database_path) as original_conn:
-        original_tables = {
-            row[0]
-            for row in original_conn.execute(
-                """
+        original_tables = {row[0] for row in original_conn.execute("""
                 SELECT name
                 FROM sqlite_master
                 WHERE type = 'table'
-                """
-            ).fetchall()
-        }
+                """).fetchall()}
 
     with sqlite3.connect(restored_path) as restored_conn:
-        restored_tables = {
-            row[0]
-            for row in restored_conn.execute(
-                """
+        restored_tables = {row[0] for row in restored_conn.execute("""
                 SELECT name
                 FROM sqlite_master
                 WHERE type = 'table'
-                """
-            ).fetchall()
-        }
+                """).fetchall()}
 
-        integrity_result = restored_conn.execute(
-            "PRAGMA quick_check"
-        ).fetchone()
+        integrity_result = restored_conn.execute("PRAGMA quick_check").fetchone()
 
     assert restored_tables == original_tables
     assert integrity_result is not None
@@ -227,9 +218,7 @@ def test_restore_rejects_decrypted_file_that_is_not_a_carequeue_database(
     backup_directory.mkdir(parents=True)
 
     backup_path = backup_directory / "invalid.db.enc"
-    backup_path.write_bytes(
-        encrypt_backup_bytes(b"not a CareQueue database")
-    )
+    backup_path.write_bytes(encrypt_backup_bytes(b"not a CareQueue database"))
 
     with pytest.raises(
         BackupError,

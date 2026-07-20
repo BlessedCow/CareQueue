@@ -4,7 +4,8 @@ import sqlite3
 from datetime import UTC, datetime
 from typing import Any
 
-from authstatus_api.database import get_conn, init_db
+from authstatus_api.persistence.connections import get_conn
+from authstatus_api.persistence.schema import init_db
 from authstatus_api.security.password_hashing import hash_password, verify_password
 from authstatus_api.security.sessions import (
     DEFAULT_SESSION_MINUTES,
@@ -127,13 +128,11 @@ def list_users() -> list[dict[str, Any]]:
     init_db()
 
     with get_conn() as conn:
-        rows = conn.execute(
-            """
+        rows = conn.execute("""
             SELECT *
             FROM users
             ORDER BY username
-            """
-        ).fetchall()
+            """).fetchall()
 
     return [_row_to_user(row) for row in rows if row is not None]
 
@@ -372,6 +371,7 @@ def revoke_session(token: str) -> bool:
         )
 
     return cursor.rowcount > 0
+
 
 def record_successful_login(user_id: int) -> None:
     init_db()

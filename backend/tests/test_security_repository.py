@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from authstatus_api.database import get_conn
+from authstatus_api.persistence.connections import get_conn
 from authstatus_api.security.password_hashing import verify_password
 from authstatus_api.security.repository import (
     create_user,
@@ -41,7 +41,9 @@ def test_create_user_hashes_password_and_normalizes_username():
     assert user["role"] == "Admin"
     assert user["is_active"] is True
     assert user["password_hash"] != "correct horse battery staple"
-    assert verify_password(user["password_hash"], "correct horse battery staple") is True
+    assert (
+        verify_password(user["password_hash"], "correct horse battery staple") is True
+    )
 
 
 def test_get_user_by_id_returns_user():
@@ -129,14 +131,20 @@ def test_update_user_password_sets_forced_change_state():
 
     assert updated is not None
     assert updated["must_change_password"] is True
-    assert verify_password(
-        updated["password_hash"],
-        "temporary password value",
-    ) is True
-    assert verify_password(
-        updated["password_hash"],
-        "old password value",
-    ) is False
+    assert (
+        verify_password(
+            updated["password_hash"],
+            "temporary password value",
+        )
+        is True
+    )
+    assert (
+        verify_password(
+            updated["password_hash"],
+            "old password value",
+        )
+        is False
+    )
 
 
 def test_update_user_password_clears_forced_change_state():
@@ -155,10 +163,13 @@ def test_update_user_password_clears_forced_change_state():
 
     assert updated is not None
     assert updated["must_change_password"] is False
-    assert verify_password(
-        updated["password_hash"],
-        "permanent password value",
-    ) is True
+    assert (
+        verify_password(
+            updated["password_hash"],
+            "permanent password value",
+        )
+        is True
+    )
 
 
 def test_update_user_password_returns_none_for_missing_user():

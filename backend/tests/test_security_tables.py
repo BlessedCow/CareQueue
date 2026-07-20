@@ -4,7 +4,8 @@ import sqlite3
 
 import pytest
 
-from authstatus_api.database import get_conn, init_db
+from authstatus_api.persistence.connections import get_conn
+from authstatus_api.persistence.schema import init_db
 from authstatus_api.settings import get_settings
 
 

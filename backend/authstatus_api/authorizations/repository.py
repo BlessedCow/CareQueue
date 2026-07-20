@@ -3,50 +3,25 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from authstatus_api.crypto import decrypt_auth_record, decrypt_text, encrypt_auth_payload, encrypt_text
-from authstatus_api.database import AUTH_EVENT_TABLE_COLUMNS, AUTH_TABLE_COLUMNS, get_conn, init_db
+from authstatus_api.authorizations.mappings import (
+    auth_event_row_to_dict,
+    auth_row_to_dict,
+    prepare_auth_event_payload,
+    prepare_auth_payload,
+)
+from authstatus_api.authorizations.timeline import (
+    current_auth_snapshot,
+    event_datetime_value,
+    is_request_submitted_event,
+    is_terminal_event,
+)
+from authstatus_api.persistence.connections import get_conn
+from authstatus_api.persistence.schema import (
+    AUTH_EVENT_TABLE_COLUMNS,
+    AUTH_TABLE_COLUMNS,
+    init_db,
+)
 
-REQUEST_SUBMITTED_EVENT_TYPES = {
-    "request submitted",
-    "initial authorization",
-}
-
-TERMINAL_EVENT_TYPES = {
-    "payer response",
-    "peer review",
-    "appeal",
-}
-
-TERMINAL_OUTCOMES = {
-    "approved",
-    "denied",
-    "denied with peer review option",
-    "more information needed",
-    "no pa required",
-    "appeal approved",
-    "appeal denied",
-    "upheld",
-    "overturned",
-    "completed",
-    "discharged",
-}
-
-BOOLEAN_FIELDS = {
-    "care_manager_enabled",
-    "discharge_clinical_needed",
-    "no_pa_required",
-    "progress_made",
-    "facility_informed",
-    "waiting_on_clinicals",
-}
-
-REVIEW_SYNC_FIELDS = {
-    "requested_days",
-    "approved_days",
-    "auth_start_date",
-    "auth_end_date",
-    "review_due_date",
-}
 
 def _sql_columns(
     payload: dict[str, Any],
@@ -54,9 +29,7 @@ def _sql_columns(
     excluded_columns: set[str],
 ) -> list[str]:
     return [
-        key
-        for key in payload
-        if key in allowed_columns and key not in excluded_columns
+        key for key in payload if key in allowed_columns and key not in excluded_columns
     ]
 
 
@@ -70,8 +43,10 @@ def _insert_sql(table_name: str, columns: list[str]) -> str:
 def _update_assignments(columns: list[str]) -> str:
     return ", ".join(f"{column} = ?" for column in columns)
 
+
 def _now() -> str:
     return datetime.now().isoformat(timespec="seconds")
+
 
 def _has_decision(payload: dict[str, Any]) -> bool:
     status = str(payload.get("status") or "").strip().lower()
@@ -88,192 +63,6 @@ def _has_decision(payload: dict[str, Any]) -> bool:
     except (TypeError, ValueError):
         return False
 
-
-def _row_to_dict(row: Any) -> dict[str, Any]:
-    record = dict(row)
-    decrypted = decrypt_auth_record(record)
-
-    for field in BOOLEAN_FIELDS:
-        if field in decrypted:
-            decrypted[field] = bool(decrypted[field])
-
-    for field in {
-        "auth_start_date",
-        "auth_end_date",
-        "programming_days",
-        "review_due_date",
-        "submitted_at",
-        "decision_at",
-    }:
-        if decrypted.get(field) is None:
-            decrypted[field] = ""
-
-    return decrypted
-
-
-def _prepare_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    prepared = payload.copy()
-
-    for field in BOOLEAN_FIELDS:
-        if field in prepared:
-            prepared[field] = int(bool(prepared[field]))
-
-    return encrypt_auth_payload(prepared)
-
-
-def _row_to_event_dict(row: Any) -> dict[str, Any]:
-    record = dict(row)
-
-    if "notes" in record:
-        record["notes"] = decrypt_text(record["notes"])
-
-    for field in {
-        "auth_start_date",
-        "auth_end_date",
-        "review_due_date",
-    }:
-        if record.get(field) is None:
-            record[field] = ""
-
-    return record
-
-
-def _prepare_event_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    prepared = payload.copy()
-
-    if "notes" in prepared:
-        prepared["notes"] = encrypt_text(prepared["notes"])
-
-    return prepared
-
-
-def _normalize_event_label(value: Any) -> str:
-    return str(value or "").strip().lower()
-
-
-def _event_datetime_value(event: dict[str, Any]) -> str:
-    event_date = str(event.get("event_date") or "").strip()
-    event_time = str(event.get("event_time") or "").strip()
-
-    if not event_date:
-        return ""
-
-    if not event_time:
-        return f"{event_date}T00:00:00"
-
-    if len(event_time) == 5:
-        return f"{event_date}T{event_time}:00"
-
-    return f"{event_date}T{event_time}"
-
-
-def _is_request_submitted_event(event: dict[str, Any]) -> bool:
-    return _normalize_event_label(event.get("event_type")) in REQUEST_SUBMITTED_EVENT_TYPES
-
-
-def _is_terminal_event(event: dict[str, Any]) -> bool:
-    event_type = _normalize_event_label(event.get("event_type"))
-    outcome = _normalize_event_label(event.get("outcome"))
-
-    return event_type in TERMINAL_EVENT_TYPES or outcome in TERMINAL_OUTCOMES
-
-
-def _status_from_timeline_event(event: dict[str, Any]) -> str | None:
-    event_type = _normalize_event_label(event.get("event_type"))
-    outcome = _normalize_event_label(event.get("outcome"))
-
-    if event_type == "request submitted" or outcome == "pending":
-        return "Pending"
-
-    if outcome in {"approved", "appeal approved", "overturned"}:
-        return "Approved"
-
-    if outcome in {"denied", "denied with peer review option", "appeal denied", "upheld"}:
-        return "Denied"
-
-    if event_type == "peer review" or outcome in {"scheduled", "peer review scheduled"}:
-        return "P2P"
-
-    if event_type == "appeal" or outcome in {"appeal pending"}:
-        return "Appealed"
-
-    if outcome == "no pa required":
-        return "No PA Required"
-    
-    if outcome == "completed":
-        return "Completed"
-
-    if outcome == "discharged":
-        return "Discharged"
-
-    if outcome == "more information needed":
-        return "Pending"
-
-    return None
-
-
-def _timeline_status(events: list[dict[str, Any]]) -> str:
-    for event in reversed(events):
-        outcome = str(event.get("outcome") or "").strip().lower()
-        event_type = str(event.get("event_type") or "").strip().lower()
-
-        if outcome == "completed" or event_type == "authorization complete":
-            return "Completed"
-
-        if outcome == "discharged" or event_type == "discharge":
-            return "Discharged"
-    
-    for event in reversed(events):
-        status = _status_from_timeline_event(event)
-
-        if status:
-            return status
-
-    return "Pending"
-
-def _latest_review_event(events: list[dict[str, Any]]) -> dict[str, Any] | None:
-    """
-    Returns the newest timeline event that contains review information.
-    """
-
-    for event in reversed(events):
-        if (
-            event.get("auth_start_date")
-            or event.get("auth_end_date")
-            or event.get("review_due_date")
-            or int(event.get("requested_days") or 0) > 0
-            or int(event.get("approved_days") or 0) > 0
-        ):
-            return event
-
-    return None
-
-def _current_auth_snapshot(events: list[dict[str, Any]]) -> dict[str, Any]:
-    latest_review = _latest_review_event(events)
-    status = _timeline_status(events)
-
-    return {
-        "status": status,
-        "requested_days": (
-            latest_review.get("requested_days") if latest_review else None
-        ),
-        "approved_days": (
-            latest_review.get("approved_days") if latest_review else None
-        ),
-        "auth_start_date": (
-            latest_review.get("auth_start_date") if latest_review else None
-        ),
-        "auth_end_date": (
-            latest_review.get("auth_end_date") if latest_review else None
-        ),
-        "review_due_date": (
-            None
-            if status in {"Completed", "Discharged", "No PA Required"}
-            else latest_review.get("review_due_date")
-            if latest_review
-            else None
-        ),
-    }
 
 def _initial_timeline_event_payload(auth_record: dict[str, Any]) -> dict[str, Any]:
     event_date = str(auth_record.get("auth_start_date") or "").strip()
@@ -307,22 +96,30 @@ def _sync_auth_timeline_fields(auth_id: int) -> None:
             (auth_id,),
         ).fetchall()
 
-        events = [_row_to_event_dict(row) for row in rows]
+        events = [auth_event_row_to_dict(row) for row in rows]
 
         submitted_at = next(
-            (_event_datetime_value(event) for event in events if _is_request_submitted_event(event)),
+            (
+                event_datetime_value(event)
+                for event in events
+                if is_request_submitted_event(event)
+            ),
             None,
         )
 
         if submitted_at is None and events:
-            submitted_at = _event_datetime_value(events[0]) or None
+            submitted_at = event_datetime_value(events[0]) or None
 
         decision_at = next(
-            (_event_datetime_value(event) for event in events if _is_terminal_event(event)),
+            (
+                event_datetime_value(event)
+                for event in events
+                if is_terminal_event(event)
+            ),
             None,
         )
-        
-        snapshot = _current_auth_snapshot(events)
+
+        snapshot = current_auth_snapshot(events)
 
         conn.execute(
             """
@@ -353,11 +150,12 @@ def _sync_auth_timeline_fields(auth_id: int) -> None:
             ),
         )
 
+
 def create_auth(payload: dict[str, Any]) -> dict[str, Any]:
     init_db()
 
     now = _now()
-    prepared = _prepare_payload(payload)
+    prepared = prepare_auth_payload(payload)
     prepared["created_at"] = now
     prepared["updated_at"] = now
 
@@ -379,7 +177,7 @@ def create_auth(payload: dict[str, Any]) -> dict[str, Any]:
             _insert_sql("auths", keys),
             values,
         )
-    
+
         auth_id = int(cursor.lastrowid)
 
     created_auth = get_auth(auth_id)
@@ -395,9 +193,11 @@ def list_auths() -> list[dict[str, Any]]:
     init_db()
 
     with get_conn() as conn:
-        rows = conn.execute("SELECT * FROM auths ORDER BY auth_start_date, client_name").fetchall()
+        rows = conn.execute(
+            "SELECT * FROM auths ORDER BY auth_start_date, client_name"
+        ).fetchall()
 
-    return [_row_to_dict(row) for row in rows]
+    return [auth_row_to_dict(row) for row in rows]
 
 
 def get_auth(auth_id: int) -> dict[str, Any] | None:
@@ -409,7 +209,7 @@ def get_auth(auth_id: int) -> dict[str, Any] | None:
     if row is None:
         return None
 
-    return _row_to_dict(row)
+    return auth_row_to_dict(row)
 
 
 def update_auth(auth_id: int, payload: dict[str, Any]) -> dict[str, Any] | None:
@@ -420,7 +220,7 @@ def update_auth(auth_id: int, payload: dict[str, Any]) -> dict[str, Any] | None:
     if existing_auth is None:
         return None
 
-    prepared = _prepare_payload(payload)
+    prepared = prepare_auth_payload(payload)
     now = _now()
     prepared["updated_at"] = now
 
@@ -443,7 +243,7 @@ def update_auth(auth_id: int, payload: dict[str, Any]) -> dict[str, Any] | None:
 
     with get_conn() as conn:
         conn.execute(
-            f"UPDATE auths SET {assignments} WHERE id = ?",    # nosec
+            f"UPDATE auths SET {assignments} WHERE id = ?",  # nosec
             [*values, auth_id],
         )
 
@@ -474,7 +274,7 @@ def create_auth_event(auth_id: int, payload: dict[str, Any]) -> dict[str, Any] |
         return None
 
     now = _now()
-    prepared = _prepare_event_payload(payload)
+    prepared = prepare_auth_event_payload(payload)
     prepared["auth_id"] = auth_id
     prepared["created_at"] = now
     prepared["updated_at"] = now
@@ -515,7 +315,7 @@ def list_auth_events(auth_id: int) -> list[dict[str, Any]] | None:
             (auth_id,),
         ).fetchall()
 
-    return [_row_to_event_dict(row) for row in rows]
+    return [auth_event_row_to_dict(row) for row in rows]
 
 
 def get_auth_event(auth_id: int, event_id: int) -> dict[str, Any] | None:
@@ -534,7 +334,7 @@ def get_auth_event(auth_id: int, event_id: int) -> dict[str, Any] | None:
     if row is None:
         return None
 
-    return _row_to_event_dict(row)
+    return auth_event_row_to_dict(row)
 
 
 def update_auth_event(
@@ -547,7 +347,7 @@ def update_auth_event(
     if get_auth_event(auth_id, event_id) is None:
         return None
 
-    prepared = _prepare_event_payload(payload)
+    prepared = prepare_auth_event_payload(payload)
     prepared["updated_at"] = _now()
 
     keys = _sql_columns(
@@ -565,7 +365,7 @@ def update_auth_event(
 
     with get_conn() as conn:
         conn.execute(
-            f"UPDATE auth_events SET {assignments} WHERE auth_id = ? AND id = ?",    # nosec
+            f"UPDATE auth_events SET {assignments} WHERE auth_id = ? AND id = ?",  # nosec
             [*values, auth_id, event_id],
         )
 
@@ -597,6 +397,7 @@ def delete_auth(auth_id: int) -> bool:
         cursor = conn.execute("DELETE FROM auths WHERE id = ?", (auth_id,))
 
     return cursor.rowcount > 0
+
 
 def get_analytics_summary() -> dict[str, Any]:
     records = list_auths()

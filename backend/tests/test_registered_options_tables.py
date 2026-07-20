@@ -4,7 +4,8 @@ import sqlite3
 
 import pytest
 
-from authstatus_api.database import get_conn, init_db
+from authstatus_api.persistence.connections import get_conn
+from authstatus_api.persistence.schema import init_db
 from authstatus_api.settings import get_settings
 
 
@@ -23,9 +24,7 @@ def configure_test_settings(tmp_path, monkeypatch):
 
 def table_columns(table_name: str) -> set[str]:
     with get_conn() as conn:
-        rows = conn.execute(
-            f"PRAGMA table_info({table_name})"
-        ).fetchall()
+        rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
 
     return {row["name"] for row in rows}
 
@@ -48,13 +47,11 @@ def test_init_db_seeds_protected_other_option_for_each_category():
     init_db()
 
     with get_conn() as conn:
-        rows = conn.execute(
-            """
+        rows = conn.execute("""
             SELECT category, name, normalized_name, is_protected
             FROM registered_options
             ORDER BY category
-            """
-        ).fetchall()
+            """).fetchall()
 
     assert [
         (
@@ -76,12 +73,10 @@ def test_init_db_does_not_duplicate_seeded_options():
     init_db()
 
     with get_conn() as conn:
-        count = conn.execute(
-            """
+        count = conn.execute("""
             SELECT COUNT(*)
             FROM registered_options
-            """
-        ).fetchone()[0]
+            """).fetchone()[0]
 
     assert count == 3
 

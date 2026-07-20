@@ -9,11 +9,11 @@ from typing import Any
 
 from cryptography.fernet import Fernet, InvalidToken
 
-from authstatus_api.database import get_database_path
 from authstatus_api.database_encryption.sqlcipher_probe import (
     apply_sqlcipher_key,
     import_sqlcipher,
 )
+from authstatus_api.persistence.paths import get_database_path
 from authstatus_api.settings import get_settings, resolve_project_path
 
 
@@ -72,6 +72,7 @@ def _atomic_write_bytes(destination_path: Path, data: bytes) -> None:
     finally:
         if temporary_path is not None and temporary_path.exists():
             temporary_path.unlink()
+
 
 def _create_plaintext_snapshot(
     source_path: Path,
@@ -156,8 +157,8 @@ def _create_database_snapshot(
         "Unsupported AUTHSTATUS_DATABASE_ENCRYPTION value: "
         f"{settings.database_encryption}"
     )
-    
-    
+
+
 def _read_integrity_result(conn: Any) -> str:
     row = conn.execute("PRAGMA quick_check").fetchone()
 
@@ -168,13 +169,11 @@ def _read_integrity_result(conn: Any) -> str:
 
 
 def _read_table_names(conn: Any) -> set[str]:
-    rows = conn.execute(
-        """
+    rows = conn.execute("""
         SELECT name
         FROM sqlite_master
         WHERE type = 'table'
-        """
-    ).fetchall()
+        """).fetchall()
 
     return {str(row[0]) for row in rows}
 
@@ -319,6 +318,7 @@ def decrypt_backup_file(backup_path: Path) -> bytes:
         raise BackupError(f"Backup file does not exist: {backup_path}")
 
     return decrypt_backup_bytes(backup_path.read_bytes())
+
 
 def restore_encrypted_database_backup(
     *,

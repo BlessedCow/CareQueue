@@ -15,14 +15,14 @@ sys.path.insert(0, str(BACKEND_ROOT))
 
 os.environ.setdefault(
     "AUTHSTATUS_DATABASE_PATH",
-    str(PROJECT_ROOT / "backend" / "data" / "auth_tracker.db")
+    str(PROJECT_ROOT / "backend" / "data" / "auth_tracker.db"),
 )
 
-from authstatus_api.database import get_database_path  # noqa: E402
 from authstatus_api.database_encryption.sqlcipher_probe import (  # noqa: E402
     SQLCipherProbeError,
     migrate_plaintext_sqlite_to_sqlcipher,
 )
+from authstatus_api.persistence.paths import get_database_path  # noqa: E402
 from authstatus_api.settings import get_settings  # noqa: E402
 
 

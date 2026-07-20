@@ -4,8 +4,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from authstatus_api.crypto import generate_encryption_key
-from authstatus_api.database import get_conn
 from authstatus_api.main import create_app
+from authstatus_api.persistence.connections import get_conn
 from authstatus_api.security.repository import create_user
 from authstatus_api.settings import get_settings
 
@@ -51,6 +51,7 @@ def auth_headers_for(
         "X-CSRF-Token": csrf_token,
     }
 
+
 def csrf_headers(client: TestClient) -> dict[str, str]:
     csrf_token = client.cookies.get("carequeue_csrf")
 
@@ -59,6 +60,7 @@ def csrf_headers(client: TestClient) -> dict[str, str]:
     return {
         "X-CSRF-Token": csrf_token,
     }
+
 
 def test_login_returns_user_without_session_token(client):
     create_user("user@example.com", "correct horse battery staple", role="Admin")
@@ -138,12 +140,10 @@ def test_failed_login_writes_audit_event(client):
     assert response.status_code == 401
 
     with get_conn() as conn:
-        row = conn.execute(
-            """
+        row = conn.execute("""
             SELECT action, username, metadata
             FROM audit_events
-            """
-        ).fetchone()
+            """).fetchone()
 
     assert row["action"] == "security.login_failed"
     assert row["username"] == "user@example.com"
@@ -210,7 +210,6 @@ def test_login_sets_httponly_session_cookie(client):
     assert "Path=/api" in set_cookie
 
 
-
 def test_login_sets_readable_csrf_cookie(client):
     create_user(
         "user@example.com",
@@ -234,9 +233,7 @@ def test_login_sets_readable_csrf_cookie(client):
 
     set_cookie_headers = response.headers.get_list("set-cookie")
     csrf_cookie_header = next(
-        header
-        for header in set_cookie_headers
-        if header.startswith("carequeue_csrf=")
+        header for header in set_cookie_headers if header.startswith("carequeue_csrf=")
     )
 
     assert "HttpOnly" not in csrf_cookie_header
@@ -266,9 +263,7 @@ def test_session_cookie_authenticates_without_bearer_header(
     response = client.get("/api/security/me")
 
     assert response.status_code == 200
-    assert response.json()["user"]["username"] == (
-        "user@example.com"
-    )
+    assert response.json()["user"]["username"] == ("user@example.com")
 
 
 def test_bearer_header_does_not_authenticate_without_cookie(
@@ -345,21 +340,15 @@ def test_logout_revokes_and_clears_session_cookie(client):
     assert "carequeue_session=" in set_cookie
     assert "Max-Age=0" in set_cookie
 
-    current_user_response = client.get(
-        "/api/security/me"
-    )
+    current_user_response = client.get("/api/security/me")
 
     assert current_user_response.status_code == 401
-    
+
     assert client.cookies.get("carequeue_csrf") is None
 
-    set_cookie_headers = logout_response.headers.get_list(
-        "set-cookie"
-    )
+    set_cookie_headers = logout_response.headers.get_list("set-cookie")
     csrf_cookie_header = next(
-        header
-        for header in set_cookie_headers
-        if header.startswith("carequeue_csrf=")
+        header for header in set_cookie_headers if header.startswith("carequeue_csrf=")
     )
 
     assert "Max-Age=0" in csrf_cookie_header
@@ -467,13 +456,11 @@ def test_create_user_writes_safe_audit_event(client):
     created_user = response.json()["user"]
 
     with get_conn() as conn:
-        row = conn.execute(
-            """
+        row = conn.execute("""
             SELECT action, resource_type, resource_id, metadata
             FROM audit_events
             WHERE action = 'user.create'
-            """
-        ).fetchone()
+            """).fetchone()
 
     assert row["action"] == "user.create"
     assert row["resource_type"] == "user"
@@ -504,7 +491,9 @@ def test_create_user_rejects_admin_supplied_password(client):
 
 
 def test_admin_can_update_user_role_and_active_status(client):
-    admin = create_user("admin@example.com", "correct horse battery staple", role="Admin")
+    admin = create_user(
+        "admin@example.com", "correct horse battery staple", role="Admin"
+    )
     user = create_user("user@example.com", "correct horse battery staple", role="UR")
 
     response = client.patch(
@@ -529,7 +518,9 @@ def test_admin_can_update_user_role_and_active_status(client):
 
 
 def test_update_user_writes_audit_event_without_sensitive_values(client):
-    admin = create_user("admin@example.com", "correct horse battery staple", role="Admin")
+    admin = create_user(
+        "admin@example.com", "correct horse battery staple", role="Admin"
+    )
     user = create_user("user@example.com", "correct horse battery staple", role="UR")
 
     response = client.patch(
@@ -545,13 +536,11 @@ def test_update_user_writes_audit_event_without_sensitive_values(client):
     assert response.status_code == 200
 
     with get_conn() as conn:
-        row = conn.execute(
-            """
+        row = conn.execute("""
             SELECT action, metadata
             FROM audit_events
             WHERE action = 'user.update'
-            """
-        ).fetchone()
+            """).fetchone()
 
     assert row["action"] == "user.update"
     assert "role" in row["metadata"]
@@ -560,7 +549,9 @@ def test_update_user_writes_audit_event_without_sensitive_values(client):
 
 
 def test_admin_cannot_remove_own_admin_access(client):
-    admin = create_user("admin@example.com", "correct horse battery staple", role="Admin")
+    admin = create_user(
+        "admin@example.com", "correct horse battery staple", role="Admin"
+    )
 
     response = client.patch(
         f"/api/security/users/{admin['id']}",
@@ -579,7 +570,9 @@ def test_admin_cannot_remove_own_admin_access(client):
 
 
 def test_admin_can_list_audit_events(client):
-    admin = create_user("admin@example.com", "correct horse battery staple", role="Admin")
+    admin = create_user(
+        "admin@example.com", "correct horse battery staple", role="Admin"
+    )
 
     headers = auth_headers_for(
         client,
@@ -618,7 +611,9 @@ def test_ur_user_cannot_list_audit_events(client):
 
 
 def test_audit_events_endpoint_supports_action_filter(client):
-    admin = create_user("admin@example.com", "correct horse battery staple", role="Admin")
+    admin = create_user(
+        "admin@example.com", "correct horse battery staple", role="Admin"
+    )
 
     headers = auth_headers_for(
         client,
@@ -637,7 +632,7 @@ def test_audit_events_endpoint_supports_action_filter(client):
 
     assert events
     assert all(event["action"] == "security.login" for event in events)
-    
+
 
 def test_audit_events_endpoint_supports_partial_username_filter(client):
     admin = create_user(
@@ -673,10 +668,7 @@ def test_audit_events_endpoint_supports_partial_username_filter(client):
     events = response.json()["events"]
 
     assert events
-    assert all(
-        event["username"] == "readonly@example.com"
-        for event in events
-    )
+    assert all(event["username"] == "readonly@example.com" for event in events)
 
 
 def test_update_user_returns_404_for_missing_user(client):
@@ -693,8 +685,8 @@ def test_update_user_returns_404_for_missing_user(client):
     )
 
     assert response.status_code == 404
-    
-    
+
+
 def test_me_rejects_missing_token(client):
     response = client.get("/api/security/me")
 
@@ -871,7 +863,7 @@ def test_change_password_revokes_all_existing_sessions(client):
     first_token = client.cookies.get("carequeue_session")
 
     assert first_token
-    
+
     first_csrf_token = client.cookies.get("carequeue_csrf")
 
     assert first_csrf_token
@@ -1102,13 +1094,11 @@ def test_password_reset_audit_event_does_not_store_temporary_password(client):
     temporary_password = response.json()["temporary_password"]
 
     with get_conn() as conn:
-        row = conn.execute(
-            """
+        row = conn.execute("""
             SELECT action, resource_id, metadata
             FROM audit_events
             WHERE action = 'user.password_reset'
-            """
-        ).fetchone()
+            """).fetchone()
 
     assert row is not None
     assert row["resource_id"] == user["id"]
@@ -1136,13 +1126,11 @@ def test_login_and_logout_write_audit_events(client):
     assert logout_response.status_code == 200
 
     with get_conn() as conn:
-        rows = conn.execute(
-            """
+        rows = conn.execute("""
             SELECT action, username
             FROM audit_events
             ORDER BY id
-            """
-        ).fetchall()
+            """).fetchall()
 
     assert [(row["action"], row["username"]) for row in rows] == [
         ("security.login", "user@example.com"),
@@ -1191,7 +1179,7 @@ def test_forced_change_user_can_log_out(client):
         "/api/security/logout",
         headers=csrf_headers(client),
     )
-    
+
     assert response.status_code == 200
     assert response.json() == {"logged_out": True}
 
@@ -1319,4 +1307,3 @@ def test_user_regains_protected_access_after_required_password_change(client):
 
     assert allowed_response.status_code == 200
     assert allowed_response.json()["users"][0]["must_change_password"] is False
-    

@@ -6,11 +6,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from authstatus_api.database import init_db
 from authstatus_api.errors import register_exception_handlers
 from authstatus_api.pdf_intake.router import (
     router as pdf_intake_router,
 )
+from authstatus_api.persistence.schema import init_db
 from authstatus_api.registered_options.router import (
     router as registered_options_router,
 )

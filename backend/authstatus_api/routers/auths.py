@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from authstatus_api.audit.service import audit_field_names, record_audit_event
-from authstatus_api.repository import (
+from authstatus_api.authorizations.repository import (
     create_auth,
     create_auth_event,
     delete_auth,
@@ -30,6 +30,7 @@ from authstatus_api.security.dependencies import get_current_user, require_role
 router = APIRouter(prefix="/api/auths", tags=["auths"])
 ReadAuthUser = Depends(get_current_user)
 WriteAuthUser = Depends(require_role("Admin", "UR"))
+
 
 @router.get("", response_model=AuthListResponse)
 def read_auths(current_user: dict = ReadAuthUser) -> AuthListResponse:
@@ -62,7 +63,9 @@ def read_auth(auth_id: int, current_user: dict = ReadAuthUser) -> AuthRecord:
     record = get_auth(auth_id)
 
     if record is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Auth record not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Auth record not found."
+        )
 
     return AuthRecord(**record)
 
@@ -78,7 +81,9 @@ def update_auth_record(
     record = update_auth(auth_id, payload_data)
 
     if record is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Auth record not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Auth record not found."
+        )
 
     record_audit_event(
         action="auth.update",
@@ -100,12 +105,18 @@ def read_auth_events(
     events = list_auth_events(auth_id)
 
     if events is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Auth record not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Auth record not found."
+        )
 
     return AuthEventListResponse(events=[AuthEventRecord(**event) for event in events])
 
 
-@router.post("/{auth_id}/events", response_model=AuthEventRecord, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{auth_id}/events",
+    response_model=AuthEventRecord,
+    status_code=status.HTTP_201_CREATED,
+)
 def create_auth_event_record(
     auth_id: int,
     payload: AuthEventCreate,
@@ -116,7 +127,9 @@ def create_auth_event_record(
     event = create_auth_event(auth_id, payload_data)
 
     if event is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Auth record not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Auth record not found."
+        )
 
     record_audit_event(
         action="auth_event.create",
@@ -128,6 +141,7 @@ def create_auth_event_record(
     )
 
     return AuthEventRecord(**event)
+
 
 @router.patch("/{auth_id}/events/{event_id}", response_model=AuthEventRecord)
 def update_auth_event_record(
@@ -141,7 +155,9 @@ def update_auth_event_record(
     event = update_auth_event(auth_id, event_id, payload_data)
 
     if event is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Auth event not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Auth event not found."
+        )
 
     record_audit_event(
         action="auth_event.update",
@@ -165,7 +181,9 @@ def delete_auth_event_record(
     deleted = delete_auth_event(auth_id, event_id)
 
     if not deleted:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Auth event not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Auth event not found."
+        )
 
     record_audit_event(
         action="auth_event.delete",
@@ -188,7 +206,9 @@ def delete_auth_record(
     deleted = delete_auth(auth_id)
 
     if not deleted:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Auth record not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Auth record not found."
+        )
 
     record_audit_event(
         action="auth.delete",

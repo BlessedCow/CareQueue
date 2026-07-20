@@ -4,7 +4,8 @@ import sqlite3
 from datetime import UTC, datetime
 from typing import Any, Literal
 
-from authstatus_api.database import get_conn, init_db
+from authstatus_api.persistence.connections import get_conn
+from authstatus_api.persistence.schema import init_db
 
 RegisteredOptionCategory = Literal[
     "facility",
@@ -87,11 +88,7 @@ def list_registered_options(
     with get_conn() as conn:
         rows = conn.execute(query, values).fetchall()
 
-    return [
-        option
-        for row in rows
-        if (option := _row_to_option(row)) is not None
-    ]
+    return [option for row in rows if (option := _row_to_option(row)) is not None]
 
 
 def get_registered_option(
