@@ -22,6 +22,20 @@ EXPECTED_DATABASE_DIRECTORY = (PROJECT_ROOT / "backend" / "data").resolve()
 EXPECTED_BACKUP_DIRECTORY = (PROJECT_ROOT / "backend" / "backups").resolve()
 EXPECTED_RESTORE_DIRECTORY = (PROJECT_ROOT / "backend" / "restores").resolve()
 
+MINIMUM_SQLCIPHER_KEY_LENGTH = 32
+
+PRODUCTION_SECRET_PLACEHOLDERS = {
+    "change-me",
+    "changeme",
+    "example",
+    "password",
+    "replace-me",
+    "replace-this",
+    "secret",
+    "test",
+    "your-key-here",
+}
+
 
 def resolve_project_path(path: Path) -> Path:
     if path.is_absolute():
@@ -40,6 +54,32 @@ def path_is_relative_to(
         return False
 
     return True
+
+
+def is_placeholder_secret(value: str) -> bool:
+    normalized_value = value.strip().lower().replace("_", "-")
+
+    if normalized_value in PRODUCTION_SECRET_PLACEHOLDERS:
+        return True
+
+    words = {part for part in normalized_value.split("-") if part}
+
+    placeholder_words = {
+        "change",
+        "example",
+        "here",
+        "key",
+        "me",
+        "password",
+        "replace",
+        "secret",
+        "test",
+        "this",
+        "value",
+        "your",
+    }
+
+    return bool(words) and words.issubset(placeholder_words)
 
 
 class Settings(BaseSettings):
@@ -280,8 +320,21 @@ class Settings(BaseSettings):
         if self.database_encryption != "sqlcipher":
             raise ValueError("Production requires SQLCipher database encryption.")
 
-        if not self.sqlcipher_key.strip():
+        sqlcipher_key = self.sqlcipher_key.strip()
+
+        if not sqlcipher_key:
             raise ValueError("Production requires AUTHSTATUS_SQLCIPHER_KEY.")
+
+        if len(sqlcipher_key) < MINIMUM_SQLCIPHER_KEY_LENGTH:
+            raise ValueError(
+                "Production AUTHSTATUS_SQLCIPHER_KEY must be at least "
+                f"{MINIMUM_SQLCIPHER_KEY_LENGTH} characters."
+            )
+
+        if is_placeholder_secret(sqlcipher_key):
+            raise ValueError(
+                "Production AUTHSTATUS_SQLCIPHER_KEY cannot use a " "placeholder value."
+            )
 
         encryption_key = self.encryption_key.strip()
 

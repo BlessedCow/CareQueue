@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import secrets
 from pathlib import Path
 
 import pytest
@@ -17,7 +18,7 @@ def valid_production_settings(**overrides):
     values = {
         "AUTHSTATUS_APP_ENVIRONMENT": "production",
         "AUTHSTATUS_DATABASE_ENCRYPTION": "sqlcipher",
-        "AUTHSTATUS_SQLCIPHER_KEY": "production sqlcipher passphrase",
+        "AUTHSTATUS_SQLCIPHER_KEY": secrets.token_urlsafe(32),
         "AUTHSTATUS_ENCRYPTION_KEY": encryption_key(),
         "AUTHSTATUS_BACKUP_ENCRYPTION_KEY": encryption_key(),
         "AUTHSTATUS_SESSION_COOKIE_SECURE": True,
@@ -228,6 +229,46 @@ def test_production_requires_sqlcipher_key():
         valid_production_settings(
             AUTHSTATUS_SQLCIPHER_KEY="",
         )
+
+
+def test_production_rejects_short_sqlcipher_key():
+    with pytest.raises(
+        ValidationError,
+        match="must be at least 32 characters",
+    ):
+        valid_production_settings(
+            AUTHSTATUS_SQLCIPHER_KEY="a" * 31,
+        )
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "change-me-change-me-change-me-value",
+        "CHANGE_ME_CHANGE_ME_CHANGE_ME_VALUE",
+        "password-password-password-password",
+        "replace-this-replace-this-value-value",
+        "your-key-here-your-key-here-value",
+    ],
+)
+def test_production_rejects_placeholder_sqlcipher_key(value):
+    with pytest.raises(
+        ValidationError,
+        match="cannot use a placeholder value",
+    ):
+        valid_production_settings(
+            AUTHSTATUS_SQLCIPHER_KEY=value,
+        )
+
+
+def test_production_accepts_minimum_length_sqlcipher_key():
+    sqlcipher_key = "a" * 32
+
+    settings = valid_production_settings(
+        AUTHSTATUS_SQLCIPHER_KEY=sqlcipher_key,
+    )
+
+    assert settings.sqlcipher_key == sqlcipher_key
 
 
 def test_production_requires_field_encryption_key():
