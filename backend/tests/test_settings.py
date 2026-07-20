@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from cryptography.fernet import Fernet
 from pydantic import ValidationError
 
-from authstatus_api.settings import Settings
+from authstatus_api.settings import PROJECT_ROOT, Settings
 
 
 def encryption_key() -> str:
@@ -278,4 +280,94 @@ def test_production_requires_separate_encryption_keys():
         valid_production_settings(
             AUTHSTATUS_ENCRYPTION_KEY=shared_key,
             AUTHSTATUS_BACKUP_ENCRYPTION_KEY=shared_key,
+        )
+
+
+def test_production_rejects_database_path_outside_data_directory():
+    with pytest.raises(
+        ValidationError,
+        match="database paths must resolve under backend/data",
+    ):
+        valid_production_settings(
+            AUTHSTATUS_DATABASE_PATH=Path("production/auth_tracker.sqlcipher.db"),
+        )
+
+
+def test_production_allows_explicit_external_database_path():
+    database_path = PROJECT_ROOT / "production" / "auth_tracker.sqlcipher.db"
+
+    settings = valid_production_settings(
+        AUTHSTATUS_DATABASE_PATH=database_path,
+        AUTHSTATUS_ALLOW_UNSAFE_DATABASE_PATH=True,
+    )
+
+    assert settings.database_path == database_path
+
+
+def test_production_rejects_external_backup_directory():
+    with pytest.raises(
+        ValidationError,
+        match="backup directories must resolve under backend/backups",
+    ):
+        valid_production_settings(
+            AUTHSTATUS_BACKUP_DIRECTORY=Path("production/backups"),
+        )
+
+
+def test_production_rejects_external_restore_directory():
+    with pytest.raises(
+        ValidationError,
+        match="restore directories must resolve under backend/restores",
+    ):
+        valid_production_settings(
+            AUTHSTATUS_RESTORE_DIRECTORY=Path("production/restores"),
+        )
+
+
+def test_production_allows_explicit_external_storage_directories():
+    backup_directory = PROJECT_ROOT / "production" / "backups"
+    restore_directory = PROJECT_ROOT / "production" / "restores"
+
+    settings = valid_production_settings(
+        AUTHSTATUS_BACKUP_DIRECTORY=backup_directory,
+        AUTHSTATUS_RESTORE_DIRECTORY=restore_directory,
+        AUTHSTATUS_ALLOW_UNSAFE_STORAGE_PATHS=True,
+    )
+
+    assert settings.backup_directory == backup_directory
+    assert settings.restore_directory == restore_directory
+
+
+def test_production_rejects_shared_backup_and_restore_directory():
+    with pytest.raises(
+        ValidationError,
+        match="backup and restore directories must be different",
+    ):
+        valid_production_settings(
+            AUTHSTATUS_RESTORE_DIRECTORY=Path("backend/backups"),
+            AUTHSTATUS_ALLOW_UNSAFE_STORAGE_PATHS=True,
+        )
+
+
+def test_production_rejects_overlapping_storage_directories():
+    with pytest.raises(
+        ValidationError,
+        match="backup and restore directories cannot overlap",
+    ):
+        valid_production_settings(
+            AUTHSTATUS_BACKUP_DIRECTORY=Path("backend/backups"),
+            AUTHSTATUS_RESTORE_DIRECTORY=Path("backend/backups/restores"),
+            AUTHSTATUS_ALLOW_UNSAFE_STORAGE_PATHS=True,
+        )
+
+
+def test_production_rejects_database_inside_backup_directory():
+    with pytest.raises(
+        ValidationError,
+        match="database files cannot be stored inside",
+    ):
+        valid_production_settings(
+            AUTHSTATUS_DATABASE_PATH=Path("backend/backups/auth_tracker.sqlcipher.db"),
+            AUTHSTATUS_ALLOW_UNSAFE_DATABASE_PATH=True,
+            AUTHSTATUS_ALLOW_UNSAFE_STORAGE_PATHS=True,
         )

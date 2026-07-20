@@ -416,8 +416,6 @@ npm run build
 
 ## Files That Should Not Be Committed
 
-## Files That Should Not Be Committed
-
 The following files and directories are local runtime data, generated artifacts, or sensitive configuration and should remain ignored:
 
 ```text

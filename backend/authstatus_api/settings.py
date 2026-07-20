@@ -18,6 +18,9 @@ PACKAGE_ROOT = Path(__file__).resolve().parents[0]
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 ROOT_ENV_FILE = PROJECT_ROOT / ".env"
+EXPECTED_DATABASE_DIRECTORY = (PROJECT_ROOT / "backend" / "data").resolve()
+EXPECTED_BACKUP_DIRECTORY = (PROJECT_ROOT / "backend" / "backups").resolve()
+EXPECTED_RESTORE_DIRECTORY = (PROJECT_ROOT / "backend" / "restores").resolve()
 
 
 def resolve_project_path(path: Path) -> Path:
@@ -25,6 +28,18 @@ def resolve_project_path(path: Path) -> Path:
         return path.resolve()
 
     return (PROJECT_ROOT / path).resolve()
+
+
+def path_is_relative_to(
+    path: Path,
+    parent: Path,
+) -> bool:
+    try:
+        path.relative_to(parent)
+    except ValueError:
+        return False
+
+    return True
 
 
 class Settings(BaseSettings):
@@ -46,6 +61,10 @@ class Settings(BaseSettings):
     allow_unsafe_database_path: bool = Field(
         default=False,
         validation_alias="AUTHSTATUS_ALLOW_UNSAFE_DATABASE_PATH",
+    )
+    allow_unsafe_storage_paths: bool = Field(
+        default=False,
+        validation_alias="AUTHSTATUS_ALLOW_UNSAFE_STORAGE_PATHS",
     )
     encryption_key: str = Field(
         default="", validation_alias="AUTHSTATUS_ENCRYPTION_KEY"
@@ -202,6 +221,61 @@ class Settings(BaseSettings):
     def validate_production_security(self) -> Settings:
         if self.app_environment != "production":
             return self
+
+        database_path = resolve_project_path(self.database_path)
+        backup_directory = resolve_project_path(self.backup_directory)
+        restore_directory = resolve_project_path(self.restore_directory)
+
+        if not self.allow_unsafe_database_path and not path_is_relative_to(
+            database_path,
+            EXPECTED_DATABASE_DIRECTORY,
+        ):
+            raise ValueError(
+                "Production database paths must resolve under "
+                "backend/data unless "
+                "AUTHSTATUS_ALLOW_UNSAFE_DATABASE_PATH is enabled."
+            )
+
+        if not self.allow_unsafe_storage_paths:
+            if not path_is_relative_to(
+                backup_directory,
+                EXPECTED_BACKUP_DIRECTORY,
+            ):
+                raise ValueError(
+                    "Production backup directories must resolve under "
+                    "backend/backups unless "
+                    "AUTHSTATUS_ALLOW_UNSAFE_STORAGE_PATHS is enabled."
+                )
+
+            if not path_is_relative_to(
+                restore_directory,
+                EXPECTED_RESTORE_DIRECTORY,
+            ):
+                raise ValueError(
+                    "Production restore directories must resolve under "
+                    "backend/restores unless "
+                    "AUTHSTATUS_ALLOW_UNSAFE_STORAGE_PATHS is enabled."
+                )
+
+        if backup_directory == restore_directory:
+            raise ValueError(
+                "Production backup and restore directories must be different."
+            )
+
+        if path_is_relative_to(
+            backup_directory, restore_directory
+        ) or path_is_relative_to(restore_directory, backup_directory):
+            raise ValueError(
+                "Production backup and restore directories cannot overlap."
+            )
+
+        if path_is_relative_to(database_path, backup_directory) or path_is_relative_to(
+            database_path, restore_directory
+        ):
+            raise ValueError(
+                "Production database files cannot be stored inside "
+                "backup or restore directories."
+            )
 
         if self.database_encryption != "sqlcipher":
             raise ValueError("Production requires SQLCipher database encryption.")
