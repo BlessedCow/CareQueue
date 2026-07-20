@@ -1,6 +1,50 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from datetime import date
+
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
+
+DATE_FORMAT_MESSAGE = "Date values must use YYYY-MM-DD format."
+
+
+def validate_optional_date(
+    value: str | None,
+    *,
+    field_name: str,
+) -> str | None:
+    if value is None:
+        return None
+
+    normalized_value = value.strip()
+
+    if not normalized_value:
+        return ""
+
+    try:
+        date.fromisoformat(normalized_value)
+    except ValueError as exc:
+        raise ValueError(f"{field_name}: {DATE_FORMAT_MESSAGE}") from exc
+
+    return normalized_value
+
+
+def validate_date_range(
+    start_value: str | None,
+    end_value: str | None,
+) -> None:
+    if not start_value or not end_value:
+        return
+
+    if date.fromisoformat(end_value) < date.fromisoformat(start_value):
+        raise ValueError(
+            "Authorization end date cannot be before " "the authorization start date."
+        )
 
 
 class AuthBase(BaseModel):
@@ -38,6 +82,44 @@ class AuthBase(BaseModel):
     review_due_date: str = ""
     submitted_at: str | None = None
     decision_at: str | None = None
+
+    @field_validator(
+        "date_of_birth",
+        "auth_start_date",
+        "auth_end_date",
+        "review_due_date",
+        mode="before",
+    )
+    @classmethod
+    def validate_date_fields(
+        cls,
+        value: str | None,
+        info,
+    ) -> str | None:
+        return validate_optional_date(
+            value,
+            field_name=info.field_name,
+        )
+
+    @field_validator("date_of_birth")
+    @classmethod
+    def reject_future_date_of_birth(
+        cls,
+        value: str,
+    ) -> str:
+        if value and date.fromisoformat(value) > date.today():
+            raise ValueError("Date of birth cannot be in the future.")
+
+        return value
+
+    @model_validator(mode="after")
+    def validate_authorization_dates(self) -> AuthBase:
+        validate_date_range(
+            self.auth_start_date,
+            self.auth_end_date,
+        )
+
+        return self
 
 
 class AuthCreate(AuthBase):
@@ -82,6 +164,44 @@ class AuthUpdate(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    @field_validator(
+        "date_of_birth",
+        "auth_start_date",
+        "auth_end_date",
+        "review_due_date",
+        mode="before",
+    )
+    @classmethod
+    def validate_date_fields(
+        cls,
+        value: str | None,
+        info,
+    ) -> str | None:
+        return validate_optional_date(
+            value,
+            field_name=info.field_name,
+        )
+
+    @field_validator("date_of_birth")
+    @classmethod
+    def reject_future_date_of_birth(
+        cls,
+        value: str | None,
+    ) -> str | None:
+        if value and date.fromisoformat(value) > date.today():
+            raise ValueError("Date of birth cannot be in the future.")
+
+        return value
+
+    @model_validator(mode="after")
+    def validate_authorization_dates(self) -> AuthUpdate:
+        validate_date_range(
+            self.auth_start_date,
+            self.auth_end_date,
+        )
+
+        return self
+
 
 class AuthRecord(AuthBase):
     id: int
@@ -111,6 +231,33 @@ class AuthEventBase(BaseModel):
     auth_end_date: str = ""
     review_due_date: str = ""
 
+    @field_validator(
+        "event_date",
+        "auth_start_date",
+        "auth_end_date",
+        "review_due_date",
+        mode="before",
+    )
+    @classmethod
+    def validate_date_fields(
+        cls,
+        value: str | None,
+        info,
+    ) -> str | None:
+        return validate_optional_date(
+            value,
+            field_name=info.field_name,
+        )
+
+    @model_validator(mode="after")
+    def validate_authorization_dates(self) -> AuthEventBase:
+        validate_date_range(
+            self.auth_start_date,
+            self.auth_end_date,
+        )
+
+        return self
+
 
 class AuthEventCreate(AuthEventBase):
     model_config = ConfigDict(extra="forbid")
@@ -130,6 +277,35 @@ class AuthEventUpdate(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    @field_validator(
+        "event_date",
+        "auth_start_date",
+        "auth_end_date",
+        "review_due_date",
+        mode="before",
+    )
+    @classmethod
+    def validate_date_fields(
+        cls,
+        value: str | None,
+        info,
+    ) -> str | None:
+        return validate_optional_date(
+            value,
+            field_name=info.field_name,
+        )
+
+    @model_validator(mode="after")
+    def validate_authorization_dates(
+        self,
+    ) -> AuthEventUpdate:
+        validate_date_range(
+            self.auth_start_date,
+            self.auth_end_date,
+        )
+
+        return self
+
 
 class AuthEventRecord(AuthEventBase):
     id: int
@@ -140,11 +316,12 @@ class AuthEventRecord(AuthEventBase):
 
 class AuthEventListResponse(BaseModel):
     events: list[AuthEventRecord]
-    
+
 
 class DeleteResponse(BaseModel):
     deleted: bool
     id: int
+
 
 class AnalyticsSummaryResponse(BaseModel):
     total_auths: int
