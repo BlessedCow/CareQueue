@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import UTC, datetime
 from typing import Any
 
 from authstatus_api.persistence.connections import get_conn
 from authstatus_api.persistence.schema import init_db
+from backend.authstatus_api.security.mappings import (
+    format_datetime,
+    parse_datetime,
+    session_row_to_dict,
+    user_row_to_dict,
+)
 from authstatus_api.security.password_hashing import hash_password, verify_password
 from authstatus_api.security.sessions import (
     DEFAULT_SESSION_MINUTES,
@@ -15,32 +20,6 @@ from authstatus_api.security.sessions import (
     session_expiration,
     utc_now,
 )
-
-
-def _format_datetime(value: datetime) -> str:
-    return value.astimezone(UTC).isoformat(timespec="seconds")
-
-
-def _parse_datetime(value: str) -> datetime:
-    return datetime.fromisoformat(value).astimezone(UTC)
-
-
-def _row_to_user(row: Any) -> dict[str, Any] | None:
-    if row is None:
-        return None
-
-    user = dict(row)
-    user["is_active"] = bool(user["is_active"])
-    user["must_change_password"] = bool(user["must_change_password"])
-
-    return user
-
-
-def _row_to_session(row: Any) -> dict[str, Any] | None:
-    if row is None:
-        return None
-
-    return dict(row)
 
 
 def create_user(
@@ -53,7 +32,7 @@ def create_user(
     init_db()
 
     normalized_username = username.strip().lower()
-    now = _format_datetime(utc_now())
+    now = format_datetime(utc_now())
     password_hash = hash_password(password)
 
     with get_conn() as conn:
@@ -103,7 +82,7 @@ def get_user_by_id(user_id: int) -> dict[str, Any] | None:
             (user_id,),
         ).fetchone()
 
-    return _row_to_user(row)
+    return user_row_to_dict(row)
 
 
 def get_user_by_username(username: str) -> dict[str, Any] | None:
@@ -121,7 +100,7 @@ def get_user_by_username(username: str) -> dict[str, Any] | None:
             (normalized_username,),
         ).fetchone()
 
-    return _row_to_user(row)
+    return user_row_to_dict(row)
 
 
 def list_users() -> list[dict[str, Any]]:
@@ -134,7 +113,7 @@ def list_users() -> list[dict[str, Any]]:
             ORDER BY username
             """).fetchall()
 
-    return [_row_to_user(row) for row in rows if row is not None]
+    return [user_row_to_dict(row) for row in rows if row is not None]
 
 
 def update_user(
@@ -160,7 +139,7 @@ def update_user(
         return get_user_by_id(user_id)
 
     updates.append("updated_at = ?")
-    values.append(_format_datetime(utc_now()))
+    values.append(format_datetime(utc_now()))
     values.append(user_id)
 
     try:
@@ -190,7 +169,7 @@ def update_user_password(
 ) -> dict[str, Any] | None:
     init_db()
 
-    now = _format_datetime(utc_now())
+    now = format_datetime(utc_now())
     password_hash = hash_password(new_password)
 
     with get_conn() as conn:
@@ -222,7 +201,7 @@ def update_user_password(
 def revoke_user_sessions(user_id: int) -> int:
     init_db()
 
-    now = _format_datetime(utc_now())
+    now = format_datetime(utc_now())
 
     with get_conn() as conn:
         cursor = conn.execute(
@@ -252,8 +231,8 @@ def create_user_session(
 
     token = generate_session_token()
     token_hash = hash_session_token(token)
-    now = _format_datetime(utc_now())
-    expires_at = _format_datetime(session_expiration(minutes=minutes))
+    now = format_datetime(utc_now())
+    expires_at = format_datetime(session_expiration(minutes=minutes))
 
     with get_conn() as conn:
         cursor = conn.execute(
@@ -305,7 +284,7 @@ def get_session_by_id(session_id: int) -> dict[str, Any] | None:
             (session_id,),
         ).fetchone()
 
-    return _row_to_session(row)
+    return session_row_to_dict(row)
 
 
 def get_active_session_by_token(token: str) -> dict[str, Any] | None:
@@ -324,12 +303,12 @@ def get_active_session_by_token(token: str) -> dict[str, Any] | None:
             (token_hash,),
         ).fetchone()
 
-    session = _row_to_session(row)
+    session = session_row_to_dict(row)
 
     if session is None:
         return None
 
-    if is_session_expired(_parse_datetime(session["expires_at"])):
+    if is_session_expired(parse_datetime(session["expires_at"])):
         return None
 
     return session
@@ -339,7 +318,7 @@ def touch_session(token: str) -> None:
     init_db()
 
     token_hash = hash_session_token(token)
-    now = _format_datetime(utc_now())
+    now = format_datetime(utc_now())
 
     with get_conn() as conn:
         conn.execute(
@@ -357,7 +336,7 @@ def revoke_session(token: str) -> bool:
     init_db()
 
     token_hash = hash_session_token(token)
-    now = _format_datetime(utc_now())
+    now = format_datetime(utc_now())
 
     with get_conn() as conn:
         cursor = conn.execute(
@@ -376,7 +355,7 @@ def revoke_session(token: str) -> bool:
 def record_successful_login(user_id: int) -> None:
     init_db()
 
-    now = _format_datetime(utc_now())
+    now = format_datetime(utc_now())
 
     with get_conn() as conn:
         conn.execute(

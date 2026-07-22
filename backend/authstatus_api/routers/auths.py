@@ -3,16 +3,18 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from authstatus_api.audit.service import audit_field_names, record_audit_event
-from authstatus_api.authorizations.repository import (
-    create_auth,
+from authstatus_api.authorizations.events import (
     create_auth_event,
-    delete_auth,
     delete_auth_event,
-    get_auth,
     list_auth_events,
+    update_auth_event,
+)
+from authstatus_api.authorizations.records import (
+    create_auth,
+    delete_auth,
+    get_auth,
     list_auths,
     update_auth,
-    update_auth_event,
 )
 from authstatus_api.schemas import (
     AuthCreate,

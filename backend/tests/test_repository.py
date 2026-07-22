@@ -5,18 +5,20 @@ import sqlite3
 import pytest
 
 from authstatus_api import crypto
-from authstatus_api.authorizations.repository import (
-    create_auth,
+from authstatus_api.authorizations.analytics import get_analytics_summary
+from authstatus_api.authorizations.events import (
     create_auth_event,
-    delete_auth,
     delete_auth_event,
-    get_analytics_summary,
-    get_auth,
     get_auth_event,
     list_auth_events,
+    update_auth_event,
+)
+from authstatus_api.authorizations.records import (
+    create_auth,
+    delete_auth,
+    get_auth,
     list_auths,
     update_auth,
-    update_auth_event,
 )
 from authstatus_api.settings import get_settings
 
