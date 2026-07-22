@@ -19,7 +19,7 @@ from authstatus_api.pdf_intake.templates.standard_vob import (
     StandardVobExtraction,
 )
 from authstatus_api.persistence.connections import get_conn
-from authstatus_api.security.repository import create_user
+from authstatus_api.security.users import create_user
 from authstatus_api.settings import get_settings
 
 

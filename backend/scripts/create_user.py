@@ -19,7 +19,7 @@ os.environ.setdefault(
     str(PROJECT_ROOT / "backend" / "data" / "auth_tracker.db"),
 )
 
-from authstatus_api.security.repository import create_user  # noqa: E402
+from authstatus_api.security.users import create_user  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:

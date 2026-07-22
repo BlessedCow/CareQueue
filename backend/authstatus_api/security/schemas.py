@@ -45,8 +45,8 @@ class AdminPasswordResetResponse(BaseModel):
     temporary_password: str
     sessions_revoked: int
     must_change_password: bool
-    
-    
+
+
 class UserResponse(BaseModel):
     id: int
     username: str
@@ -59,7 +59,7 @@ class UserResponse(BaseModel):
 
 class AdminUserCreateResponse(BaseModel):
     user: UserResponse
-    temporary_password: str    
+    temporary_password: str
 
 
 class UserListResponse(BaseModel):

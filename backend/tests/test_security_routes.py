@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from authstatus_api.crypto import generate_encryption_key
 from authstatus_api.main import create_app
 from authstatus_api.persistence.connections import get_conn
-from authstatus_api.security.repository import create_user
+from authstatus_api.security.users import create_user
 from authstatus_api.settings import get_settings
 
 

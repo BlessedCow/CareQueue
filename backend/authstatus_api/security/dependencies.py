@@ -5,9 +5,7 @@ from collections.abc import Callable
 from fastapi import Depends, HTTPException, Request, status
 
 from authstatus_api.security.csrf import validate_csrf_request
-from authstatus_api.security.repository import (
-    get_user_for_session_token,
-)
+from authstatus_api.security.users import get_user_for_session_token
 from authstatus_api.settings import get_settings
 
 

@@ -21,18 +21,6 @@ from authstatus_api.security.dependencies import (
     require_role,
 )
 from authstatus_api.security.password_hashing import verify_password
-from authstatus_api.security.repository import (
-    authenticate_user,
-    create_user,
-    create_user_session,
-    get_user_by_id,
-    get_user_for_session_token,
-    list_users,
-    revoke_session,
-    revoke_user_sessions,
-    update_user,
-    update_user_password,
-)
 from authstatus_api.security.schemas import (
     AdminPasswordResetResponse,
     AdminUserCreateResponse,
@@ -51,9 +39,21 @@ from authstatus_api.security.schemas import (
 )
 from authstatus_api.security.sessions import (
     DEFAULT_SESSION_MINUTES,
+    create_user_session,
+    revoke_session,
+    revoke_user_sessions,
 )
 from authstatus_api.security.temporary_passwords import (
     generate_temporary_password,
+)
+from authstatus_api.security.users import (
+    authenticate_user,
+    create_user,
+    get_user_by_id,
+    get_user_for_session_token,
+    list_users,
+    update_user,
+    update_user_password,
 )
 from authstatus_api.settings import get_settings
 
@@ -104,10 +104,7 @@ def read_audit_events(
     )
 
     return AuditEventListResponse(
-        events=[
-            AuditEventResponse(**event)
-            for event in result["events"]
-        ],
+        events=[AuditEventResponse(**event) for event in result["events"]],
         page=result["page"],
         page_size=result["page_size"],
         total=result["total"],
@@ -348,7 +345,7 @@ def login(
         samesite="lax",
         path="/api",
     )
-    
+
     response.set_cookie(
         key=settings.csrf_cookie_name,
         value=csrf_token,
@@ -358,7 +355,7 @@ def login(
         samesite="lax",
         path="/",
     )
-    
+
     record_audit_event(
         action="security.login",
         resource_type="session",
@@ -398,7 +395,7 @@ def logout(
         secure=settings.session_cookie_secure,
         samesite="lax",
     )
-    
+
     response.delete_cookie(
         key=settings.csrf_cookie_name,
         path="/",
@@ -416,6 +413,7 @@ def logout(
         )
 
     return LogoutResponse(logged_out=logged_out)
+
 
 @router.get("/me", response_model=CurrentUserResponse)
 def read_current_user(

@@ -1,26 +1,18 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from authstatus_api.persistence.connections import get_conn
 from authstatus_api.security.password_hashing import verify_password
-from authstatus_api.security.repository import (
+from authstatus_api.security.users import (
     create_user,
-    create_user_session,
-    get_active_session_by_token,
     get_user_by_id,
     get_user_by_username,
     list_users,
-    revoke_session,
-    revoke_user_sessions,
-    touch_session,
     update_user,
     update_user_password,
 )
-from authstatus_api.security.sessions import hash_session_token
 from authstatus_api.settings import get_settings
 
 
@@ -183,104 +175,8 @@ def test_update_user_password_returns_none_for_missing_user():
     )
 
 
-def test_revoke_user_sessions_revokes_all_active_sessions():
-    user = create_user(
-        "revoke-all@example.com",
-        "password value",
-        role="UR",
-    )
-    first_session = create_user_session(user["id"])
-    second_session = create_user_session(user["id"])
-
-    revoked_count = revoke_user_sessions(user["id"])
-
-    assert revoked_count == 2
-    assert get_active_session_by_token(first_session["token"]) is None
-    assert get_active_session_by_token(second_session["token"]) is None
-
-
 def test_create_user_rejects_duplicate_username():
     create_user("duplicate@example.com", "password value", role="UR")
 
     with pytest.raises(sqlite3.IntegrityError):
         create_user("DUPLICATE@example.com", "password value", role="UR")
-
-
-def test_create_user_session_returns_raw_token_once_and_stores_hash():
-    user = create_user("session@example.com", "password value", role="UR")
-
-    created_session = create_user_session(
-        user["id"],
-        ip_address="127.0.0.1",
-        user_agent="pytest",
-    )
-
-    token = created_session["token"]
-    session = created_session["session"]
-
-    assert token
-    assert session["user_id"] == user["id"]
-    assert session["token_hash"] == hash_session_token(token)
-    assert session["token_hash"] != token
-    assert session["ip_address"] == "127.0.0.1"
-    assert session["user_agent"] == "pytest"
-
-
-def test_get_active_session_by_token_returns_active_session():
-    user = create_user("active@example.com", "password value", role="UR")
-    created_session = create_user_session(user["id"])
-
-    session = get_active_session_by_token(created_session["token"])
-
-    assert session is not None
-    assert session["id"] == created_session["session"]["id"]
-
-
-def test_get_active_session_by_token_rejects_unknown_token():
-    assert get_active_session_by_token("unknown-token") is None
-
-
-def test_get_active_session_by_token_rejects_expired_session():
-    user = create_user("expired@example.com", "password value", role="UR")
-    created_session = create_user_session(user["id"])
-    expired_at = (datetime.now(UTC) - timedelta(minutes=1)).isoformat(
-        timespec="seconds"
-    )
-
-    with get_conn() as conn:
-        conn.execute(
-            """
-            UPDATE sessions
-            SET expires_at = ?
-            WHERE id = ?
-            """,
-            (expired_at, created_session["session"]["id"]),
-        )
-
-    assert get_active_session_by_token(created_session["token"]) is None
-
-
-def test_touch_session_updates_last_seen_at():
-    user = create_user("touch@example.com", "password value", role="UR")
-    created_session = create_user_session(user["id"])
-
-    before = created_session["session"]["last_seen_at"]
-
-    touch_session(created_session["token"])
-
-    refreshed = get_active_session_by_token(created_session["token"])
-
-    assert refreshed is not None
-    assert refreshed["last_seen_at"] >= before
-
-
-def test_revoke_session_revokes_active_session():
-    user = create_user("revoke@example.com", "password value", role="UR")
-    created_session = create_user_session(user["id"])
-
-    assert revoke_session(created_session["token"]) is True
-    assert get_active_session_by_token(created_session["token"]) is None
-
-
-def test_revoke_session_returns_false_for_unknown_token():
-    assert revoke_session("unknown-token") is False

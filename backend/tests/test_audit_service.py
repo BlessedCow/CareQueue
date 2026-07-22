@@ -12,7 +12,7 @@ from authstatus_api.audit.service import (
 from authstatus_api.crypto import generate_encryption_key
 from authstatus_api.persistence.connections import get_conn
 from authstatus_api.persistence.schema import init_db
-from authstatus_api.security.repository import create_user
+from authstatus_api.security.users import create_user
 from authstatus_api.settings import get_settings
 
 
